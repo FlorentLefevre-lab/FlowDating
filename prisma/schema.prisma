@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enum pour définir les méthodes d'authentification
+enum AuthMethod {
+  EMAIL_PASSWORD
+  GOOGLE
+  FACEBOOK
+  TWITTER
+  APPLE
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id                  String      @id @default(cuid())
+  name                String?
+  email               String      @unique
+  emailVerified       DateTime?
+  image               String?
+  hashedPassword      String?     // Pour l'authentification par email/password
+  primaryAuthMethod   AuthMethod  @default(EMAIL_PASSWORD) // Méthode de connexion principale avec valeur par défaut
+  age                 Int?
+  bio                 String?     @db.Text
+  location            String?
+  interests           String[]
+  photos              Photo[]
+  preferences         UserPreferences?
+  
+  accounts            Account[]
+  sessions            Session[]
+  sentLikes           Like[]      @relation("LikeSender")
+  receivedLikes       Like[]      @relation("LikeReceiver")
+  sentMessages        Message[]   @relation("MessageSender")
+  receivedMessages    Message[]   @relation("MessageReceiver")
+  matches             Match[]     @relation("UserMatches")
+  
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+}
+
+model Photo {
+  id        String   @id @default(cuid())
+  url       String
+  userId    String
+  isPrimary Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model UserPreferences {
+  id           String @id @default(cuid())
+  userId       String @unique
+  minAge       Int    @default(18)
+  maxAge       Int    @default(100)
+  maxDistance  Int    @default(50)
+  gender       String?
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Like {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  sender     User     @relation("LikeSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User     @relation("LikeReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([senderId, receiverId])
+}
+
+model Match {
+  id        String    @id @default(cuid())
+  users     User[]    @relation("UserMatches")
+  messages  Message[]
+  createdAt DateTime  @default(now())
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  senderId  String
+  receiverId String
+  matchId   String
+  sender    User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver  User     @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  readAt    DateTime?
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
