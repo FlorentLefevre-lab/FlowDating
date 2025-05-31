@@ -5,7 +5,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center">
       <div className="text-center">
         <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          💕 Bienvenue sur LoveApp
+          💕 Bienvenue sur Flow Dating ...
         </h1>
         <p className="text-xl text-gray-600 mb-8">
           Trouvez l'amour de votre vie

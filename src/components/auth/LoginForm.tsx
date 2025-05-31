@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { signIn, getSession } from 'next-auth/react'
+import { signIn } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -157,6 +157,13 @@ export default function LoginForm() {
         Pas encore de compte ?{' '}
         <a href="/auth/register" className="text-pink-600 hover:text-pink-500">
           S'inscrire
+        </a>
+      </p>
+
+      {/* Mot de passe oublié */}
+      <p className="mt-3 text-center text-sm text-gray-600">
+        <a href="/auth/forgot-password" className="text-gray-500 hover:text-gray-700">
+          Mot de passe oublié ?
         </a>
       </p>
     </div>
