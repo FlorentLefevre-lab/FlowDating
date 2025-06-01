@@ -1,23 +1,23 @@
+// src/app/api/profile/photos/[photoId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { PrismaClient } from '@prisma/client';
 
+// Singleton pour Prisma
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
-
 const prisma = globalForPrisma.prisma ?? new PrismaClient();
-
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// DELETE - Supprimer une photo par ID
+// DELETE - Supprimer une photo
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { photoId: string } }
 ) {
   try {
-    console.log('🗑️ API DELETE photo, ID:', params.id);
+    console.log('🗑️ API DELETE photo:', params.photoId);
     
     const session = await getServerSession(authOptions);
     
@@ -33,13 +33,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
     }
 
-    const photoId = params.id;
-
     // Vérifier que la photo appartient à l'utilisateur
     const photo = await prisma.photo.findFirst({
-      where: { 
-        id: photoId,
-        userId: user.id 
+      where: {
+        id: params.photoId,
+        userId: user.id
       }
     });
 
@@ -47,46 +45,31 @@ export async function DELETE(
       return NextResponse.json({ error: 'Photo non trouvée' }, { status: 404 });
     }
 
-    // Si c'est la photo principale, définir une autre comme principale
-    if (photo.isPrimary) {
-      const nextPhoto = await prisma.photo.findFirst({
-        where: { 
-          userId: user.id,
-          id: { not: photoId }
-        },
-        orderBy: { createdAt: 'asc' }
-      });
-
-      if (nextPhoto) {
-        await prisma.photo.update({
-          where: { id: nextPhoto.id },
-          data: { isPrimary: true }
-        });
-      }
-    }
-
+    // Supprimer la photo
     await prisma.photo.delete({
-      where: { id: photoId }
+      where: { id: params.photoId }
     });
 
-    console.log('✅ Photo supprimée avec succès');
-    return NextResponse.json({ success: true });
-    
+    console.log('✅ Photo supprimée:', params.photoId);
+
+    return NextResponse.json({ message: 'Photo supprimée' }, { status: 200 });
+
   } catch (error) {
     console.error('❌ Erreur DELETE photo:', error);
-    return NextResponse.json({ 
-      error: 'Erreur lors de la suppression de la photo' 
-    }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Erreur lors de la suppression' }, 
+      { status: 500 }
+    );
   }
 }
 
-// PUT - Mettre à jour une photo (photo principale)
+// PUT - Mettre à jour une photo (ex: définir comme principale)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { photoId: string } }
 ) {
   try {
-    console.log('⭐ API PUT photo, ID:', params.id);
+    console.log('⭐ API PUT photo:', params.photoId);
     
     const session = await getServerSession(authOptions);
     
@@ -102,13 +85,14 @@ export async function PUT(
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
     }
 
-    const photoId = params.id;
+    const body = await request.json();
+    const { isPrimary } = body;
 
     // Vérifier que la photo appartient à l'utilisateur
     const photo = await prisma.photo.findFirst({
-      where: { 
-        id: photoId,
-        userId: user.id 
+      where: {
+        id: params.photoId,
+        userId: user.id
       }
     });
 
@@ -116,28 +100,32 @@ export async function PUT(
       return NextResponse.json({ error: 'Photo non trouvée' }, { status: 404 });
     }
 
-    // Retirer le statut principal de toutes les autres photos
-    await prisma.photo.updateMany({
-      where: { 
-        userId: user.id,
-        id: { not: photoId }
-      },
-      data: { isPrimary: false }
-    });
+    // Si on définit cette photo comme principale, retirer le statut des autres
+    if (isPrimary) {
+      await prisma.photo.updateMany({
+        where: { 
+          userId: user.id,
+          id: { not: params.photoId }
+        },
+        data: { isPrimary: false }
+      });
+    }
 
-    // Définir cette photo comme principale
+    // Mettre à jour la photo
     const updatedPhoto = await prisma.photo.update({
-      where: { id: photoId },
-      data: { isPrimary: true }
+      where: { id: params.photoId },
+      data: { isPrimary }
     });
 
-    console.log('✅ Photo principale mise à jour');
-    return NextResponse.json(updatedPhoto);
-    
+    console.log('✅ Photo mise à jour:', updatedPhoto);
+
+    return NextResponse.json(updatedPhoto, { status: 200 });
+
   } catch (error) {
     console.error('❌ Erreur PUT photo:', error);
-    return NextResponse.json({ 
-      error: 'Erreur lors de la mise à jour de la photo' 
-    }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Erreur lors de la mise à jour' }, 
+      { status: 500 }
+    );
   }
 }

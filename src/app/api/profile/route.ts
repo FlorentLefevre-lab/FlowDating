@@ -1,232 +1,219 @@
+// src/app/api/profile/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth'; // Ajustez selon votre config
 import { PrismaClient } from '@prisma/client';
 
-// Singleton pour Prisma (évite les multiples connexions)
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+const prisma = new PrismaClient();
 
-const prisma = globalForPrisma.prisma ?? new PrismaClient();
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
-
-// POST - Ajouter une photo
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
-    }
-
-    const body = await request.json();
-    const { imageUrl } = body;
-
-    // Debug logs
-    console.log('Body reçu:', body);
-    console.log('ImageUrl:', imageUrl);
-
-    if (!imageUrl) {
-      console.log('Erreur: URL de l\'image manquante');
-      return NextResponse.json({ error: 'URL de l\'image requise' }, { status: 400 });
-    }
-
-    // Vérifier le nombre de photos existantes
-    const existingPhotos = await prisma.photo.count({
-      where: { userId: user.id }
-    });
-
-    console.log('Nombre de photos existantes:', existingPhotos);
-
-    if (existingPhotos >= 6) {
-      console.log('Erreur: Maximum 6 photos atteint');
-      return NextResponse.json({ error: 'Maximum 6 photos autorisées' }, { status: 400 });
-    }
-
-    const photo = await prisma.photo.create({
-      data: {
-        userId: user.id,
-        url: imageUrl,
-        isPrimary: existingPhotos === 0
-      }
-    });
-
-    return NextResponse.json(photo, { status: 201 });
-    
-  } catch (error) {
-    console.error('Erreur POST photos:', error);
-    return NextResponse.json({ error: 'Erreur lors de l\'ajout de la photo' }, { status: 500 });
-  }
-}
-
-// GET - Récupérer les photos de l'utilisateur
+// GET - Récupérer le profil
 export async function GET(request: NextRequest) {
   try {
+    console.log('🔍 API GET /profile - Début');
+    
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+      console.log('❌ Pas de session utilisateur');
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
+    console.log('👤 Utilisateur connecté:', session.user.email);
+
+    // IMPORTANT : Inclure les photos dans la requête
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
-    }
-
-    const photos = await prisma.photo.findMany({
-      where: { userId: user.id },
-      orderBy: [
-        { isPrimary: 'desc' }, // Photo principale en premier
-        { createdAt: 'asc' }   // Puis par ordre de création
-      ]
-    });
-
-    return NextResponse.json({ photos }, { status: 200 });
-    
-  } catch (error) {
-    console.error('Erreur GET photos:', error);
-    return NextResponse.json({ error: 'Erreur lors de la récupération des photos' }, { status: 500 });
-  }
-}
-
-// DELETE - Supprimer une photo
-export async function DELETE(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const photoId = searchParams.get('id');
-
-    if (!photoId) {
-      return NextResponse.json({ error: 'ID de la photo requis' }, { status: 400 });
-    }
-
-    // Vérifier que la photo appartient à l'utilisateur
-    const photo = await prisma.photo.findFirst({
-      where: { 
-        id: photoId,
-        userId: user.id 
-      }
-    });
-
-    if (!photo) {
-      return NextResponse.json({ error: 'Photo non trouvée' }, { status: 404 });
-    }
-
-    // Si c'est la photo principale, définir une autre comme principale
-    if (photo.isPrimary) {
-      const nextPhoto = await prisma.photo.findFirst({
-        where: { 
-          userId: user.id,
-          id: { not: photoId }
+      where: { email: session.user.email },
+      include: {
+        photos: {
+          orderBy: [
+            { isPrimary: 'desc' }, // Photo principale en premier
+            { createdAt: 'asc' }
+          ]
         },
-        orderBy: { createdAt: 'asc' }
-      });
-
-      if (nextPhoto) {
-        await prisma.photo.update({
-          where: { id: nextPhoto.id },
-          data: { isPrimary: true }
-        });
+        preferences: true,
       }
-    }
-
-    await prisma.photo.delete({
-      where: { id: photoId }
     });
 
-    return NextResponse.json({ success: true }, { status: 200 });
-    
+    if (!user) {
+      console.log('❌ Utilisateur non trouvé en base');
+      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
+    }
+
+    console.log('✅ Profil trouvé:', user.id);
+    console.log('📸 Photos trouvées:', user.photos.length); // ← Debug
+
+    // Préparer la réponse avec tous les champs + photos
+    const profileData = {
+      id: user.id,
+      name: user.name || '',
+      age: user.age || null,
+      bio: user.bio || '',
+      location: user.location || '',
+      profession: user.profession || '',
+      gender: user.gender || '',
+      maritalStatus: user.maritalStatus || '',
+      zodiacSign: user.zodiacSign || '',
+      dietType: user.dietType || '',
+      religion: user.religion || '',
+      interests: user.interests || [],
+      preferences: user.preferences,
+    };
+
+    // IMPORTANT : Retourner les photos séparément
+    return NextResponse.json({
+      profile: profileData,
+      photos: user.photos || [] // ← Cette ligne est cruciale
+    });
+
   } catch (error) {
-    console.error('Erreur DELETE photos:', error);
-    return NextResponse.json({ error: 'Erreur lors de la suppression de la photo' }, { status: 500 });
+    console.error('❌ Erreur API GET /profile:', error);
+    return NextResponse.json(
+      { error: 'Erreur serveur' }, 
+      { status: 500 }
+    );
   }
 }
 
-// PUT - Mettre à jour une photo (ex: changer la photo principale)
+// PUT - Mettre à jour le profil
 export async function PUT(request: NextRequest) {
   try {
+    console.log('🔄 API PUT /profile - Début');
+    
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+      console.log('❌ Pas de session utilisateur');
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
+    console.log('👤 Utilisateur connecté:', session.user.email);
+
+    let body;
+    try {
+      body = await request.json();
+      console.log('📝 Données reçues:', JSON.stringify(body, null, 2));
+    } catch (error) {
+      console.error('❌ Erreur parsing JSON:', error);
+      return NextResponse.json({ error: 'Données JSON invalides' }, { status: 400 });
+    }
+
+    // Validation des données
+    if (!body || typeof body !== 'object') {
+      console.error('❌ Body vide ou invalide:', body);
+      return NextResponse.json({ error: 'Données manquantes' }, { status: 400 });
+    }
+
+    // Chercher l'utilisateur
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
     });
 
     if (!user) {
+      console.log('❌ Utilisateur non trouvé');
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
     }
 
-    const body = await request.json();
-    const { photoId, action } = body;
+    console.log('🔍 Utilisateur trouvé, ID:', user.id);
 
-    if (!photoId || !action) {
-      return NextResponse.json({ error: 'ID de la photo et action requis' }, { status: 400 });
+    // Préparer les données pour la mise à jour (seulement les champs définis)
+    const updateData: any = {
+      updatedAt: new Date(),
+    };
+
+    // Ajouter seulement les champs qui sont présents et valides
+    if (body.name !== undefined && body.name !== null) {
+      updateData.name = String(body.name).trim();
+    }
+    
+    if (body.age !== undefined && body.age !== null && body.age !== '') {
+      const ageNum = parseInt(body.age);
+      if (!isNaN(ageNum) && ageNum > 0 && ageNum < 150) {
+        updateData.age = ageNum;
+      }
     }
 
-    // Vérifier que la photo appartient à l'utilisateur
-    const photo = await prisma.photo.findFirst({
-      where: { 
-        id: photoId,
-        userId: user.id 
-      }
+    if (body.bio !== undefined && body.bio !== null) {
+      updateData.bio = String(body.bio).trim();
+    }
+
+    if (body.location !== undefined && body.location !== null) {
+      updateData.location = String(body.location).trim();
+    }
+
+    if (body.profession !== undefined && body.profession !== null) {
+      updateData.profession = String(body.profession).trim();
+    }
+
+    if (body.gender !== undefined && body.gender !== null) {
+      updateData.gender = String(body.gender).trim();
+    }
+
+    if (body.maritalStatus !== undefined && body.maritalStatus !== null) {
+      updateData.maritalStatus = String(body.maritalStatus).trim();
+    }
+
+    if (body.zodiacSign !== undefined && body.zodiacSign !== null) {
+      updateData.zodiacSign = String(body.zodiacSign).trim();
+    }
+
+    if (body.dietType !== undefined && body.dietType !== null) {
+      updateData.dietType = String(body.dietType).trim();
+    }
+
+    if (body.religion !== undefined && body.religion !== null) {
+      updateData.religion = String(body.religion).trim();
+    }
+
+    if (body.interests !== undefined && Array.isArray(body.interests)) {
+      updateData.interests = body.interests.filter(interest => 
+        typeof interest === 'string' && interest.trim().length > 0
+      );
+    }
+
+    console.log('📝 Données préparées pour mise à jour:', JSON.stringify(updateData, null, 2));
+
+    // Mettre à jour le profil
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: updateData
     });
 
-    if (!photo) {
-      return NextResponse.json({ error: 'Photo non trouvée' }, { status: 404 });
-    }
+    console.log('✅ Profil mis à jour avec succès:', updatedUser.id);
 
-    if (action === 'setPrimary') {
-      // Retirer le statut principal de toutes les autres photos
-      await prisma.photo.updateMany({
-        where: { 
-          userId: user.id,
-          id: { not: photoId }
-        },
-        data: { isPrimary: false }
-      });
+    // Retourner les données mises à jour
+    const responseData = {
+      id: updatedUser.id,
+      name: updatedUser.name,
+      age: updatedUser.age,
+      bio: updatedUser.bio,
+      location: updatedUser.location,
+      profession: updatedUser.profession,
+      gender: updatedUser.gender,
+      maritalStatus: updatedUser.maritalStatus,
+      zodiacSign: updatedUser.zodiacSign,
+      dietType: updatedUser.dietType,
+      religion: updatedUser.religion,
+      interests: updatedUser.interests,
+    };
 
-      // Définir cette photo comme principale
-      const updatedPhoto = await prisma.photo.update({
-        where: { id: photoId },
-        data: { isPrimary: true }
-      });
+    console.log('📤 Réponse envoyée:', JSON.stringify(responseData, null, 2));
 
-      return NextResponse.json(updatedPhoto, { status: 200 });
-    }
+    return NextResponse.json(responseData);
 
-    return NextResponse.json({ error: 'Action non supportée' }, { status: 400 });
-    
   } catch (error) {
-    console.error('Erreur PUT photos:', error);
-    return NextResponse.json({ error: 'Erreur lors de la mise à jour de la photo' }, { status: 500 });
+    console.error('❌ Erreur API PUT /profile:', error);
+    
+    // Erreur Prisma spécifique
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Contrainte de base de données violée' }, 
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: `Erreur lors de la mise à jour: ${error.message}` }, 
+      { status: 500 }
+    );
   }
 }

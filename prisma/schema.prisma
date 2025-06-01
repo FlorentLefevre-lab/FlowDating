@@ -43,7 +43,6 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-
 model User {
   id                  String      @id @default(cuid())
   name                String?
@@ -52,10 +51,24 @@ model User {
   image               String?
   hashedPassword      String?     // Pour l'authentification par email/password
   primaryAuthMethod   AuthMethod  @default(EMAIL_PASSWORD) // Méthode de connexion principale avec valeur par défaut
+  
+  // Informations de base
   age                 Int?
   bio                 String?     @db.Text
   location            String?
-  interests           String[]
+  profession          String?     // ← NOUVEAU CHAMP
+  
+  // Informations personnelles
+  gender              String?     // ← NOUVEAU CHAMP
+  maritalStatus       String?     // ← NOUVEAU CHAMP
+  zodiacSign          String?     // ← NOUVEAU CHAMP
+  dietType            String?     // ← NOUVEAU CHAMP
+  religion            String?     // ← NOUVEAU CHAMP
+  
+  // Centres d'intérêt
+  interests           String[]    // Array supporté par PostgreSQL
+  
+  // Relations
   photos              Photo[]
   preferences         UserPreferences?
   
@@ -87,6 +100,8 @@ model UserPreferences {
   maxAge       Int    @default(100)
   maxDistance  Int    @default(50)
   gender       String?
+  interests    String[]
+  lookingFor   String?
   user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

@@ -1,4 +1,3 @@
-// src/app/api/profile/preferences/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -10,9 +9,48 @@ const globalForPrisma = globalThis as unknown as {
 const prisma = globalForPrisma.prisma ?? new PrismaClient();
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
+export async function GET(request: NextRequest) {
+  try {
+    console.log('🔍 API GET /profile/preferences - Début');
+    
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      include: {
+        preferences: true
+      }
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
+    }
+
+    console.log('✅ Préférences trouvées:', user.preferences);
+
+    return NextResponse.json(user.preferences || {
+      minAge: 18,
+      maxAge: 35,
+      maxDistance: 50,
+      gender: null
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur API GET /profile/preferences:', error);
+    return NextResponse.json(
+      { error: 'Erreur lors de la récupération des préférences' }, 
+      { status: 500 }
+    );
+  }
+}
+
 export async function PUT(request: NextRequest) {
   try {
-    console.log('🔄 API PUT /preferences - Début');
+    console.log('🔄 API PUT /profile/preferences - Début');
     
     const session = await getServerSession(authOptions);
     
@@ -88,43 +126,9 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(responseData, { status: 200 });
 
   } catch (error) {
-    console.error('❌ Erreur API PUT /preferences:', error);
+    console.error('❌ Erreur API PUT /profile/preferences:', error);
     return NextResponse.json(
       { error: 'Erreur lors de la sauvegarde des préférences' }, 
-      { status: 500 }
-    );
-  }
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    console.log('🔍 API GET /preferences - Début');
-    
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      include: {
-        preferences: true
-      }
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
-    }
-
-    console.log('✅ Préférences trouvées:', user.preferences);
-
-    return NextResponse.json(user.preferences || {}, { status: 200 });
-
-  } catch (error) {
-    console.error('❌ Erreur API GET /preferences:', error);
-    return NextResponse.json(
-      { error: 'Erreur lors de la récupération des préférences' }, 
       { status: 500 }
     );
   }
