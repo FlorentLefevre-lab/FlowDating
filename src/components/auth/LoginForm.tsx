@@ -1,6 +1,6 @@
 'use client'
-import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { useState, useEffect } from 'react'
+import { signIn, getProviders } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -16,6 +16,7 @@ type LoginFormData = z.infer<typeof loginSchema>
 export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [debugInfo, setDebugInfo] = useState<string[]>([])
   const router = useRouter()
 
   const {
@@ -26,24 +27,61 @@ export default function LoginForm() {
     resolver: zodResolver(loginSchema)
   })
 
+  // 🔍 DÉTECTION DU PROBLÈME
+  useEffect(() => {
+    console.log("🔍 LoginForm useEffect - Début")
+    
+    // Log pour détecter d'où vient l'appel
+    const originalSignIn = signIn
+    window.signIn = function(...args) {
+      console.trace("🚨 APPEL signIn() DÉTECTÉ avec args:", args)
+      setDebugInfo(prev => [...prev, `signIn() appelé avec: ${JSON.stringify(args)}`])
+      return originalSignIn(...args)
+    }
+
+    // Récupérer les providers
+    const loadProviders = async () => {
+      console.log("🔧 Chargement des providers...")
+      const providers = await getProviders()
+      console.log("🔧 Providers chargés:", providers)
+      setDebugInfo(prev => [...prev, `Providers: ${Object.keys(providers || {}).join(', ')}`])
+    }
+    
+    loadProviders()
+
+    return () => {
+      // Nettoyer
+      delete window.signIn
+    }
+  }, [])
+
   const onSubmit = async (data: LoginFormData) => {
+    console.log("🚀 DÉBUT SOUMISSION FORMULAIRE")
+    setDebugInfo(prev => [...prev, "Formulaire soumis"])
+    
     setIsLoading(true)
     setError(null)
 
     try {
+      console.log("🔐 Appel signIn credentials...")
+      
       const result = await signIn('credentials', {
         email: data.email,
         password: data.password,
         redirect: false,
       })
 
+      console.log("📊 Résultat:", result)
+      setDebugInfo(prev => [...prev, `Résultat: ${JSON.stringify(result)}`])
+
       if (result?.error) {
         setError('Email ou mot de passe incorrect')
-      } else {
+      } else if (result?.ok) {
         router.push('/profile')
         router.refresh()
       }
     } catch (error) {
+      console.error("❌ Erreur:", error)
       setError('Une erreur est survenue')
     } finally {
       setIsLoading(false)
@@ -51,6 +89,9 @@ export default function LoginForm() {
   }
 
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {
+    console.log(`🔗 Connexion ${provider}`)
+    setDebugInfo(prev => [...prev, `OAuth ${provider} initié`])
+    
     setIsLoading(true)
     try {
       await signIn(provider, { callbackUrl: '/profile' })
@@ -66,6 +107,16 @@ export default function LoginForm() {
       <h1 className="text-2xl font-bold mb-6 text-center text-gray-900">
         Se connecter
       </h1>
+
+      {/* 🔍 DEBUG INFO */}
+      {debugInfo.length > 0 && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-xs">
+          <strong>🔍 Debug:</strong>
+          {debugInfo.map((info, i) => (
+            <div key={i}>• {info}</div>
+          ))}
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
@@ -84,6 +135,7 @@ export default function LoginForm() {
             type="email"
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
             placeholder="votre.email@example.com"
+            disabled={isLoading}
           />
           {errors.email && (
             <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
@@ -99,6 +151,7 @@ export default function LoginForm() {
             type="password"
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
             placeholder="Votre mot de passe"
+            disabled={isLoading}
           />
           {errors.password && (
             <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>

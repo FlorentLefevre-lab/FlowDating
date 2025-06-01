@@ -10,7 +10,7 @@ import bcrypt from "bcryptjs"
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
-    // Authentification par email/mot de passe
+    // 🔥 IMPORTANT: Credentials en premier pour priorité
     CredentialsProvider({
       id: "credentials",
       name: "credentials",
@@ -26,41 +26,56 @@ export const authOptions: NextAuthOptions = {
         }
       },
       async authorize(credentials) {
+        console.log("🔐 Tentative d'authentification avec credentials:", credentials?.email)
+        
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Email et mot de passe requis")
+          console.log("❌ Email ou mot de passe manquant")
+          return null // ⚠️ Retourner null au lieu de throw
         }
 
-        // Rechercher l'utilisateur dans la base
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email
+        try {
+          // Rechercher l'utilisateur dans la base
+          const user = await prisma.user.findUnique({
+            where: {
+              email: credentials.email
+            }
+          })
+
+          if (!user) {
+            console.log("❌ Utilisateur non trouvé:", credentials.email)
+            return null
           }
-        })
 
-        if (!user || !user.hashedPassword) {
-          throw new Error("Utilisateur non trouvé")
-        }
+          if (!user.hashedPassword) {
+            console.log("❌ Utilisateur sans mot de passe (compte OAuth uniquement)")
+            return null
+          }
 
-        // Vérifier le mot de passe
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.hashedPassword
-        )
+          // Vérifier le mot de passe
+          const isPasswordValid = await bcrypt.compare(
+            credentials.password,
+            user.hashedPassword
+          )
 
-        if (!isPasswordValid) {
-          throw new Error("Mot de passe incorrect")
-        }
+          if (!isPasswordValid) {
+            console.log("❌ Mot de passe incorrect")
+            return null
+          }
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
+          console.log("✅ Authentification credentials réussie:", user.email)
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+          }
+        } catch (error) {
+          console.error("❌ Erreur lors de l'authentification:", error)
+          return null
         }
       }
     }),
 
-    // Authentification Google
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
@@ -73,14 +88,10 @@ export const authOptions: NextAuthOptions = {
       }
     }),
 
-    // Authentification Facebook
     FacebookProvider({
       clientId: process.env.FACEBOOK_CLIENT_ID!,
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
     }),
-
-    // Vous pouvez ajouter d'autres providers
-    // TwitterProvider, GitHubProvider, etc.
   ],
 
   session: {
@@ -89,50 +100,63 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-      async jwt({ token, user, account }) {
-        if (user) {
-          token.id = user.id
-          
-          // Récupérer les infos complètes de l'utilisateur depuis la base
-          const dbUser = await prisma.user.findUnique({
-            where: { id: user.id }
-          })
-          
-          token.emailVerified = dbUser?.emailVerified
-        }
+    // 🔥 JWT CALLBACK SIMPLIFIÉ
+    async jwt({ token, user, account }) {
+      // Première connexion : ajouter les infos user au token
+      if (user) {
+        token.id = user.id
+        token.provider = account?.provider || "credentials"
         
-        if (account) {
-          token.provider = account.provider
+        // Récupérer emailVerified seulement si nécessaire
+        if (account?.provider !== "credentials") {
+          try {
+            const dbUser = await prisma.user.findUnique({
+              where: { id: user.id },
+              select: { emailVerified: true }
+            })
+            token.emailVerified = dbUser?.emailVerified
+          } catch (error) {
+            console.error("Erreur récupération emailVerified:", error)
+          }
         }
-        
-        return token
-      },
-    
-      async session({ session, token }) {
-        if (token) {
-          session.user.id = token.id as string
-          session.user.provider = token.provider as string
-          session.user.emailVerified = token.emailVerified as Date | null
-        }
-        return session
-      },
+      }
+      
+      return token
+    },
 
+    // 🔥 SESSION CALLBACK SIMPLIFIÉ
+    async session({ session, token }) {
+      if (token) {
+        session.user.id = token.id as string
+        session.user.provider = token.provider as string
+        session.user.emailVerified = token.emailVerified as Date | null
+      }
+      
+      return session
+    },
+
+    // 🔥 SIGNIN CALLBACK SIMPLIFIÉ
     async signIn({ user, account, profile }) {
-      // Logique personnalisée lors de la connexion
+      console.log(`🔑 Tentative de connexion: ${user.email} via ${account?.provider}`)
+      
+      // Pour les providers OAuth, vérifier si l'utilisateur existe
       if (account?.provider === "google" || account?.provider === "facebook") {
-        // Vérifier si l'utilisateur existe déjà
-        const existingUser = await prisma.user.findUnique({
-          where: { email: user.email! }
-        })
+        try {
+          const existingUser = await prisma.user.findUnique({
+            where: { email: user.email! }
+          })
 
-        if (existingUser) {
+          // Si l'utilisateur n'existe pas, empêcher la création automatique
+          if (!existingUser) {
+            console.log("❌ Tentative de création de compte OAuth bloquée:", user.email)
+            return `/auth/error?error=OAuthAccountNotLinked&email=${encodeURIComponent(user.email!)}`
+          }
+
           // Lier le compte social si pas déjà fait
-          const existingAccount = await prisma.account.findUnique({
+          const existingAccount = await prisma.account.findFirst({
             where: {
-              provider_providerAccountId: {
-                provider: account.provider,
-                providerAccountId: account.providerAccountId,
-              }
+              provider: account.provider,
+              providerAccountId: account.providerAccountId,
             }
           })
 
@@ -151,34 +175,49 @@ export const authOptions: NextAuthOptions = {
                 id_token: account.id_token,
               }
             })
+            console.log("✅ Compte OAuth lié:", account.provider)
           }
+        } catch (error) {
+          console.error("❌ Erreur lors de la vérification OAuth:", error)
+          return false
         }
       }
 
       return true
     },
 
+    // 🔥 REDIRECT CALLBACK SIMPLIFIÉ
     async redirect({ url, baseUrl }) {
-      // Redirection après connexion
-      if (url.startsWith("/")) return `${baseUrl}${url}`
-      else if (new URL(url).origin === baseUrl) return url
+      console.log("🔄 Redirection:", { url, baseUrl })
+      
+      // Si c'est une URL relative, l'ajouter au baseUrl
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`
+      }
+      
+      // Si c'est une URL du même domaine
+      if (new URL(url).origin === baseUrl) {
+        return url
+      }
+      
+      // Par défaut, rediriger vers le profil
       return `${baseUrl}/profile`
     }
   },
 
   pages: {
     signIn: '/auth/login',
-    signUp: '/auth/register',
+    signUp: '/auth/register', 
     error: '/auth/error',
     verifyRequest: '/auth/verify-request',
   },
 
   events: {
     async signIn({ user, account, profile, isNewUser }) {
-      console.log(`Utilisateur connecté: ${user.email} via ${account?.provider}`)
+      console.log(`✅ Utilisateur connecté: ${user.email} via ${account?.provider}`)
     },
     async signOut({ session, token }) {
-      console.log(`Utilisateur déconnecté: ${session?.user?.email}`)
+      console.log(`👋 Utilisateur déconnecté: ${session?.user?.email}`)
     },
   },
 

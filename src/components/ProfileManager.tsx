@@ -4,7 +4,9 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { CldUploadWidget } from 'next-cloudinary';
 import { motion, AnimatePresence } from 'framer-motion';
+import { signOut, useSession } from 'next-auth/react';
 import { 
   UserIcon, 
   PhotoIcon, 
@@ -15,7 +17,8 @@ import {
   TrashIcon, 
   StarIcon,
   PlusIcon,
-  CheckIcon 
+  CheckIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { z } from 'zod';
@@ -77,8 +80,19 @@ const ProfileManager: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState<'success' | 'error'>('success');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [newInterest, setNewInterest] = useState('');
+  const [cloudinaryConfig, setCloudinaryConfig] = useState({
+    uploadPreset: '',
+    cloudName: ''
+  });
+
+  // 🔥 NOUVEAU: Récupérer la session NextAuth pour fallback
+  const { data: session, status: sessionStatus } = useSession();
 
   // Form pour le profil
   const {
@@ -125,14 +139,42 @@ const ProfileManager: React.FC = () => {
   ];
 
   useEffect(() => {
+    // Vérifier la configuration Cloudinary au démarrage
+    checkCloudinaryConfig();
     loadProfile();
   }, []);
 
+  // Vérifier la configuration Cloudinary
+  const checkCloudinaryConfig = () => {
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    
+    console.log('🔧 Configuration Cloudinary:', {
+      uploadPreset: uploadPreset ? '✅ Défini' : '❌ Manquant',
+      cloudName: cloudName ? '✅ Défini' : '❌ Manquant'
+    });
+
+    if (!uploadPreset || !cloudName) {
+      console.error('❌ Configuration Cloudinary incomplète:', {
+        uploadPreset,
+        cloudName
+      });
+      setMessage('⚠️ Configuration Cloudinary manquante. Vérifiez vos variables d\'environnement.');
+    }
+
+    setCloudinaryConfig({
+      uploadPreset: uploadPreset || '',
+      cloudName: cloudName || ''
+    });
+  };
+
   const loadProfile = async () => {
     try {
+      setLoading(true);
       const response = await fetch('/api/user-profile');
       if (response.ok) {
         const userData: UserProfile = await response.json();
+        console.log('👤 Profil chargé:', userData);
         setProfile(userData);
         setPhotos(userData.photos || []);
         
@@ -148,22 +190,23 @@ const ProfileManager: React.FC = () => {
           setValuePreferences('maxAge', userData.preferences.maxAge);
           setValuePreferences('maxDistance', userData.preferences.maxDistance);
           setValuePreferences('gender', userData.preferences.gender || '');
-        } else {
-          setValuePreferences('minAge', 18);
-          setValuePreferences('maxAge', 35);
-          setValuePreferences('maxDistance', 50);
-          setValuePreferences('gender', '');
         }
+      } else {
+        console.warn('⚠️ Profil non trouvé (404) - utilisateur probablement recréé par OAuth');
+        // Ne pas afficher d'erreur car on peut utiliser la session comme fallback
       }
     } catch (error) {
-      console.error('Erreur chargement profil:', error);
-      setMessage('Erreur lors du chargement du profil');
+      console.error('💥 Erreur chargement profil:', error);
+      // Ne pas afficher d'erreur car on peut utiliser la session comme fallback
+    } finally {
+      setLoading(false);
     }
   };
 
-  const showMessage = (msg: string) => {
+  const showMessage = (msg: string, type: 'success' | 'error' = 'success') => {
     setMessage(msg);
-    setTimeout(() => setMessage(''), 3000);
+    setMessageType(type);
+    setTimeout(() => setMessage(''), 5000);
   };
 
   const onSubmitProfile = async (data: ProfileFormData) => {
@@ -188,14 +231,14 @@ const ProfileManager: React.FC = () => {
       if (response.ok) {
         const updatedProfile = await response.json();
         setProfile(updatedProfile);
-        showMessage('Profil sauvegardé avec succès !');
+        showMessage('Profil sauvegardé avec succès !', 'success');
         setActiveTab('overview');
       } else {
-        showMessage('Erreur lors de la sauvegarde');
+        throw new Error('Erreur lors de la sauvegarde');
       }
     } catch (error) {
-      console.error('Erreur sauvegarde profil:', error);
-      showMessage('Erreur de connexion');
+      console.error('💥 Erreur sauvegarde profil:', error);
+      showMessage('Erreur lors de la sauvegarde', 'error');
     } finally {
       setLoading(false);
     }
@@ -214,40 +257,83 @@ const ProfileManager: React.FC = () => {
       if (response.ok) {
         const result = await response.json();
         setProfile(prev => prev ? { ...prev, preferences: data } : null);
-        showMessage('Préférences sauvegardées avec succès !');
+        showMessage('Préférences sauvegardées avec succès !', 'success');
       } else {
-        showMessage('Erreur lors de la sauvegarde');
+        throw new Error('Erreur lors de la sauvegarde');
       }
     } catch (error) {
-      console.error('Erreur sauvegarde préférences:', error);
-      showMessage('Erreur de connexion');
+      console.error('💥 Erreur sauvegarde préférences:', error);
+      showMessage('Erreur lors de la sauvegarde', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  // Upload de photos avec Cloudinary simplifié (temporairement désactivé)
-  const handlePhotoUpload = async (result: any) => {
+  // Upload de photos avec Cloudinary - Version améliorée
+  const handlePhotoUpload = async (result: any, widget: any) => {
+    console.log('📸 Résultat upload Cloudinary complet:', result);
+    
     try {
-      console.log('📸 Upload Cloudinary:', result.secure_url);
+      setUploadLoading(true);
       
+      // Vérification de la structure du résultat
+      if (!result || !result.info) {
+        throw new Error('Résultat d\'upload invalide');
+      }
+
+      const { info } = result;
+      console.log('📸 Info détaillée:', info);
+
+      // Vérifier que l'URL est présente
+      const imageUrl = info.secure_url || info.url;
+      if (!imageUrl) {
+        throw new Error('URL de l\'image manquante dans le résultat');
+      }
+
+      console.log('📸 URL image extraite:', imageUrl);
+      
+      // Envoyer vers l'API
       const response = await fetch('/api/profile/photos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl: result.secure_url })
+        body: JSON.stringify({ 
+          imageUrl,
+          cloudinaryId: info.public_id,
+          originalFilename: info.original_filename,
+          format: info.format,
+          width: info.width,
+          height: info.height
+        })
       });
+
+      console.log('📸 Réponse API photos:', response.status);
 
       if (response.ok) {
         const newPhoto = await response.json();
-        setPhotos([...photos, newPhoto]);
-        showMessage('Photo ajoutée avec succès !');
+        console.log('📸 Nouvelle photo créée:', newPhoto);
+        setPhotos(prevPhotos => [...prevPhotos, newPhoto]);
+        showMessage('Photo ajoutée avec succès !', 'success');
+        
+        // Fermer le widget
+        widget.close();
       } else {
-        showMessage('Erreur lors de l\'upload');
+        const errorData = await response.text();
+        console.error('❌ Erreur API:', errorData);
+        throw new Error(`Erreur API: ${response.status} - ${errorData}`);
       }
     } catch (error) {
-      console.error('Erreur upload:', error);
-      showMessage('Erreur upload photo');
+      console.error('💥 Erreur upload:', error);
+      showMessage(`Erreur upload: ${error.message}`, 'error');
+    } finally {
+      setUploadLoading(false);
     }
+  };
+
+  // Gestion des erreurs d'upload
+  const handleUploadError = (error: any, widget: any) => {
+    console.error('💥 Erreur Cloudinary:', error);
+    showMessage(`Erreur upload: ${error.message || 'Erreur inconnue'}`, 'error');
+    setUploadLoading(false);
   };
 
   const deletePhoto = async (photoId: string) => {
@@ -264,13 +350,14 @@ const ProfileManager: React.FC = () => {
 
       if (response.ok) {
         setPhotos(photos.filter(p => p.id !== photoId));
-        showMessage('Photo supprimée avec succès');
+        showMessage('Photo supprimée avec succès', 'success');
       } else {
-        showMessage('Erreur lors de la suppression');
+        const errorText = await response.text();
+        throw new Error(`Erreur ${response.status}: ${errorText}`);
       }
     } catch (error) {
       console.error('💥 Erreur suppression:', error);
-      showMessage('Erreur lors de la suppression');
+      showMessage(`Erreur suppression: ${error.message}`, 'error');
     }
   };
 
@@ -281,7 +368,7 @@ const ProfileManager: React.FC = () => {
       const response = await fetch(`/api/profile/photos/${photoId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ photoId, action: 'setPrimary' })
+        body: JSON.stringify({ action: 'setPrimary' })
       });
 
       console.log('⭐ Statut photo principale:', response.status);
@@ -291,13 +378,14 @@ const ProfileManager: React.FC = () => {
           ...p,
           isPrimary: p.id === photoId
         })));
-        showMessage('Photo principale mise à jour');
+        showMessage('Photo principale mise à jour', 'success');
       } else {
-        showMessage('Erreur mise à jour photo principale');
+        const errorText = await response.text();
+        throw new Error(`Erreur ${response.status}: ${errorText}`);
       }
     } catch (error) {
       console.error('💥 Erreur photo principale:', error);
-      showMessage('Erreur mise à jour photo principale');
+      showMessage(`Erreur photo principale: ${error.message}`, 'error');
     }
   };
 
@@ -312,6 +400,130 @@ const ProfileManager: React.FC = () => {
   const removeInterest = (interest: string) => {
     const newInterests = interests.filter(i => i !== interest);
     setValueProfile('interests', newInterests);
+  };
+
+  // Gestion de la suppression de compte
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== 'SUPPRIMER') {
+      showMessage('Veuillez taper "SUPPRIMER" pour confirmer', 'error');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // 🔥 DEBUG: Vérifier la structure complète de la session
+      console.log('🔍 Session complète:', JSON.stringify(session, null, 2));
+      console.log('🔍 Profil state:', profile);
+      
+      // 🔥 NOUVEAU: Récupérer l'ID utilisateur depuis le profil OU la session
+      let currentUserId = profile?.id;
+      let currentUserEmail = profile?.email;
+      
+      // Si pas de profil, utiliser la session NextAuth comme fallback
+      if (!currentUserId && session?.user) {
+        // Essayer différentes propriétés possibles pour l'ID
+        currentUserId = session.user.id || (session.user as any).sub || (session.user as any).userId;
+        currentUserEmail = session.user.email || undefined;
+        
+        console.log('📧 Tentative récupération depuis session:', { 
+          'session.user.id': session.user.id,
+          '(session.user as any).sub': (session.user as any).sub,
+          '(session.user as any).userId': (session.user as any).userId,
+          'session.user.email': session.user.email,
+          'currentUserId final': currentUserId,
+          'currentUserEmail final': currentUserEmail
+        });
+      }
+      
+      if (!currentUserId && !currentUserEmail) {
+        console.error('❌ Données disponibles:', {
+          'profile?.id': profile?.id,
+          'profile?.email': profile?.email,
+          'session?.user': session?.user,
+          'sessionStatus': sessionStatus
+        });
+        showMessage('Erreur: Session invalide. Veuillez vous reconnecter.', 'error');
+        return;
+      }
+      
+      console.log('🗑️ Suppression demandée pour:', { 
+        userId: currentUserId, 
+        email: currentUserEmail,
+        source: profile?.id ? 'profile' : 'session'
+      });
+      
+      const response = await fetch('/api/user/delete-account', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          forceUserId: currentUserId,
+          forceUserEmail: currentUserEmail 
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        if (result.alreadyDeleted || result.orphanCleanup) {
+          showMessage('Compte supprimé. Nettoyage local...', 'success');
+        } else {
+          showMessage('Compte supprimé avec succès. Déconnexion...', 'success');
+        }
+        
+        // SOLUTION RADICALE: Combinaison de toutes les méthodes
+        setTimeout(async () => {
+          try {
+            // 1. Déconnexion NextAuth officielle
+            await signOut({ 
+              redirect: false  // Pas de redirection automatique
+            });
+            
+            // 2. Suppression manuelle de TOUS les cookies
+            const cookies = document.cookie.split(";");
+            for (let cookie of cookies) {
+              const eqPos = cookie.indexOf("=");
+              const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+              // Supprimer pour tous les domaines et paths possibles
+              document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+              document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=localhost`;
+              document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.localhost`;
+            }
+            
+            // 3. Vider le stockage local
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // 4. Forcer la suppression de cache NextAuth
+            if ('caches' in window) {
+              const cacheNames = await caches.keys();
+              await Promise.all(
+                cacheNames.map(cacheName => caches.delete(cacheName))
+              );
+            }
+            
+            console.log('✅ Nettoyage complet effectué');
+            
+            // 5. Redirection avec reload forcé
+            window.location.replace('/');
+            
+          } catch (logoutError) {
+            console.error('❌ Erreur déconnexion:', logoutError);
+            // Fallback brutal
+            window.location.replace('/');
+          }
+        }, 2000);
+      } else {
+        throw new Error('Erreur lors de la suppression');
+      }
+    } catch (error) {
+      console.error('💥 Erreur suppression compte:', error);
+      showMessage('Erreur lors de la suppression du compte', 'error');
+    } finally {
+      setLoading(false);
+      setShowDeleteModal(false);
+      setDeleteConfirmation('');
+    }
   };
 
   const getProfileCompletion = () => {
@@ -330,6 +542,21 @@ const ProfileManager: React.FC = () => {
   };
 
   const primaryPhoto = photos.find(p => p.isPrimary);
+
+  // Configuration du widget Cloudinary
+  const cloudinaryOptions = {
+    sources: ['local', 'camera'],
+    multiple: false,
+    maxFiles: 1,
+    resourceType: "image" as const,
+    maxFileSize: 5000000, // 5MB
+    clientAllowedFormats: ["jpg", "jpeg", "png", "gif", "webp"],
+    maxImageWidth: 2000,
+    maxImageHeight: 2000,
+    cropping: false,
+    folder: "dating-app/profiles", // Organiser les uploads
+    generateDerivatives: true
+  };
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -402,16 +629,16 @@ const ProfileManager: React.FC = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
             className={`p-4 rounded-lg mb-6 ${
-              message.includes('succès') || message.includes('ajoutée') || message.includes('sauvegardées')
+              messageType === 'success'
                 ? 'bg-green-50 text-green-700 border border-green-200' 
                 : 'bg-red-50 text-red-700 border border-red-200'
             }`}
           >
             <div className="flex items-center gap-2">
-              {message.includes('succès') ? (
+              {messageType === 'success' ? (
                 <CheckIcon className="w-5 h-5 text-green-600" />
               ) : (
-                <div className="w-5 h-5 text-red-600">⚠</div>
+                <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />
               )}
               {message}
             </div>
@@ -718,7 +945,7 @@ const ProfileManager: React.FC = () => {
           </div>
         )}
 
-        {/* ONGLET PHOTOS */}
+        {/* ONGLET PHOTOS - Version améliorée */}
         {activeTab === 'photos' && (
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
@@ -726,18 +953,48 @@ const ProfileManager: React.FC = () => {
                 Gestion des photos ({photos.length}/6)
               </h2>
               
-              {/* Bouton d'upload temporaire */}
-              {photos.length < 6 && (
-                <button
-                  onClick={() => showMessage('Configuration Cloudinary en cours - Fonctionnalité bientôt disponible')}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed"
-                  disabled
+              {/* Debug de la configuration Cloudinary */}
+              {!cloudinaryConfig.uploadPreset && (
+                <div className="text-sm text-red-500 bg-red-50 px-3 py-1 rounded">
+                  ⚠️ Config Cloudinary manquante
+                </div>
+              )}
+              
+              {/* Upload Cloudinary avec configuration améliorée */}
+              {photos.length < 6 && cloudinaryConfig.uploadPreset && (
+                <CldUploadWidget
+                  uploadPreset={cloudinaryConfig.uploadPreset}
+                  onSuccess={handlePhotoUpload}
+                  onError={handleUploadError}
+                  options={cloudinaryOptions}
                 >
-                  <PlusIcon className="w-5 h-5" />
-                  Upload temporairement désactivé
-                </button>
+                  {({ open }) => (
+                    <button
+                      onClick={() => open()}
+                      disabled={uploadLoading}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                        uploadLoading
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-pink-500 hover:bg-pink-600'
+                      } text-white`}
+                    >
+                      {uploadLoading ? (
+                        <>
+                          <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                          Upload...
+                        </>
+                      ) : (
+                        <>
+                          <PlusIcon className="w-5 h-5" />
+                          Ajouter une photo
+                        </>
+                      )}
+                    </button>
+                  )}
+                </CldUploadWidget>
               )}
             </div>
+            
             
             {photos.length === 0 ? (
               <div className="text-center py-12">
@@ -746,16 +1003,41 @@ const ProfileManager: React.FC = () => {
                   Aucune photo
                 </h3>
                 <p className="text-gray-400 mb-6">
-                  Fonctionnalité upload en cours de configuration
+                  Ajoutez des photos pour rendre votre profil plus attractif
                 </p>
                 
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg max-w-md mx-auto">
-                  <h4 className="font-medium text-blue-800 mb-2">🔧 Configuration en cours</h4>
-                  <p className="text-sm text-blue-700">
-                    L'upload de photos Cloudinary est en cours de configuration. 
-                    Cette fonctionnalité sera bientôt disponible.
-                  </p>
-                </div>
+                {cloudinaryConfig.uploadPreset ? (
+                  <CldUploadWidget
+                    uploadPreset={cloudinaryConfig.uploadPreset}
+                    onSuccess={handlePhotoUpload}
+                    onError={handleUploadError}
+                    options={cloudinaryOptions}
+                  >
+                    {({ open }) => (
+                      <button
+                        onClick={() => open()}
+                        disabled={uploadLoading}
+                        className={`px-6 py-3 rounded-lg transition-all ${
+                          uploadLoading
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-pink-500 hover:bg-pink-600'
+                        } text-white`}
+                      >
+                        {uploadLoading ? 'Upload en cours...' : 'Ajouter ma première photo'}
+                      </button>
+                    )}
+                  </CldUploadWidget>
+                ) : (
+                  <div className="text-red-500 bg-red-50 p-4 rounded-lg">
+                    <ExclamationTriangleIcon className="w-6 h-6 mx-auto mb-2" />
+                    Configuration Cloudinary manquante.<br />
+                    Vérifiez vos variables d'environnement.
+                  </div>
+                )}
+                
+                <p className="text-xs text-gray-400 mt-4">
+                  📁 Fichiers • 📷 Caméra • Max 5MB • JPG, PNG, WebP
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
@@ -772,6 +1054,10 @@ const ProfileManager: React.FC = () => {
                         src={photo.url}
                         alt={`Photo ${index + 1}`}
                         className="w-full h-64 object-cover rounded-lg"
+                        onError={(e) => {
+                          console.error('Erreur chargement image:', photo.url);
+                          e.currentTarget.src = '/placeholder-image.jpg'; // Image de fallback
+                        }}
                       />
                       
                       {/* Badge photo principale */}
@@ -809,29 +1095,55 @@ const ProfileManager: React.FC = () => {
                   ))}
                 </AnimatePresence>
 
-                {/* Zone d'ajout temporairement désactivée */}
-                {photos.length < 6 && (
-                  <div className="h-64 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-400">
-                    <PlusIcon className="w-12 h-12 mb-2" />
-                    <span className="font-medium">Upload en configuration</span>
-                    <span className="text-sm">Bientôt disponible</span>
-                  </div>
+                {/* Zone d'ajout avec Cloudinary */}
+                {photos.length < 6 && cloudinaryConfig.uploadPreset && (
+                  <CldUploadWidget
+                    uploadPreset={cloudinaryConfig.uploadPreset}
+                    onSuccess={handlePhotoUpload}
+                    onError={handleUploadError}
+                    options={cloudinaryOptions}
+                  >
+                    {({ open }) => (
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => open()}
+                        disabled={uploadLoading}
+                        className={`h-64 border-2 border-dashed rounded-lg transition-colors flex flex-col items-center justify-center ${
+                          uploadLoading
+                            ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                            : 'border-gray-300 hover:border-pink-500 text-gray-500 hover:text-pink-500'
+                        }`}
+                      >
+                        {uploadLoading ? (
+                          <>
+                            <div className="animate-spin w-12 h-12 border-2 border-gray-400 border-t-transparent rounded-full mb-2"></div>
+                            <span className="font-medium">Upload en cours...</span>
+                          </>
+                        ) : (
+                          <>
+                            <PlusIcon className="w-12 h-12 mb-2" />
+                            <span className="font-medium">Ajouter une photo</span>
+                            <span className="text-sm">📁 Fichier • 📷 Caméra</span>
+                          </>
+                        )}
+                      </motion.button>
+                    )}
+                  </CldUploadWidget>
                 )}
               </div>
             )}
             
-            {/* Informations sur la configuration */}
-            <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <h4 className="font-medium text-yellow-800 mb-2">⚠️ Statut de la fonctionnalité photos</h4>
-              <div className="text-sm text-yellow-700">
-                <p className="mb-2">La fonctionnalité d'upload de photos est temporairement désactivée pendant la configuration Cloudinary.</p>
-                <p><strong>Fonctionnalités disponibles :</strong></p>
-                <ul className="list-disc list-inside mt-1">
-                  <li>Affichage des photos existantes</li>
-                  <li>Suppression de photos</li>
-                  <li>Définition de photo principale</li>
-                </ul>
-              </div>
+            {/* Conseils pour photos */}
+            <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h4 className="font-medium text-blue-800 mb-2">💡 Conseils pour de meilleures photos</h4>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>• Utilisez un bon éclairage naturel</li>
+                <li>• Souriez naturellement</li>
+                <li>• Variez les angles et les styles</li>
+                <li>• La première photo sera votre photo de profil principale</li>
+                <li>• Formats acceptés: JPG, PNG, WebP (max 5MB)</li>
+              </ul>
             </div>
           </div>
         )}
@@ -981,7 +1293,10 @@ const ProfileManager: React.FC = () => {
                   Ces actions sont irréversibles. Soyez prudent.
                 </p>
                 <div className="space-y-2">
-                  <button className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm">
+                  <button 
+                    onClick={() => setShowDeleteModal(true)}
+                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
+                  >
                     Supprimer mon compte
                   </button>
                 </div>
@@ -990,6 +1305,95 @@ const ProfileManager: React.FC = () => {
           </div>
         )}
       </motion.div>
+
+      {/* MODALE DE CONFIRMATION DE SUPPRESSION */}
+      <AnimatePresence>
+        {showDeleteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            onClick={(e) => e.target === e.currentTarget && setShowDeleteModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+            >
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  Supprimer définitivement votre compte ?
+                </h3>
+                <p className="text-gray-600">
+                  Cette action est irréversible et supprimera toutes vos données.
+                </p>
+              </div>
+
+              {/* Liste des données supprimées */}
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <h4 className="font-medium text-red-800 mb-3">
+                  🗑️ Sera supprimé définitivement :
+                </h4>
+                <ul className="text-sm text-red-700 space-y-1">
+                  <li>• Votre profil et toutes vos informations personnelles</li>
+                  <li>• Toutes vos photos ({photos.length} photo{photos.length !== 1 ? 's' : ''})</li>
+                  <li>• Tous vos messages et conversations</li>
+                  <li>• Tous vos likes donnés et reçus</li>
+                  <li>• Tous vos matches actuels</li>
+                  <li>• Votre historique d'activité</li>
+                  <li>• Vos préférences de recherche</li>
+                </ul>
+              </div>
+
+              {/* Confirmation par saisie */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Pour confirmer, tapez <span className="font-bold text-red-600">SUPPRIMER</span> ci-dessous :
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmation}
+                  onChange={(e) => setDeleteConfirmation(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  placeholder="Tapez SUPPRIMER"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeleteConfirmation('');
+                  }}
+                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={loading || deleteConfirmation !== 'SUPPRIMER'}
+                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {loading ? 'Suppression...' : 'Supprimer définitivement'}
+                </button>
+              </div>
+
+              {/* Avertissement final */}
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-xs text-yellow-700 text-center">
+                  ⚠️ Cette action ne peut pas être annulée. Toutes vos données seront perdues à jamais.
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
