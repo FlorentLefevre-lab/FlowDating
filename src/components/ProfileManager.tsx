@@ -4,7 +4,6 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CldUploadWidget, CldImage } from 'next-cloudinary';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   UserIcon, 
@@ -24,16 +23,16 @@ import { z } from 'zod';
 // ===== SCHEMAS DE VALIDATION =====
 const profileSchema = z.object({
   name: z.string().min(1, 'Le nom est requis').max(100, 'Nom trop long'),
-  age: z.number().min(18, 'Âge minimum 18 ans').max(100, 'Âge maximum 100 ans').optional().nullable(),
+  age: z.coerce.number().min(18, 'Âge minimum 18 ans').max(100, 'Âge maximum 100 ans').optional().nullable(),
   bio: z.string().max(500, 'Bio limitée à 500 caractères').optional().nullable(),
   location: z.string().max(100, 'Localisation trop longue').optional().nullable(),
   interests: z.array(z.string()).max(10, 'Maximum 10 centres d\'intérêt').optional()
 });
 
 const preferencesSchema = z.object({
-  minAge: z.number().min(18, 'Âge minimum 18 ans').max(99, 'Âge maximum 99 ans'),
-  maxAge: z.number().min(18, 'Âge minimum 18 ans').max(99, 'Âge maximum 99 ans'),
-  maxDistance: z.number().min(1, 'Distance minimum 1 km').max(500, 'Distance maximum 500 km'),
+  minAge: z.coerce.number().min(18, 'Âge minimum 18 ans').max(99, 'Âge maximum 99 ans'),
+  maxAge: z.coerce.number().min(18, 'Âge minimum 18 ans').max(99, 'Âge maximum 99 ans'),
+  maxDistance: z.coerce.number().min(1, 'Distance minimum 1 km').max(500, 'Distance maximum 500 km'),
   gender: z.string().optional().nullable()
 }).refine(data => data.minAge <= data.maxAge, {
   message: "L'âge minimum ne peut pas être supérieur à l'âge maximum",
@@ -89,7 +88,14 @@ const ProfileManager: React.FC = () => {
     watch: watchProfile,
     formState: { errors: errorsProfile, isDirty: isDirtyProfile }
   } = useForm<ProfileFormData>({
-    resolver: zodResolver(profileSchema)
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      name: '',
+      age: null,
+      bio: '',
+      location: '',
+      interests: []
+    }
   });
 
   // Form pour les préférences
@@ -99,7 +105,13 @@ const ProfileManager: React.FC = () => {
     setValue: setValuePreferences,
     formState: { errors: errorsPreferences, isDirty: isDirtyPreferences }
   } = useForm<PreferencesFormData>({
-    resolver: zodResolver(preferencesSchema)
+    resolver: zodResolver(preferencesSchema),
+    defaultValues: {
+      minAge: 18,
+      maxAge: 35,
+      maxDistance: 50,
+      gender: ''
+    }
   });
 
   const interests = watchProfile('interests') || [];
@@ -118,7 +130,7 @@ const ProfileManager: React.FC = () => {
 
   const loadProfile = async () => {
     try {
-      const response = await fetch('/api/profile');
+      const response = await fetch('/api/user-profile');
       if (response.ok) {
         const userData: UserProfile = await response.json();
         setProfile(userData);
@@ -136,6 +148,11 @@ const ProfileManager: React.FC = () => {
           setValuePreferences('maxAge', userData.preferences.maxAge);
           setValuePreferences('maxDistance', userData.preferences.maxDistance);
           setValuePreferences('gender', userData.preferences.gender || '');
+        } else {
+          setValuePreferences('minAge', 18);
+          setValuePreferences('maxAge', 35);
+          setValuePreferences('maxDistance', 50);
+          setValuePreferences('gender', '');
         }
       }
     } catch (error) {
@@ -151,11 +168,21 @@ const ProfileManager: React.FC = () => {
 
   const onSubmitProfile = async (data: ProfileFormData) => {
     setLoading(true);
+    console.log('🔄 Données du profil à envoyer:', data);
+    
+    const cleanData = {
+      name: data.name,
+      age: data.age || null,
+      bio: data.bio || null,
+      location: data.location || null,
+      interests: data.interests || []
+    };
+    
     try {
-      const response = await fetch('/api/profile', {
+      const response = await fetch('/api/user-profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        body: JSON.stringify(cleanData)
       });
 
       if (response.ok) {
@@ -164,39 +191,46 @@ const ProfileManager: React.FC = () => {
         showMessage('Profil sauvegardé avec succès !');
         setActiveTab('overview');
       } else {
-        const error = await response.json();
-        showMessage(error.error || 'Erreur lors de la sauvegarde');
+        showMessage('Erreur lors de la sauvegarde');
       }
     } catch (error) {
-      showMessage('Erreur lors de la sauvegarde');
+      console.error('Erreur sauvegarde profil:', error);
+      showMessage('Erreur de connexion');
     } finally {
       setLoading(false);
     }
   };
 
   const onSubmitPreferences = async (data: PreferencesFormData) => {
+    setLoading(true);
+    
     try {
-      const response = await fetch('/api/profile/preferences', {
+      const response = await fetch('/api/user-preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
 
       if (response.ok) {
-        const updatedPrefs = await response.json();
-        setProfile(prev => prev ? { ...prev, preferences: updatedPrefs } : null);
+        const result = await response.json();
+        setProfile(prev => prev ? { ...prev, preferences: data } : null);
         showMessage('Préférences sauvegardées avec succès !');
       } else {
-        const error = await response.json();
-        showMessage(error.error || 'Erreur sauvegarde préférences');
+        showMessage('Erreur lors de la sauvegarde');
       }
     } catch (error) {
-      showMessage('Erreur sauvegarde préférences');
+      console.error('Erreur sauvegarde préférences:', error);
+      showMessage('Erreur de connexion');
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Upload de photos avec Cloudinary simplifié (temporairement désactivé)
   const handlePhotoUpload = async (result: any) => {
     try {
+      console.log('📸 Upload Cloudinary:', result.secure_url);
+      
       const response = await fetch('/api/profile/photos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -208,10 +242,10 @@ const ProfileManager: React.FC = () => {
         setPhotos([...photos, newPhoto]);
         showMessage('Photo ajoutée avec succès !');
       } else {
-        const error = await response.json();
-        showMessage(error.error || 'Erreur upload photo');
+        showMessage('Erreur lors de l\'upload');
       }
     } catch (error) {
+      console.error('Erreur upload:', error);
       showMessage('Erreur upload photo');
     }
   };
@@ -220,9 +254,13 @@ const ProfileManager: React.FC = () => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette photo ?')) return;
 
     try {
+      console.log('🗑️ Suppression photo:', photoId);
+      
       const response = await fetch(`/api/profile/photos/${photoId}`, {
         method: 'DELETE'
       });
+
+      console.log('🗑️ Statut suppression:', response.status);
 
       if (response.ok) {
         setPhotos(photos.filter(p => p.id !== photoId));
@@ -231,15 +269,22 @@ const ProfileManager: React.FC = () => {
         showMessage('Erreur lors de la suppression');
       }
     } catch (error) {
+      console.error('💥 Erreur suppression:', error);
       showMessage('Erreur lors de la suppression');
     }
   };
 
   const setPrimaryPhoto = async (photoId: string) => {
     try {
+      console.log('⭐ Définir photo principale:', photoId);
+      
       const response = await fetch(`/api/profile/photos/${photoId}`, {
-        method: 'PUT'
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photoId, action: 'setPrimary' })
       });
+
+      console.log('⭐ Statut photo principale:', response.status);
 
       if (response.ok) {
         setPhotos(photos.map(p => ({
@@ -251,6 +296,7 @@ const ProfileManager: React.FC = () => {
         showMessage('Erreur mise à jour photo principale');
       }
     } catch (error) {
+      console.error('💥 Erreur photo principale:', error);
       showMessage('Erreur mise à jour photo principale');
     }
   };
@@ -268,7 +314,6 @@ const ProfileManager: React.FC = () => {
     setValueProfile('interests', newInterests);
   };
 
-  // Calculer le pourcentage de complétion du profil
   const getProfileCompletion = () => {
     if (!profile) return 0;
     let completed = 0;
@@ -278,7 +323,7 @@ const ProfileManager: React.FC = () => {
     if (profile.age) completed++;
     if (profile.bio) completed++;
     if (profile.location) completed++;
-    if (profile?.interests?.length > 0) completed++;
+    if (profile.interests && profile.interests.length > 0) completed++;
     if (photos.length > 0) completed++;
     
     return Math.round((completed / total) * 100);
@@ -390,11 +435,9 @@ const ProfileManager: React.FC = () => {
               <div className="lg:col-span-1">
                 <div className="text-center">
                   {primaryPhoto ? (
-                    <CldImage
+                    <img
                       src={primaryPhoto.url}
                       alt="Photo de profil"
-                      width={200}
-                      height={200}
                       className="w-48 h-48 rounded-full object-cover mx-auto border-4 border-pink-100"
                     />
                   ) : (
@@ -425,7 +468,7 @@ const ProfileManager: React.FC = () => {
                       </div>
                       <div>
                         <div className="text-2xl font-bold text-blue-600">
-                          { profile?.interests?.length > 0 || 0}
+                          {profile?.interests?.length || 0}
                         </div>
                         <div className="text-sm text-gray-500">Intérêts</div>
                       </div>
@@ -682,29 +725,17 @@ const ProfileManager: React.FC = () => {
               <h2 className="text-2xl font-bold text-gray-800">
                 Gestion des photos ({photos.length}/6)
               </h2>
+              
+              {/* Bouton d'upload temporaire */}
               {photos.length < 6 && (
-                <CldUploadWidget
-                  uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
-                  onSuccess={handlePhotoUpload}
-                  options={{
-                    maxFiles: 1,
-                    resourceType: "image",
-                    maxFileSize: 5000000,
-                    clientAllowedFormats: ["jpg", "jpeg", "png", "gif"]
-                  }}
+                <button
+                  onClick={() => showMessage('Configuration Cloudinary en cours - Fonctionnalité bientôt disponible')}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed"
+                  disabled
                 >
-                  {({ open }) => (
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => open()}
-                      className="flex items-center gap-2 px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-all"
-                    >
-                      <PlusIcon className="w-5 h-5" />
-                      Ajouter une photo
-                    </motion.button>
-                  )}
-                </CldUploadWidget>
+                  <PlusIcon className="w-5 h-5" />
+                  Upload temporairement désactivé
+                </button>
               )}
             </div>
             
@@ -715,27 +746,16 @@ const ProfileManager: React.FC = () => {
                   Aucune photo
                 </h3>
                 <p className="text-gray-400 mb-6">
-                  Ajoutez des photos pour rendre votre profil plus attractif
+                  Fonctionnalité upload en cours de configuration
                 </p>
-                <CldUploadWidget
-                  uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
-                  onSuccess={handlePhotoUpload}
-                  options={{
-                    maxFiles: 1,
-                    resourceType: "image",
-                    maxFileSize: 5000000,
-                    clientAllowedFormats: ["jpg", "jpeg", "png", "gif"]
-                  }}
-                >
-                  {({ open }) => (
-                    <button
-                      onClick={() => open()}
-                      className="px-6 py-3 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-all"
-                    >
-                      Ajouter ma première photo
-                    </button>
-                  )}
-                </CldUploadWidget>
+                
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg max-w-md mx-auto">
+                  <h4 className="font-medium text-blue-800 mb-2">🔧 Configuration en cours</h4>
+                  <p className="text-sm text-blue-700">
+                    L'upload de photos Cloudinary est en cours de configuration. 
+                    Cette fonctionnalité sera bientôt disponible.
+                  </p>
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
@@ -748,11 +768,9 @@ const ProfileManager: React.FC = () => {
                       exit={{ opacity: 0, scale: 0.8 }}
                       className="relative group"
                     >
-                      <CldImage
+                      <img
                         src={photo.url}
                         alt={`Photo ${index + 1}`}
-                        width={300}
-                        height={300}
                         className="w-full h-64 object-cover rounded-lg"
                       />
                       
@@ -791,34 +809,30 @@ const ProfileManager: React.FC = () => {
                   ))}
                 </AnimatePresence>
 
-                {/* Zone d'ajout si moins de 6 photos */}
+                {/* Zone d'ajout temporairement désactivée */}
                 {photos.length < 6 && (
-                  <CldUploadWidget
-                    uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
-                    onSuccess={handlePhotoUpload}
-                    options={{
-                      maxFiles: 1,
-                      resourceType: "image",
-                      maxFileSize: 5000000,
-                      clientAllowedFormats: ["jpg", "jpeg", "png", "gif"]
-                    }}
-                  >
-                    {({ open }) => (
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => open()}
-                        className="h-64 border-2 border-dashed border-gray-300 rounded-lg hover:border-pink-500 transition-colors flex flex-col items-center justify-center text-gray-500 hover:text-pink-500"
-                      >
-                        <PlusIcon className="w-12 h-12 mb-2" />
-                        <span className="font-medium">Ajouter une photo</span>
-                        <span className="text-sm">JPG, PNG, GIF • Max 5MB</span>
-                      </motion.button>
-                    )}
-                  </CldUploadWidget>
+                  <div className="h-64 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-400">
+                    <PlusIcon className="w-12 h-12 mb-2" />
+                    <span className="font-medium">Upload en configuration</span>
+                    <span className="text-sm">Bientôt disponible</span>
+                  </div>
                 )}
               </div>
             )}
+            
+            {/* Informations sur la configuration */}
+            <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <h4 className="font-medium text-yellow-800 mb-2">⚠️ Statut de la fonctionnalité photos</h4>
+              <div className="text-sm text-yellow-700">
+                <p className="mb-2">La fonctionnalité d'upload de photos est temporairement désactivée pendant la configuration Cloudinary.</p>
+                <p><strong>Fonctionnalités disponibles :</strong></p>
+                <ul className="list-disc list-inside mt-1">
+                  <li>Affichage des photos existantes</li>
+                  <li>Suppression de photos</li>
+                  <li>Définition de photo principale</li>
+                </ul>
+              </div>
+            </div>
           </div>
         )}
 
@@ -839,8 +853,12 @@ const ProfileManager: React.FC = () => {
                     type="number"
                     min="18"
                     max="99"
-                    {...registerPreferences('minAge', { valueAsNumber: true })}
+                    {...registerPreferences('minAge', { 
+                      valueAsNumber: true,
+                      required: "L'âge minimum est requis"
+                    })}
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    placeholder="18"
                   />
                   {errorsPreferences.minAge && (
                     <p className="text-red-500 text-sm mt-1">{errorsPreferences.minAge.message}</p>
@@ -855,8 +873,12 @@ const ProfileManager: React.FC = () => {
                     type="number"
                     min="18"
                     max="99"
-                    {...registerPreferences('maxAge', { valueAsNumber: true })}
+                    {...registerPreferences('maxAge', { 
+                      valueAsNumber: true,
+                      required: "L'âge maximum est requis"
+                    })}
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    placeholder="35"
                   />
                   {errorsPreferences.maxAge && (
                     <p className="text-red-500 text-sm mt-1">{errorsPreferences.maxAge.message}</p>
@@ -872,8 +894,12 @@ const ProfileManager: React.FC = () => {
                   type="number"
                   min="1"
                   max="500"
-                  {...registerPreferences('maxDistance', { valueAsNumber: true })}
+                  {...registerPreferences('maxDistance', { 
+                    valueAsNumber: true,
+                    required: "La distance maximum est requise"
+                  })}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  placeholder="50"
                 />
                 {errorsPreferences.maxDistance && (
                   <p className="text-red-500 text-sm mt-1">{errorsPreferences.maxDistance.message}</p>
@@ -899,9 +925,10 @@ const ProfileManager: React.FC = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 type="submit"
-                className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white py-3 px-4 rounded-lg hover:from-blue-600 hover:to-indigo-600 font-medium transition-all"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white py-3 px-4 rounded-lg hover:from-blue-600 hover:to-indigo-600 disabled:opacity-50 font-medium transition-all"
               >
-                Sauvegarder les préférences
+                {loading ? 'Sauvegarde...' : 'Sauvegarder les préférences'}
               </motion.button>
             </form>
           </div>
