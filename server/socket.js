@@ -1,8 +1,3 @@
-// ===========================================
-// 🔧 CORRECTION: Convertir le serveur Socket.io en JavaScript
-// FICHIER: server/socket.js (REMPLACER socket.ts)
-// ===========================================
-
 const { Server } = require('socket.io');
 const { PrismaClient } = require('@prisma/client');
 

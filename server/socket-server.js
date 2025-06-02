@@ -1,8 +1,3 @@
-// ===========================================
-// ÉTAPE 9: Serveur Socket.io Standalone
-// FICHIER: server/socket-server.js
-// ===========================================
-
 const { createServer } = require('http');
 const ChatServer = require('./socket');
 
