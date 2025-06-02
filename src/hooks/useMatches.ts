@@ -1,151 +1,101 @@
-// src/hooks/useMatches.ts
-import { useState, useEffect, useCallback } from 'react';
+// ===========================================
+// ÉTAPE 4: Hook useMatches
+// FICHIER: src/hooks/useMatches.ts
+// ===========================================
 
-interface Match {
+import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
+
+interface MatchWithMessages {
   id: string;
-  createdAt: string;
-  user: {
+  users: Array<{
     id: string;
     name: string;
-    age: number;
-    bio: string;
-    location: string;
-    department: string;
-    region: string;
-    profession: string;
-    interests: string[];
-    photo: {
-      id: string;
-      url: string;
-      isPrimary: boolean;
-    } | null;
+    image?: string;
+    age?: number;
+    location?: string;
+  }>;
+  lastMessage?: {
+    id: string;
+    content: string;
+    senderId: string;
+    createdAt: string;
+    readAt?: string;
   };
-  conversation: {
-    messageCount: number;
-    lastMessage: {
-      id: string;
-      content: string;
-      createdAt: string;
-      senderId: string;
-      senderName: string;
-      isFromCurrentUser: boolean;
-    } | null;
-    hasUnreadMessages: boolean;
-  };
+  unreadCount: number;
+  createdAt: string;
 }
 
-interface MatchStats {
-  totalMatches: number;
-  newMatches: number;
-  activeConversations: number;
-}
-
-interface UseMatchesResult {
-  matches: Match[];
-  stats: MatchStats;
-  loading: boolean;
-  error: string | null;
-  actions: {
-    loadMatches: () => Promise<void>;
-    refreshMatches: () => Promise<void>;
-    markAsRead: (matchId: string) => Promise<void>;
-    getMatchById: (matchId: string) => Match | null;
-  };
-}
-
-export const useMatches = (): UseMatchesResult => {
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [stats, setStats] = useState<MatchStats>({
-    totalMatches: 0,
-    newMatches: 0,
-    activeConversations: 0
-  });
-  const [loading, setLoading] = useState(true);
+export const useMatches = () => {
+  const [matches, setMatches] = useState<MatchWithMessages[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const { data: session } = useSession();
 
-  // Charger les matches
   const loadMatches = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+    if (!session?.user?.id) return;
 
+    setLoading(true);
+    setError(null);
+    
+    try {
       const response = await fetch('/api/matches');
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erreur lors du chargement des matches');
+        throw new Error('Erreur lors du chargement des matches');
       }
-
+      
       const data = await response.json();
-      setMatches(data.matches);
-      setStats(data.stats);
-
-      console.log('✅ Matches chargés:', data.matches.length);
-
-    } catch (err: any) {
-      console.error('❌ Erreur chargement matches:', err);
-      setError(err.message);
+      setMatches(data.matches || []);
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur inconnue');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [session?.user?.id]);
 
-  // Actualiser les matches
-  const refreshMatches = useCallback(async () => {
-    await loadMatches();
-  }, [loadMatches]);
-
-  // Marquer un match comme lu (quand on ouvre la conversation)
-  const markAsRead = useCallback(async (matchId: string) => {
-    try {
-      // TODO: Implémenter l'API pour marquer les messages comme lus
-      console.log('📖 Marquer comme lu:', matchId);
-      
-      // Mettre à jour localement en attendant
-      setMatches(prev => 
-        prev.map(match => 
-          match.id === matchId 
-            ? { ...match, conversation: { ...match.conversation, hasUnreadMessages: false } }
-            : match
-        )
-      );
-
-    } catch (error) {
-      console.error('❌ Erreur markAsRead:', error);
-    }
-  }, []);
-
-  // Récupérer un match par ID
-  const getMatchById = useCallback((matchId: string): Match | null => {
-    return matches.find(match => match.id === matchId) || null;
+  const getMatchById = useCallback((matchId: string) => {
+    return matches.find(match => match.id === matchId);
   }, [matches]);
 
-  // Charger au montage du composant
+  const updateMatchLastMessage = useCallback((matchId: string, message: any) => {
+    setMatches(prev => prev.map(match => 
+      match.id === matchId 
+        ? { ...match, lastMessage: message }
+        : match
+    ));
+  }, []);
+
+  const incrementUnreadCount = useCallback((matchId: string) => {
+    setMatches(prev => prev.map(match => 
+      match.id === matchId 
+        ? { ...match, unreadCount: match.unreadCount + 1 }
+        : match
+    ));
+  }, []);
+
+  const resetUnreadCount = useCallback((matchId: string) => {
+    setMatches(prev => prev.map(match => 
+      match.id === matchId 
+        ? { ...match, unreadCount: 0 }
+        : match
+    ));
+  }, []);
+
   useEffect(() => {
     loadMatches();
   }, [loadMatches]);
 
-  // Actualiser périodiquement (optionnel)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!loading) {
-        refreshMatches();
-      }
-    }, 30000); // Actualiser toutes les 30 secondes
-
-    return () => clearInterval(interval);
-  }, [loading, refreshMatches]);
-
   return {
     matches,
-    stats,
     loading,
     error,
-    actions: {
-      loadMatches,
-      refreshMatches,
-      markAsRead,
-      getMatchById
-    }
+    loadMatches,
+    getMatchById,
+    updateMatchLastMessage,
+    incrementUnreadCount,
+    resetUnreadCount
   };
 };

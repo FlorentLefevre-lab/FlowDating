@@ -3,9 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000",
-    "build": "next build",
-    "start": "next start --port 3000"
+    "dev": "concurrently \"next dev\" \"npm run socket:dev\"",
+    "dev:next": "next dev",
+    "socket:dev": "nodemon server/socket-server.js",
+    "build": "next build", 
+    "start": "next start",
+    "socket:start": "node server/socket-server.js",
+    "test:chat": "tsx scripts/test-chat.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.9.1",
