@@ -1,15 +1,16 @@
-// src/app/api/messages-pure-universal/route.ts - API Messages pure universelle (SANS Match)
+// src/app/api/chat/route.ts - API Messages pure universelle CORRIGÉE
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  console.log('🔍 API Messages Pure Universelle (SANS Match)');
+  console.log('🔍 API Messages Pure Universelle (SANS Match) - CORRIGÉE');
   
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.id) {
+    // ✅ CORRECTION: Vérifier l'email au lieu de l'ID
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
@@ -24,7 +25,23 @@ export async function GET(request: NextRequest) {
     }
 
     const { prisma } = await import('@/lib/db');
-    const userId = session.user.id;
+    
+    // ✅ CORRECTION: Récupérer le vrai ID de l'utilisateur actuel
+    const currentUser = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { 
+        id: true, 
+        name: true, 
+        email: true, 
+        image: true 
+      }
+    });
+
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
+    }
+
+    const userId = currentUser.id; // ✅ Maintenant on a le vrai ID !
 
     let messages = [];
     let otherUser = null;
@@ -37,13 +54,12 @@ export async function GET(request: NextRequest) {
       // Extraire les IDs des utilisateurs depuis conversationId
       const parts = conversationId.replace('conv_', '').split('_');
       if (parts.length >= 2) {
-        // Reconstituer les emails/IDs
-        const midpoint = Math.floor(parts.length / 2);
-        const user1Id = parts.slice(0, midpoint).join('@').replace(/_/g, '.');
-        const user2Id = parts.slice(midpoint).join('@').replace(/_/g, '.');
+        // Gestion améliorée pour les IDs complexes
+        const user1Id = parts[0];
+        const user2Id = parts[1];
         
         finalOtherUserId = user1Id === userId ? user2Id : user1Id;
-        console.log('📝 IDs extraits:', { user1Id, user2Id, finalOtherUserId });
+        console.log('📝 IDs extraits:', { user1Id, user2Id, finalOtherUserId, currentUserId: userId });
       }
     }
 
@@ -58,12 +74,34 @@ export async function GET(request: NextRequest) {
             { email: finalOtherUserId }
           ]
         },
-        select: { id: true, name: true, image: true, email: true, bio: true, age: true, location: true }
+        select: { 
+          id: true, 
+          name: true, 
+          image: true, 
+          email: true, 
+          bio: true, 
+          age: true, 
+          location: true,
+          photos: {
+            select: {
+              url: true,
+              isPrimary: true
+            },
+            orderBy: { isPrimary: 'desc' }
+          }
+        }
       });
 
       if (!otherUser) {
-        return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
+        return NextResponse.json({ 
+          error: 'Utilisateur introuvable',
+          requestedUserId: finalOtherUserId 
+        }, { status: 404 });
       }
+
+      // Utiliser la photo primaire si disponible
+      const primaryPhoto = otherUser.photos.find(photo => photo.isPrimary);
+      const userImage = primaryPhoto?.url || otherUser.photos[0]?.url || otherUser.image;
 
       // Récupérer TOUS les messages entre ces deux utilisateurs (sans référence à match)
       messages = await prisma.message.findMany({
@@ -81,9 +119,12 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: 'asc' },
         take: 100
       });
+
+      // Mettre à jour l'image de l'autre utilisateur avec la photo primaire
+      otherUser.image = userImage;
     }
 
-    console.log(`✅ ${messages.length} messages purs récupérés`);
+    console.log(`✅ ${messages.length} messages purs récupérés entre ${userId} et ${otherUser?.id}`);
 
     // Marquer les messages reçus comme lus
     try {
@@ -115,25 +156,35 @@ export async function GET(request: NextRequest) {
       sender: msg.sender
     }));
 
+    // ✅ Converstion ID avec les vrais IDs
+    const conversationIdFormatted = conversationId || `conv_${[userId, otherUser?.id].sort().join('_')}`;
+
     return NextResponse.json({
+      success: true,
       messages: formattedMessages,
       conversation: {
         type: 'pure_universal',
-        otherUser,
+        otherUser: otherUser ? {
+          ...otherUser,
+          photos: undefined // Ne pas renvoyer le array photos dans la réponse
+        } : null,
         currentUser: {
-          id: userId,
-          name: session.user.name,
-          image: session.user.image,
-          email: session.user.email
+          id: userId, // ✅ Vrai ID
+          name: currentUser.name || session.user.name,
+          image: currentUser.image || session.user.image,
+          email: currentUser.email
         },
-        conversationId: conversationId || `conv_${[userId, otherUser?.id].sort().join('_').replace(/[@.]/g, '_')}`
+        conversationId: conversationIdFormatted
       },
       debug: {
         messageCount: messages.length,
+        currentUserId: userId,
         otherUserId: otherUser?.id,
-        conversationId,
-        chatType: 'Pure Universal (No Match System)',
-        hasMatchSystem: false
+        conversationId: conversationIdFormatted,
+        chatType: 'Pure Universal (No Match System) - CORRIGÉ',
+        hasMatchSystem: false,
+        sessionEmail: session.user.email,
+        userResolved: !!currentUser
       }
     });
 
@@ -141,18 +192,20 @@ export async function GET(request: NextRequest) {
     console.error('❌ Erreur API messages pure universelle:', error);
     return NextResponse.json({
       error: 'Erreur serveur',
-      message: error.message
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
-  console.log('📤 API Messages Pure Universelle - Envoi');
+  console.log('📤 API Messages Pure Universelle - Envoi CORRIGÉ');
   
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.id) {
+    // ✅ CORRECTION: Vérifier l'email au lieu de l'ID
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
@@ -160,13 +213,37 @@ export async function POST(request: NextRequest) {
     const { content, receiverId, otherUserId } = body;
 
     if (!content || (!receiverId && !otherUserId)) {
-      return NextResponse.json({ error: 'Contenu et destinataire requis' }, { status: 400 });
+      return NextResponse.json({ 
+        error: 'Contenu et destinataire requis',
+        received: { content, receiverId, otherUserId }
+      }, { status: 400 });
     }
 
     const { prisma } = await import('@/lib/db');
-    const senderId = session.user.id;
+    
+    // ✅ CORRECTION: Récupérer le vrai ID de l'utilisateur actuel
+    const currentUser = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { 
+        id: true, 
+        name: true, 
+        email: true, 
+        image: true 
+      }
+    });
 
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
+    }
+
+    const senderId = currentUser.id; // ✅ Maintenant on a le vrai ID !
     let finalReceiverId = receiverId || otherUserId;
+
+    console.log('📤 Envoi message:', {
+      senderId,
+      finalReceiverId,
+      content: content.substring(0, 50) + '...'
+    });
 
     // Vérifier que le destinataire existe
     const receiver = await prisma.user.findFirst({
@@ -180,7 +257,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (!receiver) {
-      return NextResponse.json({ error: 'Destinataire introuvable' }, { status: 404 });
+      return NextResponse.json({ 
+        error: 'Destinataire introuvable',
+        requestedReceiverId: finalReceiverId
+      }, { status: 404 });
     }
 
     // Créer le message pur universel (SANS matchId, SANS référence à Match)
@@ -198,7 +278,11 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    console.log('✅ Message pur universel créé:', message.id);
+    console.log('✅ Message pur universel créé:', {
+      id: message.id,
+      from: senderId,
+      to: receiver.id
+    });
 
     const formattedMessage = {
       id: message.id,
@@ -209,21 +293,32 @@ export async function POST(request: NextRequest) {
       readAt: message.readAt?.toISOString() || null,
       type: 'text',
       timestamp: message.createdAt.toISOString(),
-      sender: message.sender
+      sender: {
+        id: currentUser.id,
+        name: currentUser.name,
+        image: currentUser.image,
+        email: currentUser.email
+      }
     };
 
     return NextResponse.json({
-      message: formattedMessage,
       success: true,
-      chatType: 'pure_universal',
-      conversationId: `conv_${[senderId, receiver.id].sort().join('_').replace(/[@.]/g, '_')}`
+      message: formattedMessage,
+      chatType: 'pure_universal_corrected',
+      conversationId: `conv_${[senderId, receiver.id].sort().join('_')}`,
+      debug: {
+        originalSenderId: senderId,
+        resolvedReceiverId: receiver.id,
+        sessionEmail: session.user.email
+      }
     });
 
   } catch (error: any) {
     console.error('❌ Erreur envoi message pur universel:', error);
     return NextResponse.json({
       error: 'Erreur envoi message',
-      message: error.message
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
   }
 }

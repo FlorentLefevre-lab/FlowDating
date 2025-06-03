@@ -1,618 +1,493 @@
-// src/app/api/discover/route.ts - Version corrigée autonome
+// src/app/api/discover/route.ts - API Discover corrigée
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth'; // Ajustez selon votre config
 
-// 🎯 BASE DE DONNÉES ÉTENDUE (reprise de votre code + améliorations)
-const EXTENDED_PROFILES_DB = [
-  {
-    id: 'alice@test.com',
-    name: 'Alice Martin',
-    age: 28,
-    bio: 'Photographe passionnée de voyage ✈️ Toujours en quête de nouvelles aventures et de beaux paysages à immortaliser.',
-    location: 'Paris, Île-de-France',
-    department: '75',
-    region: 'Île-de-France',
-    profession: 'Photographe',
-    interests: ['Photographie', 'Voyage', 'Art', 'Nature'],
-    photos: [
-      { id: 'alice_1', url: 'https://via.placeholder.com/400x600/FFB6C1/000000?text=Alice+1', isPrimary: true },
-      { id: 'alice_2', url: 'https://via.placeholder.com/400x600/FFB6C1/000000?text=Alice+2', isPrimary: false }
-    ],
-    compatibilityScore: 92,
-    isActive: true,
-    isOnline: Math.random() > 0.5,
-    lastActive: new Date(Date.now() - Math.random() * 72 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'bob@test.com',
-    name: 'Bob Wilson',
-    age: 32,
-    bio: 'Entrepreneur dans la tech 💻 Passionné d\'innovation et de nouvelles technologies. Fan de cuisine fusion.',
-    location: 'Lyon, Auvergne-Rhône-Alpes',
-    department: '69',
-    region: 'Auvergne-Rhône-Alpes',
-    profession: 'Entrepreneur',
-    interests: ['Technologie', 'Cuisine', 'Entrepreneuriat', 'Innovation'],
-    photos: [
-      { id: 'bob_1', url: 'https://via.placeholder.com/400x600/87CEEB/000000?text=Bob+1', isPrimary: true }
-    ],
-    compatibilityScore: 85,
-    isActive: true,
-    isOnline: Math.random() > 0.5,
-    lastActive: new Date(Date.now() - Math.random() * 72 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'clara@test.com',
-    name: 'Clara Dubois',
-    age: 26,
-    bio: 'Artiste et voyageuse 🎨 Je peins ce que je vois dans mes voyages. Amoureuse des couchers de soleil.',
-    location: 'Montpellier, Occitanie',
-    department: '34',
-    region: 'Occitanie',
-    profession: 'Artiste',
-    interests: ['Art', 'Voyage', 'Peinture', 'Photographie'],
-    photos: [
-      { id: 'clara_1', url: 'https://via.placeholder.com/400x600/DDA0DD/000000?text=Clara+1', isPrimary: true },
-      { id: 'clara_2', url: 'https://via.placeholder.com/400x600/DDA0DD/000000?text=Clara+2', isPrimary: false }
-    ],
-    compatibilityScore: 88,
-    isActive: true,
-    isOnline: Math.random() > 0.5,
-    lastActive: new Date(Date.now() - Math.random() * 72 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'david@test.com',
-    name: 'David Chen',
-    age: 29,
-    bio: 'Développeur créatif 👨‍💻 Le jour je code, le soir je compose de la musique. Toujours partant pour un bon film !',
-    location: 'Toulouse, Occitanie',
-    department: '31',
-    region: 'Occitanie',
-    profession: 'Développeur',
-    interests: ['Programmation', 'Musique', 'Cinéma', 'Technologie'],
-    photos: [
-      { id: 'david_1', url: 'https://via.placeholder.com/400x600/98FB98/000000?text=David+1', isPrimary: true }
-    ],
-    compatibilityScore: 91,
-    isActive: true,
-    isOnline: Math.random() > 0.5,
-    lastActive: new Date(Date.now() - Math.random() * 72 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'emma@test.com',
-    name: 'Emma Rodriguez',
-    age: 25,
-    bio: 'Médecin et sportive ⚕️🏃‍♀️ Passionnée de trail et de médecine d\'urgence. La vie est une aventure !',
-    location: 'Nice, Provence-Alpes-Côte d\'Azur',
-    department: '06',
-    region: 'Provence-Alpes-Côte d\'Azur',
-    profession: 'Médecin',
-    interests: ['Médecine', 'Sport', 'Trail', 'Nature'],
-    photos: [
-      { id: 'emma_1', url: 'https://via.placeholder.com/400x600/F0E68C/000000?text=Emma+1', isPrimary: true },
-      { id: 'emma_2', url: 'https://via.placeholder.com/400x600/F0E68C/000000?text=Emma+2', isPrimary: false }
-    ],
-    compatibilityScore: 94,
-    isActive: true,
-    isOnline: Math.random() > 0.5,
-    lastActive: new Date(Date.now() - Math.random() * 72 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'felix@test.com',
-    name: 'Felix Andersson',
-    age: 31,
-    bio: 'Chef cuisinier 👨‍🍳 Spécialisé dans la cuisine nordique. J\'adore expérimenter avec les saveurs locales.',
-    location: 'Bordeaux, Nouvelle-Aquitaine',
-    department: '33',
-    region: 'Nouvelle-Aquitaine',
-    profession: 'Chef',
-    interests: ['Cuisine', 'Gastronomie', 'Voyage', 'Culture'],
-    photos: [
-      { id: 'felix_1', url: 'https://via.placeholder.com/400x600/FFA07A/000000?text=Felix+1', isPrimary: true }
-    ],
-    compatibilityScore: 87,
-    isActive: true,
-    isOnline: Math.random() > 0.5,
-    lastActive: new Date(Date.now() - Math.random() * 72 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'gabrielle@test.com',
-    name: 'Gabrielle Moreau',
-    age: 27,
-    bio: 'Architecte passionnée 🏛️ Je dessine les espaces de demain. Fan de design durable et d\'éco-construction.',
-    location: 'Nantes, Pays de la Loire',
-    department: '44',
-    region: 'Pays de la Loire',
-    profession: 'Architecte',
-    interests: ['Architecture', 'Design', 'Écologie', 'Art'],
-    photos: [
-      { id: 'gabrielle_1', url: 'https://via.placeholder.com/400x600/AFEEEE/000000?text=Gabrielle+1', isPrimary: true },
-      { id: 'gabrielle_2', url: 'https://via.placeholder.com/400x600/AFEEEE/000000?text=Gabrielle+2', isPrimary: false }
-    ],
-    compatibilityScore: 89,
-    isActive: true,
-    isOnline: Math.random() > 0.5,
-    lastActive: new Date(Date.now() - Math.random() * 72 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'hugo@test.com',
-    name: 'Hugo Lefevre',
-    age: 30,
-    bio: 'Journaliste et globe-trotter 📰✈️ Je raconte les histoires du monde. Toujours à la recherche de la prochaine aventure.',
-    location: 'Strasbourg, Grand Est',
-    department: '67',
-    region: 'Grand Est',
-    profession: 'Journaliste',
-    interests: ['Journalisme', 'Voyage', 'Culture', 'Histoire'],
-    photos: [
-      { id: 'hugo_1', url: 'https://via.placeholder.com/400x600/D3D3D3/000000?text=Hugo+1', isPrimary: true }
-    ],
-    compatibilityScore: 86,
-    isActive: true,
-    isOnline: Math.random() > 0.5,
-    lastActive: new Date(Date.now() - Math.random() * 72 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'isabelle@test.com',
-    name: 'Isabelle Martin',
-    age: 28,
-    bio: 'Psychologue et yogini 🧘‍♀️ J\'aide les gens à se connecter à eux-mêmes. Pratique quotidienne de méditation.',
-    location: 'Marseille, Provence-Alpes-Côte d\'Azur',
-    department: '13',
-    region: 'Provence-Alpes-Côte d\'Azur',
-    profession: 'Psychologue',
-    interests: ['Psychologie', 'Yoga', 'Méditation', 'Bien-être'],
-    photos: [
-      { id: 'isabelle_1', url: 'https://via.placeholder.com/400x600/E6E6FA/000000?text=Isabelle+1', isPrimary: true },
-      { id: 'isabelle_2', url: 'https://via.placeholder.com/400x600/E6E6FA/000000?text=Isabelle+2', isPrimary: false }
-    ],
-    compatibilityScore: 93,
-    isActive: true,
-    isOnline: Math.random() > 0.5,
-    lastActive: new Date(Date.now() - Math.random() * 72 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'julien@test.com',
-    name: 'Julien Rousseau',
-    age: 33,
-    bio: 'Ingénieur en énergies renouvelables 🌱 Passionné par l\'avenir de notre planète. Weekend = randonnée en montagne.',
-    location: 'Grenoble, Auvergne-Rhône-Alpes',
-    department: '38',
-    region: 'Auvergne-Rhône-Alpes',
-    profession: 'Ingénieur',
-    interests: ['Écologie', 'Randonnée', 'Technologie', 'Nature'],
-    photos: [
-      { id: 'julien_1', url: 'https://via.placeholder.com/400x600/228B22/FFFFFF?text=Julien+1', isPrimary: true }
-    ],
-    compatibilityScore: 90,
-    isActive: true,
-    isOnline: Math.random() > 0.5,
-    lastActive: new Date(Date.now() - Math.random() * 72 * 60 * 60 * 1000).toISOString()
-  }
-];
-
-// 🎯 SYSTÈME DE PERSISTANCE SIMPLE
-interface UserDiscoveryState {
-  viewedProfiles: string[];
-  interactions: Array<{
-    profileId: string;
-    action: 'like' | 'dislike' | 'super_like';
-    timestamp: number;
+// Interface pour les utilisateurs découvrables
+interface DiscoverableUser {
+  id: string;
+  name: string | null;
+  email: string;
+  age: number | null;
+  bio: string | null;
+  location: string | null;
+  profession: string | null;
+  gender: string | null;
+  interests: string[];
+  photos: Array<{
+    id: string;
+    url: string;
+    isPrimary: boolean;
   }>;
-  lastResetTime: number;
-  cycleCount: number;
+  compatibility: number;
+  memberSince: string;
 }
 
-class PersistentStorage {
-  private static states: Map<string, UserDiscoveryState> = new Map();
+interface DiscoverStats {
+  totalUsers: number;
+  excludedCount: number;
+  discoverableCount: number;
+  breakdown: {
+    alreadyLiked: number;
+    alreadyDisliked: number;
+    alreadyMatched: number;
+  };
+  avgCompatibility: number;
+}
 
-  static async saveState(userId: string, state: UserDiscoveryState) {
-    this.states.set(userId, state);
-    console.log(`💾 État sauvegardé pour ${userId}:`, {
-      interactions: state.interactions.length,
-      cycle: state.cycleCount
-    });
-  }
-
-  static async loadState(userId: string): Promise<UserDiscoveryState> {
-    const existing = this.states.get(userId);
-    if (existing) return existing;
-
-    const defaultState: UserDiscoveryState = {
-      viewedProfiles: [],
-      interactions: [],
-      lastResetTime: Date.now(),
-      cycleCount: 1
+interface DiscoverResponse {
+  success: boolean;
+  users: DiscoverableUser[];
+  stats: DiscoverStats;
+  currentUser: {
+    id: string;
+    interests: string[];
+    age: number | null;
+    location: string | null;
+  };
+  meta: {
+    timestamp: string;
+    algorithm: string;
+    excludedReasons: {
+      matches: number;
+      likes: number;
+      dislikes: number;
     };
-
-    this.states.set(userId, defaultState);
-    console.log(`🆕 Nouvel état créé pour ${userId}`);
-    return defaultState;
-  }
-
-  static async clearState(userId: string) {
-    this.states.delete(userId);
-    console.log(`🗑️ État effacé pour ${userId}`);
-  }
+  };
+  error?: string;
 }
 
-// 🎯 ALGORITHME DE DÉCOUVERTE COMPLET ET AUTONOME
-class CompleteDiscoveryAlgorithm {
+export async function GET(request: NextRequest): Promise<NextResponse<DiscoverResponse>> {
+  console.log('🔍 API Discover avec filtrage intelligent');
   
-  // Récupérer les profils vus
-  static async getViewedProfiles(userId: string): Promise<string[]> {
-    const state = await PersistentStorage.loadState(userId);
-    return state.viewedProfiles;
-  }
-
-  // Marquer un profil comme vu avec interaction optionnelle
-  static async markProfileAsViewed(userId: string, profileId: string, action?: 'like' | 'dislike' | 'super_like') {
-    const state = await PersistentStorage.loadState(userId);
-    
-    // Ajouter aux profils vus
-    if (!state.viewedProfiles.includes(profileId)) {
-      state.viewedProfiles.push(profileId);
-    }
-
-    // Enregistrer l'interaction si fournie
-    if (action) {
-      state.interactions.push({
-        profileId,
-        action,
-        timestamp: Date.now()
-      });
-      console.log(`🎯 Interaction ${action} enregistrée: ${userId} → ${profileId}`);
-    }
-
-    await PersistentStorage.saveState(userId, state);
-  }
-
-  // Reset des profils vus
-  static async resetViewedProfiles(userId: string, type: 'full' | 'smart' = 'full') {
-    const state = await PersistentStorage.loadState(userId);
-    
-    if (type === 'full') {
-      // Reset complet
-      state.viewedProfiles = [];
-      state.cycleCount++;
-      console.log(`✅ Reset complet pour ${userId} - Cycle ${state.cycleCount}`);
-    } else {
-      // Reset intelligent : garder les interactions récentes (24h)
-      const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
-      const recentInteractions = state.interactions.filter(i => i.timestamp > oneDayAgo);
-      const recentProfileIds = recentInteractions.map(i => i.profileId);
-      
-      // Retirer de viewedProfiles tout sauf les récents
-      const originalCount = state.viewedProfiles.length;
-      state.viewedProfiles = state.viewedProfiles.filter(id => recentProfileIds.includes(id));
-      
-      console.log(`🔄 Reset intelligent pour ${userId}: ${originalCount - state.viewedProfiles.length} profils libérés`);
-    }
-    
-    state.lastResetTime = Date.now();
-    await PersistentStorage.saveState(userId, state);
-  }
-
-  // Obtenir les profils avec système de cooldown
-  static async getAvailableProfilesWithCooldown(userId: string, filters?: any) {
-    const state = await PersistentStorage.loadState(userId);
-    const now = Date.now();
-    const cooldownPeriod = 24 * 60 * 60 * 1000; // 24h en millisecondes
-
-    // Profils en cooldown (interagi dans les dernières 24h)
-    const recentInteractionIds = state.interactions
-      .filter(i => now - i.timestamp < cooldownPeriod)
-      .map(i => i.profileId);
-
-    // Filtrer les profils disponibles
-    let availableProfiles = EXTENDED_PROFILES_DB.filter(profile => 
-      profile.isActive && 
-      profile.id !== userId && 
-      !recentInteractionIds.includes(profile.id) // Exclure les cooldowns
-    );
-
-    // Appliquer les filtres
-    if (filters) {
-      if (filters.minAge) {
-        availableProfiles = availableProfiles.filter(p => p.age >= filters.minAge);
-      }
-      if (filters.maxAge) {
-        availableProfiles = availableProfiles.filter(p => p.age <= filters.maxAge);
-      }
-      if (filters.interests && filters.interests.length > 0) {
-        availableProfiles = availableProfiles.filter(p => 
-          p.interests.some(interest => filters.interests.includes(interest))
-        );
-      }
-    }
-
-    // Boost et tri
-    const boostedProfiles = availableProfiles.map(profile => {
-      let boostedScore = profile.compatibilityScore;
-      
-      // Boost aléatoire léger pour varier l'ordre
-      boostedScore += Math.random() * 5;
-      
-      // Boost pour profils en ligne
-      if (profile.isOnline) boostedScore += 10;
-      
-      // Boost pour nouveaux profils (simulé)
-      if (Math.random() > 0.7) boostedScore += 8; // 30% de chance d'être "nouveau"
-      
-      return { ...profile, boostedScore };
-    });
-
-    // Trier par score boosté
-    boostedProfiles.sort((a, b) => b.boostedScore - a.boostedScore);
-
-    return boostedProfiles;
-  }
-
-  // Vérification des matches
-  static async checkForMatches(userId: string, targetId: string, action: 'like' | 'super_like'): Promise<boolean> {
-    if (action !== 'like' && action !== 'super_like') return false;
-
-    // Vérifier si l'autre utilisateur a liké en retour
-    const targetState = await PersistentStorage.loadState(targetId);
-    const reciprocalLike = targetState.interactions.find(i => 
-      i.profileId === userId && (i.action === 'like' || i.action === 'super_like')
-    );
-
-    if (reciprocalLike) {
-      console.log(`🎉 MATCH détecté entre ${userId} et ${targetId}!`);
-      await this.createMatch(userId, targetId);
-      return true;
-    }
-
-    return false;
-  }
-
-  // Création d'un match
-  static async createMatch(user1Id: string, user2Id: string) {
-    const matchId = `match_${Date.now()}_${user1Id}_${user2Id}`;
-    console.log(`💕 Match créé: ${matchId}`);
-    // En production, sauvegarder en base de données
-  }
-
-  // Diagnostic avancé
-  static async getAdvancedDiagnostic(userId: string) {
-    const state = await PersistentStorage.loadState(userId);
-    const now = Date.now();
-    const cooldownPeriod = 24 * 60 * 60 * 1000;
-
-    const totalProfiles = EXTENDED_PROFILES_DB.filter(p => p.isActive && p.id !== userId).length;
-    const recentInteractions = state.interactions.filter(i => now - i.timestamp < cooldownPeriod);
-    const cooldownProfiles = recentInteractions.length;
-    const availableProfiles = await this.getAvailableProfilesWithCooldown(userId);
-
-    // Calculer le prochain profil disponible
-    const oldestCooldown = recentInteractions
-      .sort((a, b) => a.timestamp - b.timestamp)[0];
-    const nextAvailableIn = oldestCooldown ? 
-      Math.max(0, (oldestCooldown.timestamp + cooldownPeriod) - now) : 0;
-
-    return {
-      totalProfiles,
-      availableProfiles: availableProfiles.length,
-      cooldownProfiles,
-      totalInteractions: state.interactions.length,
-      cycleCount: state.cycleCount,
-      nextAvailableIn: Math.ceil(nextAvailableIn / (60 * 60 * 1000)), // en heures
-      timeSinceLastReset: Math.ceil((now - state.lastResetTime) / (60 * 60 * 1000)), // en heures
-      needsReset: availableProfiles.length < 3,
-      needsMoreProfiles: totalProfiles < 15,
-      recentStats: {
-        likes: recentInteractions.filter(i => i.action === 'like').length,
-        dislikes: recentInteractions.filter(i => i.action === 'dislike').length,
-        superLikes: recentInteractions.filter(i => i.action === 'super_like').length,
-      }
-    };
-  }
-
-  // Recommandations intelligentes
-  static async getRecommendedProfiles(userId: string, limit: number = 10) {
-    // 1. Obtenir les profils avec cooldown
-    let profiles = await this.getAvailableProfilesWithCooldown(userId);
-    
-    console.log(`📊 Profils disponibles (après cooldown) pour ${userId}:`, profiles.length);
-
-    // 2. Stratégies si pas assez de profils
-    if (profiles.length < 5) {
-      console.log('⚠️ Peu de profils disponibles, application de stratégies...');
-      
-      // Stratégie 1: Reset intelligent automatique
-      if (profiles.length <= 2) {
-        console.log('🔄 Reset intelligent automatique...');
-        await this.resetViewedProfiles(userId, 'smart');
-        profiles = await this.getAvailableProfilesWithCooldown(userId);
-      }
-      
-      // Stratégie 2: Générer plus de profils (simulation)
-      if (profiles.length < 3) {
-        console.log('🧪 Génération de profils supplémentaires simulée...');
-        // En prod, ici on irait chercher plus de profils en base
-      }
-    }
-
-    // 3. Mélanger légèrement tout en gardant l'ordre par score
-    const shuffled = profiles
-      .slice(0, Math.min(20, profiles.length)) // Top 20
-      .sort(() => Math.random() - 0.4); // Mélange léger
-
-    return shuffled.slice(0, limit);
-  }
-}
-
-// 🎯 API GET - Chargement des profils
-export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+    
     if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+      return NextResponse.json({ 
+        success: false,
+        error: 'Non authentifié',
+        users: [],
+        stats: {
+          totalUsers: 0,
+          excludedCount: 0,
+          discoverableCount: 0,
+          breakdown: { alreadyLiked: 0, alreadyDisliked: 0, alreadyMatched: 0 },
+          avgCompatibility: 0
+        },
+        currentUser: { id: '', interests: [], age: null, location: null },
+        meta: {
+          timestamp: new Date().toISOString(),
+          algorithm: 'none',
+          excludedReasons: { matches: 0, likes: 0, dislikes: 0 }
+        }
+      }, { status: 401 });
     }
 
-    const userId = session.user.email;
-    const url = new URL(request.url);
-    const reset = url.searchParams.get('reset') === 'true';
-    const resetType = url.searchParams.get('resetType') as 'full' | 'smart' || 'smart';
-    const diagnostic = url.searchParams.get('diagnostic') === 'true';
-
-    console.log(`📥 Requête découverte pour ${userId}:`, { reset, resetType, diagnostic });
-
-    // Reset si demandé
-    if (reset) {
-      console.log(`🔄 Reset ${resetType} demandé pour ${userId}`);
-      await CompleteDiscoveryAlgorithm.resetViewedProfiles(userId, resetType);
-    }
-
-    // Diagnostic complet si demandé
-    if (diagnostic) {
-      const diagnosticInfo = await CompleteDiscoveryAlgorithm.getAdvancedDiagnostic(userId);
-      console.log('📊 Diagnostic avancé:', diagnosticInfo);
-      return NextResponse.json({
-        success: true,
-        diagnostic: diagnosticInfo,
-        profiles: []
-      });
-    }
-
-    // Obtenir les profils recommandés
-    const profiles = await CompleteDiscoveryAlgorithm.getRecommendedProfiles(userId, 10);
+    const { prisma } = await import('@/lib/db');
     
-    // Diagnostic automatique
-    const diagnosticInfo = await CompleteDiscoveryAlgorithm.getAdvancedDiagnostic(userId);
-    
-    console.log(`✅ ${profiles.length} profils retournés pour ${userId}`);
+    // 1. CORRECTION CRITIQUE : Récupérer l'utilisateur réel par email pour avoir son ID
+    const currentUser = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { 
+        id: true, 
+        interests: true, 
+        age: true, 
+        location: true 
+      }
+    });
 
-    // Messages intelligents selon la situation
-    let message = 'Profils disponibles trouvés.';
-    if (profiles.length === 0) {
-      message = diagnosticInfo.cooldownProfiles > 0 ? 
-        `Tous les profils sont en cooldown. Prochain disponible dans ${diagnosticInfo.nextAvailableIn}h.` :
-        'Aucun nouveau profil disponible. Utilisez le reset pour revoir des profils.';
-    } else if (profiles.length < 5) {
-      message = `${profiles.length} profils disponibles. ${diagnosticInfo.cooldownProfiles} en cooldown.`;
+    if (!currentUser) {
+      return NextResponse.json({ 
+        success: false,
+        error: 'Utilisateur introuvable',
+        users: [],
+        stats: {
+          totalUsers: 0,
+          excludedCount: 0,
+          discoverableCount: 0,
+          breakdown: { alreadyLiked: 0, alreadyDisliked: 0, alreadyMatched: 0 },
+          avgCompatibility: 0
+        },
+        currentUser: { id: '', interests: [], age: null, location: null },
+        meta: {
+          timestamp: new Date().toISOString(),
+          algorithm: 'none',
+          excludedReasons: { matches: 0, likes: 0, dislikes: 0 }
+        }
+      }, { status: 404 });
     }
+
+    const currentUserId = currentUser.id;
+
+    // 2. Récupérer tous les utilisateurs qu'on a déjà likés
+    const likedUserIds = await prisma.like.findMany({
+      where: { senderId: currentUserId },
+      select: { receiverId: true }
+    });
+    const likedIds = likedUserIds.map(like => like.receiverId);
+
+    // 3. Récupérer tous les utilisateurs qu'on a dislikés
+    const dislikedUserIds = await prisma.dislike.findMany({
+      where: { senderId: currentUserId },
+      select: { receiverId: true }
+    });
+    const dislikedIds = dislikedUserIds.map(dislike => dislike.receiverId);
+
+    // 4. Récupérer les utilisateurs avec qui on a des matchs (likes réciproques)
+    const reciprocalLikes = await prisma.$queryRaw`
+      SELECT l2."senderId" as matched_user_id
+      FROM "Like" l1
+      INNER JOIN "Like" l2 
+        ON l1."senderId" = l2."receiverId" 
+        AND l1."receiverId" = l2."senderId"
+      WHERE l1."senderId" = ${currentUserId}
+    ` as Array<{ matched_user_id: string }>;
+    
+    const matchedIds = reciprocalLikes.map(match => match.matched_user_id);
+
+    // 5. Combiner tous les IDs à exclure
+    const excludedIds = [
+      currentUserId, // Soi-même
+      ...likedIds,   // Déjà likés
+      ...dislikedIds, // Déjà dislikés
+      ...matchedIds   // Déjà matchés
+    ];
+
+    console.log('🚫 Utilisateurs exclus:', {
+      currentUser: currentUserId,
+      liked: likedIds.length,
+      disliked: dislikedIds.length,
+      matched: matchedIds.length,
+      totalExcluded: excludedIds.length
+    });
+
+    // 6. Récupérer les utilisateurs découvrables avec leurs photos
+    const discoverableUsers = await prisma.user.findMany({
+      where: {
+        AND: [
+          // Exclure tous les IDs identifiés
+          { id: { notIn: excludedIds } },
+          // Exclure les comptes système
+          { email: { not: { endsWith: '@system.local' } } }
+        ]
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        age: true,
+        bio: true,
+        location: true,
+        profession: true,
+        gender: true,
+        interests: true,
+        createdAt: true,
+        photos: {
+          select: {
+            id: true,
+            url: true,
+            isPrimary: true
+          },
+          orderBy: [
+            { isPrimary: 'desc' },
+            { createdAt: 'asc' }
+          ]
+        }
+      },
+      orderBy: [
+        // Priorité aux nouveaux utilisateurs
+        { createdAt: 'desc' }
+      ],
+      take: 50 // Limite raisonnable
+    });
+
+    console.log(`✅ ${discoverableUsers.length} utilisateurs découvrables trouvés`);
+
+    // 7. Fonction de calcul de compatibilité améliorée
+    const calculateCompatibility = (user: any): number => {
+      let score = 0;
+      let factors = 0;
+
+      // Centres d'intérêt communs (40% du score)
+      if (user.interests?.length && currentUser.interests?.length) {
+        const commonInterests = user.interests.filter((interest: string) => 
+          currentUser.interests.includes(interest)
+        );
+        const interestScore = (commonInterests.length / Math.max(user.interests.length, currentUser.interests.length)) * 40;
+        score += interestScore;
+        factors++;
+      }
+
+      // Différence d'âge (30% du score)
+      if (user.age && currentUser.age) {
+        const ageDiff = Math.abs(user.age - currentUser.age);
+        const ageScore = Math.max(0, (10 - ageDiff) / 10) * 30;
+        score += ageScore;
+        factors++;
+      }
+
+      // Proximité géographique (30% du score)
+      if (user.location && currentUser.location) {
+        // Simple comparaison de ville pour l'exemple
+        const sameCity = user.location.toLowerCase().includes(currentUser.location.toLowerCase()) ||
+                        currentUser.location.toLowerCase().includes(user.location.toLowerCase());
+        if (sameCity) {
+          score += 30;
+        } else {
+          score += 10; // Même région/pays
+        }
+        factors++;
+      }
+
+      // Score minimum pour éviter les 0%
+      const finalScore = factors > 0 ? Math.round(score / factors * (factors / 3)) : Math.floor(Math.random() * 30) + 40;
+      return Math.max(25, Math.min(99, finalScore)); // Score entre 25% et 99%
+    };
+
+    // 8. Enrichir les données avec la compatibilité - FORMAT CORRECT
+    const enrichedUsers: DiscoverableUser[] = discoverableUsers.map(user => ({
+      id: user.id,
+      name: user.name || 'Utilisateur',
+      email: user.email,
+      age: user.age || 25,
+      bio: user.bio || 'Aucune bio disponible',
+      location: user.location || 'Location inconnue',
+      profession: user.profession || 'Profession inconnue',
+      gender: user.gender || 'Non spécifié',
+      interests: user.interests || [],
+      photos: user.photos.length > 0 ? user.photos : [
+        {
+          id: 'placeholder',
+          url: 'https://via.placeholder.com/400x600/f3f4f6/9ca3af?text=Photo',
+          isPrimary: true
+        }
+      ],
+      compatibility: calculateCompatibility(user),
+      memberSince: user.createdAt.toISOString()
+    }));
+
+    // 9. Trier par compatibilité décroissante, puis par nouveauté
+    const sortedUsers = enrichedUsers.sort((a, b) => {
+      if (b.compatibility !== a.compatibility) {
+        return b.compatibility - a.compatibility;
+      }
+      return new Date(b.memberSince).getTime() - new Date(a.memberSince).getTime();
+    });
+
+    // 10. Statistiques pour debug
+    const totalUsersCount = await prisma.user.count();
+    const stats: DiscoverStats = {
+      totalUsers: totalUsersCount,
+      excludedCount: excludedIds.length,
+      discoverableCount: discoverableUsers.length,
+      breakdown: {
+        alreadyLiked: likedIds.length,
+        alreadyDisliked: dislikedIds.length,
+        alreadyMatched: matchedIds.length
+      },
+      avgCompatibility: sortedUsers.length > 0 
+        ? Math.round(sortedUsers.reduce((sum, u) => sum + u.compatibility, 0) / sortedUsers.length)
+        : 0
+    };
 
     return NextResponse.json({
       success: true,
-      profiles,
-      diagnostic: diagnosticInfo,
-      suggestions: {
-        needsReset: diagnosticInfo.needsReset,
-        needsMoreProfiles: diagnosticInfo.needsMoreProfiles,
-        canSmartReset: diagnosticInfo.cooldownProfiles > 5,
-        canFullReset: diagnosticInfo.timeSinceLastReset > 24, // Peut faire un reset complet après 24h
-        message
+      users: sortedUsers,
+      stats,
+      currentUser: {
+        id: currentUserId,
+        interests: currentUser.interests || [],
+        age: currentUser.age,
+        location: currentUser.location
       },
-      metadata: {
-        algorithm: 'complete_discovery_v1',
-        cycle: diagnosticInfo.cycleCount,
-        totalInteractions: diagnosticInfo.totalInteractions
+      meta: {
+        timestamp: new Date().toISOString(),
+        algorithm: 'compatibility_filtered',
+        excludedReasons: {
+          matches: matchedIds.length,
+          likes: likedIds.length,
+          dislikes: dislikedIds.length
+        }
       }
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Erreur API discover:', error);
-    return NextResponse.json({ 
+    return NextResponse.json({
+      success: false,
       error: 'Erreur serveur',
-      details: error instanceof Error ? error.message : 'Erreur inconnue'
-    }, { status: 500 });
-  }
-}
-
-// 🎯 API POST - Gestion des interactions
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    }
-
-    const userId = session.user.email;
-    const { profileId, action } = await request.json();
-
-    if (!profileId) {
-      return NextResponse.json({ error: 'Profile ID manquant' }, { status: 400 });
-    }
-
-    // Actions supportées
-    if (action === 'view') {
-      await CompleteDiscoveryAlgorithm.markProfileAsViewed(userId, profileId);
-      console.log(`👁️ Profil ${profileId} marqué comme vu pour ${userId}`);
-      
-      return NextResponse.json({
-        success: true,
-        message: 'Profil marqué comme vu'
-      });
-    }
-
-    if (['like', 'dislike', 'super_like'].includes(action)) {
-      await CompleteDiscoveryAlgorithm.markProfileAsViewed(userId, profileId, action);
-      console.log(`💝 Action ${action} pour profil ${profileId} par ${userId}`);
-
-      // Vérifier les matches pour les likes
-      let isMatch = false;
-      if (action === 'like' || action === 'super_like') {
-        isMatch = await CompleteDiscoveryAlgorithm.checkForMatches(userId, profileId, action);
+      users: [],
+      stats: {
+        totalUsers: 0,
+        excludedCount: 0,
+        discoverableCount: 0,
+        breakdown: { alreadyLiked: 0, alreadyDisliked: 0, alreadyMatched: 0 },
+        avgCompatibility: 0
+      },
+      currentUser: { id: '', interests: [], age: null, location: null },
+      meta: {
+        timestamp: new Date().toISOString(),
+        algorithm: 'error',
+        excludedReasons: { matches: 0, likes: 0, dislikes: 0 }
       }
-
-      return NextResponse.json({
-        success: true,
-        isMatch,
-        action,
-        message: isMatch ? 'Match créé !' : `Action ${action} enregistrée`
-      });
-    }
-
-    return NextResponse.json({ error: 'Action invalide' }, { status: 400 });
-
-  } catch (error) {
-    console.error('❌ Erreur POST discover:', error);
-    return NextResponse.json({ 
-      error: 'Erreur serveur',
-      details: error instanceof Error ? error.message : 'Erreur inconnue'
     }, { status: 500 });
   }
 }
 
-// 🎯 API PATCH - Gestion d'état utilisateur
-export async function PATCH(request: NextRequest) {
+// Endpoint POST pour les actions de swipe - CORRIGÉ
+export async function POST(request: NextRequest) {
+  console.log('💫 API Discover - Action de swipe');
+  
   try {
     const session = await getServerSession(authOptions);
+    
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const userId = session.user.email;
-    const { action } = await request.json();
+    const body = await request.json();
+    const { action, targetUserId, profileId } = body;
+    
+    // Accepter soit targetUserId soit profileId pour la rétrocompatibilité
+    const targetId = targetUserId || profileId;
 
-    if (action === 'clear_state') {
-      await PersistentStorage.clearState(userId);
-      console.log(`🗑️ État complètement effacé pour ${userId}`);
-      
-      return NextResponse.json({
-        success: true,
-        message: 'État utilisateur effacé'
-      });
+    if (!action || !targetId) {
+      return NextResponse.json({ 
+        error: 'Paramètres requis: action, targetUserId (ou profileId)' 
+      }, { status: 400 });
     }
 
-    if (action === 'get_stats') {
-      const diagnostic = await CompleteDiscoveryAlgorithm.getAdvancedDiagnostic(userId);
-      return NextResponse.json({
-        success: true,
-        stats: diagnostic
-      });
+    const { prisma } = await import('@/lib/db');
+    
+    // Récupérer l'utilisateur actuel par email
+    const currentUser = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true }
+    });
+
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
     }
 
-    return NextResponse.json({ error: 'Action invalide' }, { status: 400 });
+    const currentUserId = currentUser.id;
 
-  } catch (error) {
-    console.error('❌ Erreur PATCH discover:', error);
-    return NextResponse.json({ 
+    // Vérifier que l'utilisateur cible existe
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetId },
+      select: { id: true, name: true, email: true }
+    });
+
+    if (!targetUser) {
+      return NextResponse.json({ error: 'Utilisateur cible introuvable' }, { status: 404 });
+    }
+
+    switch (action) {
+      case 'like':
+        // Créer le like
+        const like = await prisma.like.upsert({
+          where: {
+            senderId_receiverId: {
+              senderId: currentUserId,
+              receiverId: targetUser.id
+            }
+          },
+          update: {},
+          create: {
+            senderId: currentUserId,
+            receiverId: targetUser.id
+          }
+        });
+
+        // Vérifier si c'est un match (like réciproque)
+        const reciprocalLike = await prisma.like.findFirst({
+          where: {
+            senderId: targetUser.id,
+            receiverId: currentUserId
+          }
+        });
+
+        const isMatch = !!reciprocalLike;
+
+        console.log(`👍 Like envoyé: ${currentUserId} -> ${targetUser.id}`, { isMatch });
+
+        return NextResponse.json({
+          success: true,
+          action: 'like',
+          isMatch,
+          targetUser: {
+            id: targetUser.id,
+            name: targetUser.name,
+            email: targetUser.email
+          },
+          message: isMatch ? '🎉 C\'est un match !' : 'Like envoyé'
+        });
+
+      case 'dislike':
+      case 'pass':
+        // Créer le dislike
+        await prisma.dislike.upsert({
+          where: {
+            senderId_receiverId: {
+              senderId: currentUserId,
+              receiverId: targetUser.id
+            }
+          },
+          update: {},
+          create: {
+            senderId: currentUserId,
+            receiverId: targetUser.id
+          }
+        });
+
+        console.log(`👎 Dislike/Pass: ${currentUserId} -> ${targetUser.id}`);
+
+        return NextResponse.json({
+          success: true,
+          action: action,
+          message: 'Utilisateur passé'
+        });
+
+      case 'super_like':
+        // Super like (pour les fonctionnalités premium)
+        const superLike = await prisma.like.upsert({
+          where: {
+            senderId_receiverId: {
+              senderId: currentUserId,
+              receiverId: targetUser.id
+            }
+          },
+          update: {},
+          create: {
+            senderId: currentUserId,
+            receiverId: targetUser.id
+          }
+        });
+
+        console.log(`⭐ Super Like: ${currentUserId} -> ${targetUser.id}`);
+
+        return NextResponse.json({
+          success: true,
+          action: 'super_like',
+          message: 'Super Like envoyé !',
+          targetUser: {
+            id: targetUser.id,
+            name: targetUser.name
+          }
+        });
+
+      default:
+        return NextResponse.json({ 
+          error: 'Action non supportée' 
+        }, { status: 400 });
+    }
+
+  } catch (error: any) {
+    console.error('❌ Erreur action discover:', error);
+    return NextResponse.json({
+      success: false,
       error: 'Erreur serveur',
-      details: error instanceof Error ? error.message : 'Erreur inconnue'
+      message: error.message
     }, { status: 500 });
   }
 }

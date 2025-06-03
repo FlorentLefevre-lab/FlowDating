@@ -1,284 +1,232 @@
-// src/app/matches/page.tsx
+// src/app/matches/page.tsx - Page des matchs corrigée et compatible
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { 
-  HeartIcon,
-  ChatBubbleLeftIcon,
-  ClockIcon,
-  UserIcon,
-  SparklesIcon
-} from '@heroicons/react/24/outline';
-import { HeartIcon as HeartSolid } from '@heroicons/react/24/solid';
+  Heart, 
+  MessageCircle, 
+  Calendar, 
+  MapPin, 
+  Briefcase, 
+  Sparkles,
+  Users,
+  TrendingUp,
+  Clock,
+  Star
+} from 'lucide-react';
+
+// Interfaces compatibles avec l'API corrigée
+interface MatchUser {
+  id: string;
+  name: string;
+  email: string;
+  age: number | null;
+  bio: string | null;
+  location: string | null;
+  profession: string | null;
+  interests: string[];
+  gender: string | null;
+  photos: Array<{
+    id: string;
+    url: string;
+    isPrimary: boolean;
+  }>;
+}
 
 interface Match {
   id: string;
+  user: MatchUser;
   matchedAt: string;
-  user: {
-    id: string;
-    name: string;
-    age?: number;
-    photo: string | null;
-  };
-  lastMessage: {
+  lastMessageAt?: string;
+  lastMessage?: {
     content: string;
-    sentAt: string;
-    isFromCurrentUser: boolean;
-    senderName: string;
-  } | null;
-  unreadCount: number;
-  isNewMatch: boolean;
+    senderId: string;
+  };
+  messageCount: number;
+  isOnline?: boolean;
+  compatibility?: number;
 }
 
-interface MatchesData {
+interface MatchStats {
+  totalMatches: number;
+  newMatches: number;
+  activeConversations: number;
+  responseRate: number;
+}
+
+interface MatchesResponse {
+  success: boolean;
   matches: Match[];
-  stats: {
-    totalMatches: number;
-    newMatches: number;
-    activeConversations: number;
+  stats: MatchStats;
+  currentUser: {
+    id: string;
+    interests: string[];
   };
-  message?: string;
+  meta: {
+    timestamp: string;
+    algorithm: string;
+  };
+  error?: string;
 }
-
-const MatchCard: React.FC<{ match: Match; onClick: () => void }> = ({ match, onClick }) => {
-  // Vérification de sécurité
-  if (!match || !match.user) {
-    console.error('Match invalide:', match);
-    return null;
-  }
-
-  const formatTime = (dateString: string | null | undefined) => {
-    if (!dateString) return 'Date inconnue';
-    
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Date invalide';
-    
-    const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return 'À l\'instant';
-    if (diffInHours < 24) return `Il y a ${diffInHours}h`;
-    if (diffInHours < 48) return 'Hier';
-    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-  };
-
-  return (
-    <motion.div
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 cursor-pointer hover:shadow-md transition-all"
-    >
-      <div className="flex items-center space-x-4">
-        {/* Photo de profil */}
-        <div className="relative">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center overflow-hidden">
-            {match.user.photo ? (
-              <img
-                src={match.user.photo}
-                alt={match.user.name || 'Photo de profil'}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  console.error('Erreur chargement image:', match.user.photo);
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            ) : (
-              <UserIcon className="w-8 h-8 text-gray-400" />
-            )}
-          </div>
-          
-          {/* Badge nouveau match */}
-          {match.isNewMatch && (
-            <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center">
-              <SparklesIcon className="w-3 h-3 text-white" />
-            </div>
-          )}
-          
-          {/* Badge messages non lus */}
-          {match.unreadCount > 0 && (
-            <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-              <span className="text-xs text-white font-bold">{match.unreadCount}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Informations du match */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="font-semibold text-gray-900 truncate">
-              {match.user.name || 'Utilisateur inconnu'}
-              {match.user.age && <span className="text-gray-500 font-normal">, {match.user.age}</span>}
-            </h3>
-            <span className="text-xs text-gray-500 flex-shrink-0">
-              {formatTime(match.lastMessage?.sentAt || match.matchedAt)}
-            </span>
-          </div>
-          
-          {match.lastMessage ? (
-            <p className="text-sm text-gray-600 truncate">
-              {match.lastMessage.isFromCurrentUser ? 'Vous: ' : ''}
-              {match.lastMessage.content}
-            </p>
-          ) : match.isNewMatch ? (
-            <p className="text-sm text-pink-600 font-medium">
-              🎉 Nouveau match ! Dites bonjour !
-            </p>
-          ) : (
-            <p className="text-sm text-gray-500 italic">
-              Match sans conversation
-            </p>
-          )}
-        </div>
-
-        {/* Icône de chat */}
-        <div className="flex-shrink-0">
-          <ChatBubbleLeftIcon className="w-5 h-5 text-gray-400" />
-        </div>
-      </div>
-    </motion.div>
-  );
-};
-
-const StatsCard: React.FC<{
-  title: string;
-  value: number;
-  icon: React.ReactNode;
-  color: string;
-}> = ({ title, value, icon, color }) => {
-  return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-      <div className="flex items-center space-x-3">
-        <div className={`p-2 rounded-lg ${color}`}>
-          {icon}
-        </div>
-        <div>
-          <p className="text-2xl font-bold text-gray-900">{value || 0}</p>
-          <p className="text-sm text-gray-600">{title}</p>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export default function MatchesPage() {
-  const [matchesData, setMatchesData] = useState<MatchesData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  
+  // États
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [stats, setStats] = useState<MatchStats>({
+    totalMatches: 0,
+    newMatches: 0,
+    activeConversations: 0,
+    responseRate: 0
+  });
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | 'new' | 'active' | 'unread'>('all');
+  const [sortBy, setSortBy] = useState<'recent' | 'compatibility' | 'activity'>('recent');
 
+  // Helper pour obtenir la photo principale
+  const getPrimaryPhoto = (user: MatchUser): string => {
+    const primaryPhoto = user.photos.find(photo => photo.isPrimary);
+    return primaryPhoto?.url || user.photos[0]?.url || '';
+  };
+
+  // Charger les matchs
   const loadMatches = async () => {
     try {
-      console.log('📡 Fetching matches...');
-      setLoading(true);
+      setIsLoading(true);
       setError(null);
 
+      console.log('🔄 Chargement des matchs...');
+
       const response = await fetch('/api/matches');
-      console.log('📡 Response status:', response.status);
       
       if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('📊 Raw data structure:', {
-        hasMatches: !!data.matches,
-        matchesLength: data.matches?.length,
-        hasStats: !!data.stats,
-        sampleMatch: data.matches?.[0]
-      });
-
-      // Validation des données
-      if (!data.matches || !Array.isArray(data.matches)) {
-        throw new Error('Format de données invalide: matches manquant');
-      }
-
-      if (!data.stats) {
-        throw new Error('Format de données invalide: stats manquantes');
+        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
       }
       
-      setMatchesData(data);
-
-    } catch (err: any) {
-      console.error('❌ Error details:', err);
-      setError(err.message);
+      const data: MatchesResponse = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Erreur API inconnue');
+      }
+      
+      setMatches(data.matches || []);
+      setStats(data.stats);
+      setCurrentUser(data.currentUser);
+      
+      console.log(`✅ ${data.matches?.length || 0} matchs chargés`);
+      
+    } catch (error: any) {
+      console.error('❌ Erreur chargement matchs:', error);
+      setError(`Impossible de charger les matchs: ${error.message}`);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
+  // Chargement initial
   useEffect(() => {
-    console.log('🔄 MatchesPage: Component mounted');
-    loadMatches();
-  }, []);
-
-  const handleMatchClick = (match: Match) => {
-    if (!match || !match.user) {
-      console.error('Match invalide lors du clic:', match);
+    if (status === 'loading') return;
+    
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin');
       return;
     }
-    
-    console.log('💬 Clic sur match:', match.user.name);
-    // TODO: Naviguer vers la conversation
-    // router.push(`/chat/${match.id}`);
-    alert(`Conversation avec ${match.user.name} (à implémenter)`);
+
+    loadMatches();
+  }, [status, router]);
+
+  // Filtrer et trier les matchs
+  const filteredMatches = matches
+    .filter(match => {
+      switch (filter) {
+        case 'new':
+          return new Date(match.matchedAt).getTime() > Date.now() - 24 * 60 * 60 * 1000;
+        case 'active':
+          return match.messageCount > 0;
+        case 'unread':
+          return match.lastMessage && match.lastMessage.senderId !== currentUser?.id;
+        default:
+          return true;
+      }
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'compatibility':
+          return (b.compatibility || 0) - (a.compatibility || 0);
+        case 'activity':
+          if (!a.lastMessageAt && !b.lastMessageAt) return 0;
+          if (!a.lastMessageAt) return 1;
+          if (!b.lastMessageAt) return -1;
+          return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
+        case 'recent':
+        default:
+          return new Date(b.matchedAt).getTime() - new Date(a.matchedAt).getTime();
+      }
+    });
+
+  // Ouvrir le chat
+  const openChat = (match: Match) => {
+    router.push(`/chat?userId=${encodeURIComponent(match.user.id)}&matchId=${encodeURIComponent(match.id)}`);
   };
 
-  if (loading) {
+  // Calculer le temps depuis le match
+  const getTimeAgo = (dateString: string) => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+    if (diffDays > 0) return `il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
+    if (diffHours > 0) return `il y a ${diffHours}h`;
+    if (diffMinutes > 0) return `il y a ${diffMinutes}min`;
+    return 'À l\'instant';
+  };
+
+  // Interface de chargement
+  if (status === 'loading' || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-pink-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement de vos matches...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">
+            {status === 'loading' ? 'Chargement de la session...' : 'Chargement des matchs...'}
+          </p>
         </div>
       </div>
     );
   }
 
+  // Interface d'erreur
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-4">
-          <div className="text-6xl mb-4">😞</div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Erreur</h2>
-          <p className="text-red-600 mb-6">{error}</p>
-          <button
-            onClick={loadMatches}
-            className="bg-pink-500 text-white px-6 py-3 rounded-lg hover:bg-pink-600 transition-colors"
-          >
-            Réessayer
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!matchesData || !matchesData.matches || matchesData.matches.length === 0) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
-        {/* Header */}
-        <div className="bg-white shadow-sm border-b">
-          <div className="max-w-2xl mx-auto px-4 py-4">
-            <h1 className="text-2xl font-bold text-center bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
-              Mes Matches
-            </h1>
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
+          <div className="text-red-600 text-center mb-4">
+            <Heart size={48} className="mx-auto mb-2" />
+            <h2 className="text-lg font-semibold">Erreur de chargement</h2>
           </div>
-        </div>
-
-        {/* État vide */}
-        <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
-          <div className="text-center max-w-md mx-4">
-            <div className="text-6xl mb-4">💔</div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Aucun match</h2>
-            <p className="text-gray-600 mb-6">
-              Commencez à swiper pour découvrir des personnes compatibles et créer vos premiers matches !
-            </p>
-            <a
-              href="/discover"
-              className="inline-block bg-gradient-to-r from-pink-500 to-purple-500 text-white px-8 py-3 rounded-full font-semibold hover:from-pink-600 hover:to-purple-600 transition-all"
+          <p className="text-gray-600 text-center mb-4">{error}</p>
+          <div className="space-y-2">
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700 transition-colors"
             >
-              Découvrir des profils
-            </a>
+              Recharger
+            </button>
+            <button
+              onClick={loadMatches}
+              className="w-full px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+            >
+              Réessayer
+            </button>
           </div>
         </div>
       </div>
@@ -287,65 +235,301 @@ export default function MatchesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-2xl mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold text-center bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
-            Mes Matches
-          </h1>
+      <div className="container mx-auto max-w-6xl p-4">
+        {/* En-tête */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center space-x-3">
+                <Heart className="text-pink-600" />
+                <span>Mes Matchs</span>
+                <Sparkles className="text-yellow-500" size={24} />
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Vos likes réciproques - Les vraies connexions ! 
+              </p>
+              <p className="text-sm text-pink-600 font-medium">
+                💕 {stats.totalMatches} match{stats.totalMatches > 1 ? 's' : ''} • 
+                💬 {stats.activeConversations} conversation{stats.activeConversations > 1 ? 's' : ''} active{stats.activeConversations > 1 ? 's' : ''}
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-3xl font-bold text-pink-600">{filteredMatches.length}</div>
+              <div className="text-sm text-gray-500">match{filteredMatches.length > 1 ? 's' : ''} affiché{filteredMatches.length > 1 ? 's' : ''}</div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Contenu */}
-      <div className="max-w-2xl mx-auto px-4 py-6">
         {/* Statistiques */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <StatsCard
-            title="Matches"
-            value={matchesData.stats?.totalMatches || 0}
-            icon={<HeartSolid className="w-5 h-5 text-white" />}
-            color="bg-gradient-to-r from-pink-500 to-rose-500"
-          />
-          <StatsCard
-            title="Nouveaux"
-            value={matchesData.stats?.newMatches || 0}
-            icon={<SparklesIcon className="w-5 h-5 text-white" />}
-            color="bg-gradient-to-r from-purple-500 to-indigo-500"
-          />
-          <StatsCard
-            title="Conversations"
-            value={matchesData.stats?.activeConversations || 0}
-            icon={<ChatBubbleLeftIcon className="w-5 h-5 text-white" />}
-            color="bg-gradient-to-r from-blue-500 to-cyan-500"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Matchs</p>
+                <p className="text-2xl font-bold text-pink-600">{stats.totalMatches}</p>
+              </div>
+              <Heart className="text-pink-500" size={24} />
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Nouveaux (24h)</p>
+                <p className="text-2xl font-bold text-green-600">{stats.newMatches}</p>
+              </div>
+              <Star className="text-green-500" size={24} />
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Conversations</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.activeConversations}</p>
+              </div>
+              <MessageCircle className="text-blue-500" size={24} />
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Taux de réponse</p>
+                <p className="text-2xl font-bold text-purple-600">{stats.responseRate}%</p>
+              </div>
+              <TrendingUp className="text-purple-500" size={24} />
+            </div>
+          </div>
         </div>
 
-        {/* Message optionnel */}
-        {matchesData.message && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <p className="text-blue-800 text-center">{matchesData.message}</p>
+        {/* Filtres et tri */}
+        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-700">Filtrer:</span>
+              {[
+                { key: 'all', label: 'Tous', icon: Users },
+                { key: 'new', label: 'Nouveaux', icon: Star },
+                { key: 'active', label: 'Actifs', icon: MessageCircle },
+                { key: 'unread', label: 'Non lus', icon: Clock }
+              ].map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setFilter(key as any)}
+                  className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm transition-colors ${
+                    filter === key
+                      ? 'bg-pink-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <Icon size={14} />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-700">Trier par:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="border border-gray-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
+              >
+                <option value="recent">Plus récents</option>
+                <option value="activity">Activité</option>
+                <option value="compatibility">Compatibilité</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Liste des matchs */}
+        {filteredMatches.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+            <Heart className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {filter === 'all' ? 'Aucun match pour le moment' : `Aucun match ${filter}`}
+            </h3>
+            <p className="text-gray-500 mb-4">
+              {filter === 'all' 
+                ? 'Continuez à swiper pour trouver vos âmes sœurs !' 
+                : `Changez de filtre pour voir tous vos matchs.`
+              }
+            </p>
+            <div className="space-y-3">
+              {filter !== 'all' && (
+                <button
+                  onClick={() => setFilter('all')}
+                  className="px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700 transition-colors mr-3"
+                >
+                  Voir tous les matchs
+                </button>
+              )}
+              <button
+                onClick={() => router.push('/discover')}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+              >
+                Découvrir des profils
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredMatches.map((match) => (
+              <div
+                key={match.id}
+                className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-200"
+              >
+                {/* Photo de profil */}
+                <div className="relative">
+                  {getPrimaryPhoto(match.user) ? (
+                    <img
+                      src={getPrimaryPhoto(match.user)}
+                      alt={match.user.name}
+                      className="w-full h-48 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-48 bg-gradient-to-br from-pink-400 to-purple-600 flex items-center justify-center">
+                      <span className="text-white text-4xl font-bold">
+                        {match.user.name?.charAt(0) || match.user.email?.charAt(0) || '?'}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Badge de statut */}
+                  <div className="absolute top-3 left-3 flex space-x-2">
+                    {match.isOnline && (
+                      <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                        En ligne
+                      </span>
+                    )}
+                    {new Date(match.matchedAt).getTime() > Date.now() - 24 * 60 * 60 * 1000 && (
+                      <span className="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">
+                        Nouveau
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Badge de compatibilité */}
+                  {match.compatibility && (
+                    <div className="absolute top-3 right-3">
+                      <div className="bg-white bg-opacity-90 text-pink-600 text-xs font-bold px-2 py-1 rounded-full">
+                        {match.compatibility}% ♥
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Infos utilisateur */}
+                <div className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h3 className="font-semibold text-lg text-gray-900 truncate">
+                        {match.user.name || match.user.email?.split('@')[0]}
+                      </h3>
+                      {match.user.age && (
+                        <p className="text-gray-600">{match.user.age} ans</p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-gray-500">Match</div>
+                      <div className="text-xs text-pink-600 font-medium">
+                        {getTimeAgo(match.matchedAt)}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Infos supplémentaires */}
+                  <div className="space-y-1 mb-3">
+                    {match.user.profession && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Briefcase size={14} className="mr-1" />
+                        <span className="truncate">{match.user.profession}</span>
+                      </div>
+                    )}
+                    
+                    {match.user.location && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <MapPin size={14} className="mr-1" />
+                        <span className="truncate">{match.user.location}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bio */}
+                  {match.user.bio && (
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                      {match.user.bio}
+                    </p>
+                  )}
+
+                  {/* Centres d'intérêt */}
+                  {match.user.interests && match.user.interests.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {match.user.interests.slice(0, 3).map((interest, index) => (
+                        <span
+                          key={index}
+                          className="px-2 py-1 text-xs bg-pink-100 text-pink-600 rounded-full"
+                        >
+                          {interest}
+                        </span>
+                      ))}
+                      {match.user.interests.length > 3 && (
+                        <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+                          +{match.user.interests.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Dernier message */}
+                  {match.lastMessage && (
+                    <div className="bg-gray-50 rounded-lg p-2 mb-3">
+                      <div className="text-xs text-gray-500 mb-1">Dernier message:</div>
+                      <div className="text-sm text-gray-700 truncate">
+                        {match.lastMessage.senderId === currentUser?.id ? 'Vous: ' : ''}
+                        {match.lastMessage.content}
+                      </div>
+                      {match.lastMessageAt && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {getTimeAgo(match.lastMessageAt)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => openChat(match)}
+                      className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 transition-all"
+                    >
+                      <MessageCircle size={16} />
+                      <span>{match.messageCount > 0 ? 'Continuer' : 'Commencer'}</span>
+                    </button>
+                    
+                    {match.messageCount > 0 && (
+                      <div className="flex items-center justify-center px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm">
+                        {match.messageCount} msg{match.messageCount > 1 ? 's' : ''}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Liste des matches */}
-        <div className="space-y-3">
-          {matchesData.matches.map((match) => (
-            <MatchCard
-              key={match.id}
-              match={match}
-              onClick={() => handleMatchClick(match)}
-            />
-          ))}
-        </div>
-
-        {/* Action en bas */}
-        <div className="mt-8 text-center">
-          <a
-            href="/discover"
-            className="inline-block bg-gradient-to-r from-pink-500 to-purple-500 text-white px-8 py-3 rounded-full font-semibold hover:from-pink-600 hover:to-purple-600 transition-all"
+        {/* Action flottante */}
+        <div className="fixed bottom-6 right-6">
+          <button
+            onClick={() => router.push('/discover')}
+            className="w-14 h-14 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:from-pink-600 hover:to-purple-700 transition-all duration-200 flex items-center justify-center group"
+            title="Découvrir de nouveaux profils"
           >
-            Découvrir plus de profils
-          </a>
+            <Heart size={24} className="group-hover:scale-110 transition-transform" />
+          </button>
         </div>
       </div>
     </div>
