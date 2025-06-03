@@ -62,7 +62,7 @@ export default function SocketDebugPage() {
 
   const testSocketConnection = async () => {
     try {
-      const response = await fetch('http://localhost:3001/health');
+      const response = await fetch('http://localhost:3000/health');
       const data = await response.json();
       alert(`Serveur OK: ${JSON.stringify(data, null, 2)}`);
     } catch (error) {
@@ -82,7 +82,7 @@ export default function SocketDebugPage() {
             onClick={testSocketConnection}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
-            Tester http://localhost:3001/health
+            Tester http://localhost:3000/health
           </button>
         </div>
 

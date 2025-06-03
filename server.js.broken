@@ -1,0 +1,740 @@
+// server.js - Version optimisée sans fuites mémoire + WebRTC
+
+const { createServer } = require('http');
+const next = require('next');
+const { Server } = require('socket.io');
+
+const dev = process.env.NODE_ENV !== 'production';
+const hostname = 'localhost';
+const port = process.env.PORT || 3000;
+
+// Configuration pour éviter les warnings EventEmitter
+process.setMaxListeners(20);
+require('events').EventEmitter.defaultMaxListeners = 20;
+
+// App Next.js
+const app = next({ dev, hostname, port });
+const handler = app.getRequestHandler();
+
+// Stockage en mémoire (singleton)
+const connectedUsers = new Map();
+const conversationHistory = new Map();
+const messageQueue = new Map();
+
+// Variables globales pour éviter les fuites
+let io = null;
+let server = null;
+let isShuttingDown = false;
+
+// Vos fonctions utilitaires
+function createConversationId(userId1, userId2) {
+  return `chat_${[userId1, userId2].sort().join('_')}`;
+}
+
+function saveMessageToHistory(conversationId, messageData) {
+  if (!conversationHistory.has(conversationId)) {
+    conversationHistory.set(conversationId, []);
+  }
+  
+  const messages = conversationHistory.get(conversationId);
+  messages.push({
+    ...messageData,
+    savedAt: new Date()
+  });
+  
+  if (messages.length > 1000) {
+    messages.splice(0, messages.length - 1000);
+  }
+  
+  console.log(`💾 Message sauvegardé: ${conversationId}`);
+}
+
+function getUserSocket(userId, io) {
+  const userData = connectedUsers.get(userId);
+  if (userData && userData.socketId && io) {
+    return io.sockets.sockets.get(userData.socketId);
+  }
+  return null;
+}
+
+function deliverPendingMessages(userId, io) {
+  const pendingMessages = messageQueue.get(userId) || [];
+  if (pendingMessages.length > 0) {
+    const userSocket = getUserSocket(userId, io);
+    if (userSocket) {
+      console.log(`📬 Délivrance de ${pendingMessages.length} messages en attente pour ${userId}`);
+      
+      pendingMessages.forEach(messageData => {
+        userSocket.emit('message:received', messageData);
+      });
+      
+      messageQueue.delete(userId);
+    }
+  }
+}
+
+// Configuration Socket.IO handlers avec nettoyage approprié
+function setupSocketHandlers(socket, io) {
+  let isAuthenticated = false;
+  let heartbeatInterval = null;
+
+  console.log(`🟢 Nouvelle connexion: ${socket.id}`);
+
+  // Nettoyage automatique lors de la déconnexion
+  const cleanup = () => {
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
+  };
+
+  // 1. Authentification
+  socket.on('user:authenticate', (data) => {
+    console.log(`🔐 Authentification:`, data);
+    
+    if (!data || !data.userId) {
+      socket.emit('auth:error', { 
+        error: 'userId requis',
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+    
+    const { userId, userEmail, userName } = data;
+    
+    // Déconnecter session existante
+    const existingUser = connectedUsers.get(userId);
+    if (existingUser && existingUser.socketId && existingUser.socketId !== socket.id) {
+      const existingSocket = io.sockets.sockets.get(existingUser.socketId);
+      if (existingSocket) {
+        existingSocket.emit('auth:displaced', { 
+          reason: 'Nouvelle connexion',
+          timestamp: new Date().toISOString()
+        });
+        existingSocket.disconnect(true);
+      }
+    }
+    
+    // Stocker utilisateur
+    connectedUsers.set(userId, {
+      userId,
+      socketId: socket.id,
+      email: userEmail,
+      name: userName || userEmail || 'Utilisateur',
+      connectedAt: new Date(),
+      lastSeen: new Date()
+    });
+    
+    socket.userId = userId;
+    socket.userEmail = userEmail;
+    socket.userName = userName || userEmail || 'Utilisateur';
+    isAuthenticated = true;
+    
+    console.log(`✅ ${socket.userName} (${userId}) authentifié`);
+    
+    socket.emit('user:authenticated', { 
+      userId, 
+      userName: socket.userName,
+      connectedUsers: connectedUsers.size,
+      status: 'success',
+      timestamp: new Date().toISOString()
+    });
+    
+    socket.broadcast.emit('user:online', { 
+      userId, 
+      userName: socket.userName,
+      timestamp: new Date().toISOString()
+    });
+
+    // Délivrer messages en attente
+    setTimeout(() => deliverPendingMessages(userId, io), 100);
+
+    // Démarrer heartbeat
+    if (!heartbeatInterval) {
+      heartbeatInterval = setInterval(() => {
+        if (isAuthenticated && socket.userId) {
+          const userData = connectedUsers.get(socket.userId);
+          if (userData) {
+            userData.lastSeen = new Date();
+          }
+        }
+      }, 30000);
+    }
+  });
+
+  // 2. Test de connexion
+  socket.on('test:connection', (data) => {
+    console.log(`🧪 Test:`, data);
+    socket.emit('test:response', { 
+      message: 'Connexion OK - Serveur Next.js optimisé', 
+      timestamp: new Date().toISOString(),
+      socketId: socket.id,
+      userId: socket.userId || null,
+      isAuthenticated,
+      connectedUsers: connectedUsers.size,
+      transport: socket.conn.transport.name
+    });
+  });
+
+  // 3. Historique conversation
+  socket.on('conversation:history', (data) => {
+    if (!isAuthenticated) {
+      socket.emit('auth:required', { error: 'Authentification requise' });
+      return;
+    }
+    
+    console.log(`📚 Historique demandé:`, data);
+    
+    const { conversationId, targetUserId, limit = 50 } = data;
+    let messages = [];
+    let finalConversationId = conversationId;
+    
+    // Chercher conversation
+    if (conversationHistory.has(conversationId)) {
+      messages = conversationHistory.get(conversationId);
+    } else if (targetUserId) {
+      const standardId = createConversationId(socket.userId, targetUserId);
+      if (conversationHistory.has(standardId)) {
+        messages = conversationHistory.get(standardId);
+        finalConversationId = standardId;
+      }
+    }
+    
+    // Si pas trouvé, créer
+    if (messages.length === 0) {
+      conversationHistory.set(finalConversationId, []);
+      messages = [];
+    }
+    
+    const recentMessages = messages.slice(-Math.min(limit, 100));
+    
+    socket.emit('conversation:history', {
+      conversationId: finalConversationId,
+      messages: recentMessages,
+      total: messages.length,
+      timestamp: new Date().toISOString(),
+      status: messages.length > 0 ? 'found' : 'created'
+    });
+    
+    console.log(`📤 Historique envoyé: ${recentMessages.length} messages`);
+  });
+
+  // 4. Assurer l'existence d'une conversation
+  socket.on('conversation:ensure', (data) => {
+    if (!isAuthenticated) {
+      socket.emit('auth:required', { error: 'Authentification requise' });
+      return;
+    }
+    
+    console.log(`🔄 Assurer conversation:`, data);
+    
+    const { conversationId, targetUserId } = data || {};
+    
+    if (!conversationId && !targetUserId) {
+      socket.emit('conversation:ensured', {
+        error: 'conversationId ou targetUserId requis',
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+    
+    let finalConversationId = conversationId;
+    let messages = [];
+    let created = false;
+    
+    if (!conversationId && targetUserId) {
+      finalConversationId = createConversationId(socket.userId, targetUserId);
+    }
+    
+    if (conversationHistory.has(finalConversationId)) {
+      messages = conversationHistory.get(finalConversationId);
+      console.log(`✅ Conversation existante: ${finalConversationId}`);
+    } else {
+      conversationHistory.set(finalConversationId, []);
+      created = true;
+      console.log(`📝 Conversation créée: ${finalConversationId}`);
+    }
+    
+    socket.emit('conversation:ensured', {
+      conversationId: finalConversationId,
+      messageCount: messages.length,
+      created,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // 5. Envoyer message
+  socket.on('message:send', (data) => {
+    if (!isAuthenticated) {
+      socket.emit('auth:required', { error: 'Authentification requise' });
+      return;
+    }
+    
+    console.log(`💬 Message:`, data);
+    
+    const { content, to, conversationId, id } = data;
+    const from = socket.userId;
+    
+    if (!content || !to) {
+      socket.emit('message:error', { 
+        error: 'Contenu et destinataire requis',
+        messageId: id,
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+    
+    const finalConversationId = conversationId || createConversationId(from, to);
+    
+    const messageData = {
+      id: id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      conversationId: finalConversationId,
+      content: content.trim(),
+      from,
+      to,
+      timestamp: new Date().toISOString(),
+      status: 'pending'
+    };
+    
+    saveMessageToHistory(finalConversationId, messageData);
+    
+    // Envoyer au destinataire
+    const targetUser = connectedUsers.get(to);
+    if (targetUser && targetUser.socketId) {
+      const targetSocket = getUserSocket(to, io);
+      if (targetSocket && targetSocket.connected) {
+        messageData.status = 'delivered';
+        targetSocket.emit('message:received', messageData);
+        
+        socket.emit('message:sent', { 
+          messageId: messageData.id,
+          conversationId: finalConversationId,
+          status: 'delivered',
+          to: targetUser.name,
+          timestamp: new Date().toISOString()
+        });
+        
+        console.log(`✅ Message envoyé: ${from} -> ${to}`);
+      } else {
+        // Mettre en file d'attente
+        if (!messageQueue.has(to)) {
+          messageQueue.set(to, []);
+        }
+        messageData.status = 'queued';
+        messageQueue.get(to).push(messageData);
+        
+        socket.emit('message:sent', { 
+          messageId: messageData.id,
+          conversationId: finalConversationId,
+          status: 'queued',
+          message: 'Utilisateur hors ligne',
+          timestamp: new Date().toISOString()
+        });
+      }
+    } else {
+      // Utilisateur non trouvé
+      if (!messageQueue.has(to)) {
+        messageQueue.set(to, []);
+      }
+      messageData.status = 'queued';
+      messageQueue.get(to).push(messageData);
+      
+      socket.emit('message:sent', { 
+        messageId: messageData.id,
+        conversationId: finalConversationId,
+        status: 'queued',
+        message: 'Utilisateur non connecté',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // 6. Vérification statut utilisateur
+  socket.on('user:check', (data) => {
+    if (!isAuthenticated) {
+      socket.emit('auth:required', { error: 'Authentification requise' });
+      return;
+    }
+
+    const { targetUserId } = data;
+    const userData = connectedUsers.get(targetUserId);
+    const isOnline = userData && userData.socketId && io.sockets.sockets.has(userData.socketId);
+    
+    socket.emit('user:status', {
+      userId: targetUserId,
+      isOnline,
+      lastSeen: userData?.lastSeen || null,
+      name: userData?.name || null,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // 7. Heartbeat
+  socket.on('heartbeat', () => {
+    if (isAuthenticated && socket.userId) {
+      const userData = connectedUsers.get(socket.userId);
+      if (userData) {
+        userData.lastSeen = new Date();
+      }
+      socket.emit('heartbeat:response', { 
+        timestamp: new Date().toISOString(),
+        userId: socket.userId
+      });
+    }
+  });
+
+  // 8. Handlers appels vidéo WebRTC
+  socket.on('call:start', (data) => {
+    if (!isAuthenticated) {
+      socket.emit('auth:required', { error: 'Authentification requise' });
+      return;
+    }
+    
+    console.log(`📞 Appel initié:`, data);
+    
+    const { targetUserId, conversationId } = data;
+    const targetUser = connectedUsers.get(targetUserId);
+    
+    if (targetUser && targetUser.socketId) {
+      const targetSocket = getUserSocket(targetUserId, io);
+      if (targetSocket && targetSocket.connected) {
+        targetSocket.emit('call:incoming', {
+          from: socket.userId,
+          fromName: socket.userName,
+          conversationId,
+          timestamp: new Date().toISOString()
+        });
+        
+        socket.emit('call:initiated', {
+          to: targetUserId,
+          toName: targetUser.name,
+          conversationId,
+          timestamp: new Date().toISOString()
+        });
+        
+        console.log(`✅ Appel envoyé: ${socket.userId} -> ${targetUserId}`);
+      } else {
+        socket.emit('call:error', { 
+          error: 'Utilisateur non disponible',
+          timestamp: new Date().toISOString()
+        });
+      }
+    } else {
+      socket.emit('call:error', { 
+        error: 'Utilisateur non connecté',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  socket.on('call:offer', (data) => {
+    if (!isAuthenticated) {
+      socket.emit('auth:required', { error: 'Authentification requise' });
+      return;
+    }
+    
+    // ✅ Supporter les deux formats : "to" et "targetUserId"
+    const targetUserId = data.to || data.targetUserId;
+    console.log(`📡 Offre WebRTC:`, { from: socket.userId, to: targetUserId, data });
+    
+    if (!targetUserId) {
+      socket.emit('call:error', { 
+        error: 'Destinataire non spécifié (to ou targetUserId requis)',
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+    
+    const { offer, conversationId, callId, callerId, callerName, isVideoCall } = data;
+    const targetSocket = getUserSocket(targetUserId, io);
+    
+    if (targetSocket && targetSocket.connected) {
+      // ✅ Envoyer comme "call:incoming" pour correspondre au client
+      targetSocket.emit('call:incoming', {
+        callId: callId || `call_${Date.now()}`,
+        callerId: callerId || socket.userId,
+        callerName: callerName || socket.userName || 'Utilisateur',
+        isVideoCall: isVideoCall || false,
+        offer,
+        conversationId,
+        from: socket.userId,
+        fromName: socket.userName,
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log(`✅ Appel envoyé: ${socket.userId} -> ${targetUserId}`);
+    } else {
+      console.log(`❌ Utilisateur ${targetUserId} non trouvé ou déconnecté`);
+      socket.emit('call:error', { 
+        error: 'Destinataire non disponible',
+        targetUserId,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  socket.on('call:answer', (data) => {
+    if (!isAuthenticated) {
+      socket.emit('auth:required', { error: 'Authentification requise' });
+      return;
+    }
+    
+    // ✅ Supporter les deux formats : "to" et "targetUserId"
+    const targetUserId = data.to || data.targetUserId || data.callerId;
+    console.log(`📡 Réponse WebRTC:`, { from: socket.userId, to: targetUserId, data });
+    
+    const { answer, conversationId, callId } = data;
+    const targetSocket = getUserSocket(targetUserId, io);
+    
+    if (targetSocket && targetSocket.connected) {
+      targetSocket.emit('call:answered', {
+        from: socket.userId,
+        answer,
+        conversationId,
+        callId,
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log(`✅ Réponse envoyée: ${socket.userId} -> ${targetUserId}`);
+    } else {
+      socket.emit('call:error', { 
+        error: 'Impossible d\'envoyer la réponse',
+        targetUserId,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  socket.on('call:ice-candidate', (data) => {
+    if (!isAuthenticated) {
+      socket.emit('auth:required', { error: 'Authentification requise' });
+      return;
+    }
+    
+    // ✅ Supporter les deux formats : "to" et "targetUserId" 
+    const targetUserId = data.to || data.targetUserId;
+    const { candidate, conversationId, callId } = data;
+    const targetSocket = getUserSocket(targetUserId, io);
+    
+    if (targetSocket && targetSocket.connected) {
+      targetSocket.emit('call:ice-candidate', {
+        from: socket.userId,
+        candidate,
+        conversationId,
+        callId,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  socket.on('call:reject', (data) => {
+    if (!isAuthenticated) {
+      socket.emit('auth:required', { error: 'Authentification requise' });
+      return;
+    }
+    
+    console.log(`❌ Appel rejeté:`, { from: socket.userId, data });
+    
+    // ✅ Supporter les deux formats : "to" et "targetUserId"
+    const targetUserId = data.to || data.targetUserId || data.callerId;
+    const { conversationId, callId } = data;
+    const targetSocket = getUserSocket(targetUserId, io);
+    
+    if (targetSocket && targetSocket.connected) {
+      targetSocket.emit('call:rejected', {
+        from: socket.userId,
+        fromName: socket.userName,
+        conversationId,
+        callId,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  socket.on('call:end', (data) => {
+    if (!isAuthenticated) {
+      socket.emit('auth:required', { error: 'Authentification requise' });
+      return;
+    }
+    
+    console.log(`🔚 Appel terminé:`, { from: socket.userId, data });
+    
+    // ✅ Supporter les deux formats : "to" et "targetUserId"
+    const targetUserId = data.to || data.targetUserId || data.callerId;
+    const { conversationId, callId } = data;
+    const targetSocket = getUserSocket(targetUserId, io);
+    
+    if (targetSocket && targetSocket.connected) {
+      targetSocket.emit('call:ended', {
+        from: socket.userId,
+        fromName: socket.userName,
+        conversationId,
+        callId,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+ // 9. Handlers appels vidéo WebRTC
+ socket.on('call:start', (data) => {
+    if (!isAuthenticated) {
+      socket.emit('auth:required', { error: 'Authentification requise' });
+      return;
+    }
+    
+    console.log(`📞 Appel initié:`, data);
+    
+    const { targetUserId, conversationId } = data;
+    const targetUser = connectedUsers.get(targetUserId);
+    
+    if (targetUser && targetUser.socketId) {
+      const targetSocket = getUserSocket(targetUserId, io);
+      if (targetSocket && targetSocket.connected) {
+        targetSocket.emit('call:incoming', {
+          from: socket.userId,
+          fromName: socket.userName,
+          conversationId,
+          timestamp: new Date().toISOString()
+        });
+        
+        socket.emit('call:initiated', {
+          to: targetUserId,
+          toName: targetUser.name,
+          conversationId,
+          timestamp: new Date().toISOString()
+        });
+        
+        console.log(`✅ Appel envoyé: ${socket.userId} -> ${targetUserId}`);
+      } else {
+        socket.emit('call:error', { 
+          error: 'Utilisateur non disponible',
+          timestamp: new Date().toISOString()
+        });
+      }
+    } else {
+      socket.emit('call:error', { 
+        error: 'Utilisateur non connecté',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  socket.on('call:offer', (data) => {
+    if (!isAuthenticated) {
+      socket.emit('auth:required', { error: 'Authentification requise' });
+      return;
+    }
+    
+    console.log(`📡 Offre WebRTC:`, { from: socket.userId, to: data.to });
+    
+    const { to, offer, conversationId } = data;
+    const targetSocket = getUserSocket(to, io);
+    
+    if (targetSocket && targetSocket.connected) {
+      targetSocket.emit('call:offer', {
+        from: socket.userId,
+        offer,
+        conversationId,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      socket.emit('call:error', { 
+        error: 'Impossible d\'envoyer l\'offre',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  socket.on('call:answer', (data) => {
+    if (!isAuthenticated) {
+      socket.emit('auth:required', { error: 'Authentification requise' });
+      return;
+    }
+    
+    console.log(`📡 Réponse WebRTC:`, { from: socket.userId, to: data.to });
+    
+    const { to, answer, conversationId } = data;
+    const targetSocket = getUserSocket(to, io);
+    
+    if (targetSocket && targetSocket.connected) {
+      targetSocket.emit('call:answer', {
+        from: socket.userId,
+        answer,
+        conversationId,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      socket.emit('call:error', { 
+        error: 'Impossible d\'envoyer la réponse',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  socket.on('call:ice-candidate', (data) => {
+    if (!isAuthenticated) {
+      socket.emit('auth:required', { error: 'Authentification requise' });
+      return;
+    }
+    
+    const { to, candidate, conversationId } = data;
+    const targetSocket = getUserSocket(to, io);
+    
+    if (targetSocket && targetSocket.connected) {
+      targetSocket.emit('call:ice-candidate', {
+        from: socket.userId,
+        candidate,
+        conversationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  socket.on('call:reject', (data) => {
+    if (!isAuthenticated) {
+      socket.emit('auth:required', { error: 'Authentification requise' });
+      return;
+    }
+    
+    console.log(`❌ Appel rejeté:`, { from: socket.userId, to: data.to });
+    
+    const { to, conversationId } = data;
+    const targetSocket = getUserSocket(to, io);
+    
+    if (targetSocket && targetSocket.connected) {
+      targetSocket.emit('call:rejected', {
+        from: socket.userId,
+        fromName: socket.userName,
+        conversationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  socket.on('call:end', (data) => {
+    if (!isAuthenticated) {
+      socket.emit('auth:required', { error: 'Authentification requise' });
+      return;
+    }
+    
+    console.log(`🔚 Appel terminé:`, { from: socket.userId, to: data.to });
+    
+    const { to, conversationId } = data;
+    const targetSocket = getUserSocket(to, io);
+    
+    if (targetSocket && targetSocket.connected) {
+      targetSocket.emit('call:ended', {
+        from: socket.userId,
+        fromName: socket.userName,
+        conversationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // 10. Gestion d'erreur socket
+  socket.on('error', (error) => {
+    console.error(`💥 Erreur socket ${socket.id}:`, error);
+    cleanup();
+  })
+};

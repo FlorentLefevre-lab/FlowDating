@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       },
       socketInfo: {
         message: 'Vérifiez les logs Socket.io côté serveur',
-        expectedSocketUrl: process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001',
+        expectedSocketUrl: process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000',
         instructions: [
           '1. Regardez les logs Socket.io dans le terminal [1]',
           '2. Vérifiez si cet utilisateur apparaît comme "authentifié"',

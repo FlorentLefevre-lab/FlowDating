@@ -1,7 +1,7 @@
-// src/app/chat/page.tsx - UX améliorée pour une vraie app de dating
+// src/app/chat/page.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChatSystem } from '@/components/chat/ChatSystem';
 import { useSession } from 'next-auth/react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -15,8 +15,11 @@ import {
   Clock,
   Send,
   UserPlus,
-  Star
+  Star,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
+import io, { Socket } from 'socket.io-client';
 
 // Types
 interface User {
@@ -72,6 +75,73 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'conversations' | 'matches'>('conversations');
+  
+  // États Socket.IO
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [socketError, setSocketError] = useState<string | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+
+  // Initialiser Socket.IO
+  const initializeSocket = () => {
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+    }
+
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000';
+    
+    console.log('🔌 Tentative de connexion Socket.IO à:', socketUrl);
+    
+    const newSocket = io(socketUrl, {
+      path: '/api/socketio',  // ← AJOUTEZ cette ligne !
+      transports: ['websocket', 'polling'],
+      timeout: 5000,
+      forceNew: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
+    });
+
+    newSocket.on('connect', () => {
+      console.log('✅ Socket.IO connecté:', newSocket.id);
+      setSocketConnected(true);
+      setSocketError(null);
+      
+      // Authentifier l'utilisateur
+      if (currentUser) {
+        newSocket.emit('user:authenticate', {
+          userId: currentUser.id,
+          userEmail: currentUser.email,
+          userName: currentUser.name
+        });
+      }
+    });
+
+    newSocket.on('disconnect', (reason) => {
+      console.log('❌ Socket.IO déconnecté:', reason);
+      setSocketConnected(false);
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('💥 Erreur connexion Socket.IO:', error);
+      setSocketError(`Erreur de connexion: ${error.message}`);
+      setSocketConnected(false);
+    });
+
+    newSocket.on('reconnect', (attemptNumber) => {
+      console.log('🔄 Socket.IO reconnecté après', attemptNumber, 'tentatives');
+      setSocketConnected(true);
+      setSocketError(null);
+    });
+
+    newSocket.on('reconnect_error', (error) => {
+      console.error('💥 Erreur de reconnexion:', error);
+      setSocketError(`Erreur de reconnexion: ${error.message}`);
+    });
+
+    socketRef.current = newSocket;
+    setSocket(newSocket);
+  };
 
   // Charger l'utilisateur actuel
   const loadCurrentUser = async () => {
@@ -80,10 +150,12 @@ export default function ChatPage() {
       const data = await response.json();
       if (data.success) {
         setCurrentUser(data.user);
+        return data.user;
       }
     } catch (error) {
       console.error('Erreur chargement utilisateur actuel:', error);
     }
+    return null;
   };
 
   // Charger les conversations avec messages
@@ -134,29 +206,36 @@ export default function ChatPage() {
         setIsLoading(true);
         setError(null);
 
-        // Charger en parallèle
-        await Promise.all([
-          loadCurrentUser(),
-          loadConversations(),
-          loadMatches()
-        ]);
+        // Charger l'utilisateur d'abord
+        const user = await loadCurrentUser();
+        
+        if (user) {
+          // Initialiser le socket après avoir l'utilisateur
+          initializeSocket();
+          
+          // Charger les données en parallèle
+          await Promise.all([
+            loadConversations(),
+            loadMatches()
+          ]);
 
-        // Vérifier si on a un chat direct via URL
-        const userIdParam = searchParams.get('userId');
-        if (userIdParam) {
-          // Trouver l'utilisateur dans les conversations ou matchs
-          let targetUser = conversations.find(conv => conv.user.id === userIdParam)?.user;
-          if (!targetUser) {
-            targetUser = matches.find(match => match.user.id === userIdParam)?.user;
-          }
+          // Vérifier si on a un chat direct via URL
+          const userIdParam = searchParams.get('userId');
+          if (userIdParam) {
+            // Trouver l'utilisateur dans les conversations ou matchs
+            let targetUser = conversations.find(conv => conv.user.id === userIdParam)?.user;
+            if (!targetUser) {
+              targetUser = matches.find(match => match.user.id === userIdParam)?.user;
+            }
 
-          if (targetUser) {
-            setChatState({
-              mode: 'chat',
-              selectedUser: targetUser
-            });
-          } else {
-            setError(`Conversation introuvable avec ${userIdParam}`);
+            if (targetUser) {
+              setChatState({
+                mode: 'chat',
+                selectedUser: targetUser
+              });
+            } else {
+              setError(`Conversation introuvable avec ${userIdParam}`);
+            }
           }
         }
 
@@ -178,6 +257,17 @@ export default function ChatPage() {
     }
   }, [conversations]);
 
+  // Nettoyage Socket.IO
+  useEffect(() => {
+    return () => {
+      if (socketRef.current) {
+        console.log('🧹 Nettoyage Socket.IO');
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, []);
+
   // Démarrer une conversation
   const startConversation = (user: User) => {
     console.log('💬 Démarrage conversation avec:', user.name, user.id);
@@ -196,6 +286,14 @@ export default function ChatPage() {
     // Recharger les données au retour
     loadConversations();
     loadMatches();
+  };
+
+  // Test de connexion socket
+  const testSocketConnection = () => {
+    if (socket) {
+      socket.emit('test:connection', { timestamp: Date.now() });
+      console.log('🧪 Test de connexion envoyé');
+    }
   };
 
   // Calculer le temps depuis la dernière activité
@@ -222,6 +320,9 @@ export default function ChatPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Chargement de vos conversations...</p>
+          <p className="text-xs text-gray-500 mt-2">
+            Socket: {socketConnected ? '🟢 Connecté' : '🔴 Déconnecté'}
+          </p>
         </div>
       </div>
     );
@@ -237,12 +338,28 @@ export default function ChatPage() {
             <h2 className="text-lg font-semibold">Erreur de Chat</h2>
           </div>
           <p className="text-gray-600 text-center mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="w-full px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700 transition-colors"
-          >
-            Recharger
-          </button>
+          {socketError && (
+            <div className="bg-red-50 border border-red-200 rounded p-3 mb-4">
+              <p className="text-red-700 text-sm">{socketError}</p>
+              <p className="text-xs text-red-600 mt-1">
+                URL: {process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000'}
+              </p>
+            </div>
+          )}
+          <div className="space-y-2">
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700 transition-colors"
+            >
+              Recharger
+            </button>
+            <button
+              onClick={initializeSocket}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
+              Reconnecter Socket
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -253,27 +370,58 @@ export default function ChatPage() {
     return (
       <div className="h-screen bg-gray-50">
         <div className="container mx-auto h-full max-w-4xl">
-          {/* Header avec bouton retour */}
-          <div className="bg-white border-b px-4 py-3 flex items-center">
-            <button
-              onClick={backToDashboard}
-              className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 mr-4"
-            >
-              <ArrowLeft size={20} />
-              <span>Retour</span>
-            </button>
-            
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                {chatState.selectedUser.name?.charAt(0) || '?'}
+          {/* Header avec bouton retour et statut socket */}
+          <div className="bg-white border-b px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center">
+              <button
+                onClick={backToDashboard}
+                className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 mr-4"
+              >
+                <ArrowLeft size={20} />
+                <span>Retour</span>
+              </button>
+              
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                  {chatState.selectedUser.name?.charAt(0) || '?'}
+                </div>
+                <div>
+                  <h3 className="font-semibold">{chatState.selectedUser.name}</h3>
+                  <p className="text-sm text-gray-500">
+                    {chatState.selectedUser.age && `${chatState.selectedUser.age} ans`}
+                    {chatState.selectedUser.location && ` • ${chatState.selectedUser.location}`}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold">{chatState.selectedUser.name}</h3>
-                <p className="text-sm text-gray-500">
-                  {chatState.selectedUser.age && `${chatState.selectedUser.age} ans`}
-                  {chatState.selectedUser.location && ` • ${chatState.selectedUser.location}`}
-                </p>
+            </div>
+
+            {/* Statut Socket */}
+            <div className="flex items-center space-x-2">
+              <div className={`flex items-center space-x-1 px-3 py-1 rounded-full text-xs ${
+                socketConnected 
+                  ? 'bg-green-100 text-green-700' 
+                  : 'bg-red-100 text-red-700'
+              }`}>
+                {socketConnected ? <Wifi size={12} /> : <WifiOff size={12} />}
+                <span>{socketConnected ? 'Connecté' : 'Déconnecté'}</span>
               </div>
+              
+              {!socketConnected && (
+                <button
+                  onClick={initializeSocket}
+                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Reconnecter
+                </button>
+              )}
+              
+              <button
+                onClick={testSocketConnection}
+                className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700"
+                disabled={!socketConnected}
+              >
+                Test
+              </button>
             </div>
           </div>
           
@@ -281,6 +429,7 @@ export default function ChatPage() {
             <ChatSystem
               currentUser={currentUser}
               remoteUser={chatState.selectedUser}
+              socket={socket} // ✅ AJOUTÉ: Passer le socket
               onClose={backToDashboard}
             />
           </div>
@@ -293,17 +442,31 @@ export default function ChatPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto max-w-4xl p-4">
-        {/* En-tête */}
+        {/* En-tête avec statut socket */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 flex items-center space-x-3">
                 <MessageCircle className="text-pink-600" />
                 <span>Messages</span>
+                {socketConnected ? (
+                  <Wifi className="text-green-600" size={24} />
+                ) : (
+                  <WifiOff className="text-red-600" size={24} />
+                )}
               </h1>
-              <p className="text-gray-600 mt-1">
-                Vos conversations et nouveaux matchs
-              </p>
+              <div className="flex items-center space-x-4 mt-1">
+                <p className="text-gray-600">
+                  Vos conversations et nouveaux matchs
+                </p>
+                <div className={`flex items-center space-x-1 px-2 py-1 rounded text-xs ${
+                  socketConnected 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-red-100 text-red-700'
+                }`}>
+                  <span>{socketConnected ? '🟢 Socket Connecté' : '🔴 Socket Déconnecté'}</span>
+                </div>
+              </div>
             </div>
             
             <div className="text-right">
@@ -314,8 +477,37 @@ export default function ChatPage() {
                 {conversations.length} conversation{conversations.length > 1 ? 's' : ''} • 
                 {matches.length} nouveau{matches.length > 1 ? 'x' : ''} match{matches.length > 1 ? 's' : ''}
               </div>
+              
+              {/* Boutons de debug socket */}
+              <div className="flex space-x-2 mt-2">
+                {!socketConnected && (
+                  <button
+                    onClick={initializeSocket}
+                    className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Reconnecter Socket
+                  </button>
+                )}
+                <button
+                  onClick={testSocketConnection}
+                  className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700"
+                  disabled={!socketConnected}
+                >
+                  Test Socket
+                </button>
+              </div>
             </div>
           </div>
+          
+          {/* Affichage des erreurs socket */}
+          {socketError && (
+            <div className="mt-4 bg-red-50 border border-red-200 rounded p-3">
+              <p className="text-red-700 text-sm">{socketError}</p>
+              <p className="text-xs text-red-600 mt-1">
+                URL: {process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000'}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Tabs */}

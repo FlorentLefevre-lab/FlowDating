@@ -37,6 +37,6 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 dotenv -e .env.local -- npx prisma studio
 
-cmbfiumg60001oge5n9md5n83 Baptiste Roux
+cmbfiumg60001oge5n9md5n83 Baptiste Roux : baptiste.roux1@test.com
 
-cmbfiumfh0000oge5ciz47kcq Morgane Faure
+cmbfiumfh0000oge5ciz47kcq Morgane Faure : morgane.faure0@test.com

@@ -6,7 +6,7 @@ echo "🔍 Recherche du vrai serveur Socket.IO utilisé par SocketProvider..."
 echo "📁 Analyse du SocketProvider:"
 if [ -f "src/providers/SocketProvider.tsx" ]; then
     echo "Connexions trouvées:"
-    grep -n -E "io\(|connect|localhost|3001|8080|4000|5000" src/providers/SocketProvider.tsx
+    grep -n -E "io\(|connect|localhost|3000|8080|4000|5000" src/providers/SocketProvider.tsx
     echo ""
     echo "URLs de serveur:"
     grep -n -E "http://|https://|ws://|wss://" src/providers/SocketProvider.tsx
@@ -45,4 +45,4 @@ ps aux | grep node | grep -v grep
 # 6. Vérifier les ports ouverts
 echo ""
 echo "🌐 Ports ouverts:"
-netstat -tlnp 2>/dev/null | grep :3 || lsof -i :3001,3000,4000,8080 2>/dev/null || echo "Commandes netstat/lsof non disponibles"
+netstat -tlnp 2>/dev/null | grep :3 || lsof -i :3000,3000,4000,8080 2>/dev/null || echo "Commandes netstat/lsof non disponibles"

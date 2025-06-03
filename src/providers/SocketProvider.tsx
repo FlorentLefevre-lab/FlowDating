@@ -1,81 +1,67 @@
-// ===========================================
-// ÉTAPE 10: Socket Provider
-// FICHIER: src/providers/SocketProvider.tsx
-// ===========================================
+// src/providers/SocketProvider.tsx - VERSION CORRIGÉE
+'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
-import io, { Socket } from 'socket.io-client';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import socketManager, { Socket } from '@/lib/socket';
 
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
+  connect: (userId: string, userEmail?: string, userName?: string) => void;
+  disconnect: () => void;
 }
 
-const SocketContext = createContext<SocketContextType>({ 
-  socket: null, 
-  isConnected: false 
+const SocketContext = createContext<SocketContextType>({
+  socket: null,
+  isConnected: false,
+  connect: () => {},
+  disconnect: () => {}
 });
 
-export const useSocket = () => {
+interface SocketProviderProps {
+  children: ReactNode;
+}
+
+export function SocketProvider({ children }: SocketProviderProps) {
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+
+  const connect = (userId: string, userEmail?: string, userName?: string) => {
+    const socketInstance = socketManager.connect(userId, userEmail, userName);
+    setSocket(socketInstance);
+
+    socketInstance.on('connect', () => {
+      setIsConnected(true);
+    });
+
+    socketInstance.on('disconnect', () => {
+      setIsConnected(false);
+    });
+  };
+
+  const disconnect = () => {
+    socketManager.disconnect();
+    setSocket(null);
+    setIsConnected(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      disconnect();
+    };
+  }, []);
+
+  return (
+    <SocketContext.Provider value={{ socket, isConnected, connect, disconnect }}>
+      {children}
+    </SocketContext.Provider>
+  );
+}
+
+export function useSocket() {
   const context = useContext(SocketContext);
   if (!context) {
     throw new Error('useSocket must be used within a SocketProvider');
   }
   return context;
-};
-
-interface SocketProviderProps {
-  children: React.ReactNode;
 }
-
-export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const { data: session } = useSession();
-
-  useEffect(() => {
-    if (!session?.user?.id) {
-      if (socket) {
-        socket.disconnect();
-        setSocket(null);
-        setIsConnected(false);
-      }
-      return;
-    }
-
-    const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001', {
-      auth: {
-        userId: session.user.id,
-        token: session.accessToken
-      }
-    });
-
-    newSocket.on('connect', () => {
-      console.log('Connecté au serveur Socket.io');
-      setIsConnected(true);
-    });
-
-    newSocket.on('disconnect', () => {
-      console.log('Déconnecté du serveur Socket.io');
-      setIsConnected(false);
-    });
-
-    newSocket.on('connect_error', (error) => {
-      console.error('Erreur de connexion Socket.io:', error);
-      setIsConnected(false);
-    });
-
-    setSocket(newSocket);
-
-    return () => {
-      newSocket.disconnect();
-    };
-  }, [session?.user?.id]);
-
-  return (
-    <SocketContext.Provider value={{ socket, isConnected }}>
-      {children}
-    </SocketContext.Provider>
-  );
-};
