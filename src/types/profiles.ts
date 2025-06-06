@@ -105,33 +105,6 @@ export interface SettingsPanelProps {
   onMessage: (message: string, type?: MessageType) => void;
 }
 
-// Types pour les messages et notifications
-export type MessageType = 'success' | 'error' | 'warning' | 'info';
-
-export interface NotificationMessage {
-  id: string;
-  type: MessageType;
-  title: string;
-  message: string;
-  duration?: number;
-  action?: {
-    label: string;
-    onClick: () => void;
-  };
-}
-
-// Types pour les onglets
-export type TabType = 'overview' | 'edit' | 'personal' | 'photos' | 'preferences' | 'settings';
-
-export interface TabConfig {
-  id: TabType;
-  label: string;
-  icon: any;
-  color: string;
-  description: string;
-  badge?: string | number;
-}
-
 // Types pour l'API
 export interface ApiResponse<T = any> {
   success: boolean;

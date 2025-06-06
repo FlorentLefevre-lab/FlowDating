@@ -34,10 +34,10 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
 
   // Options pour les genres recherchés
   const genderOptions = [
-    { value: 'femme', label: 'Femmes' },
-    { value: 'homme', label: 'Hommes' },
-    { value: 'non-binaire', label: 'Personnes non-binaires' },
-    { value: 'tous', label: 'Tout le monde' }
+    { value: 'femme', label: 'Femmes', shortLabel: 'F' },
+    { value: 'homme', label: 'Hommes', shortLabel: 'H' },
+    { value: 'non-binaire', label: 'Personnes non-binaires', shortLabel: 'NB' },
+    { value: 'tous', label: 'Tout le monde', shortLabel: 'Tous' }
   ];
 
   const handleInputChange = (field: keyof UserPreferences, value: any) => {
@@ -84,14 +84,14 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         onSubmit={handleSubmit}
-        className="space-y-8 max-w-4xl"
+        className="space-y-responsive max-w-4xl"
       >
         {/* Tranche d'âge */}
         <div className="profile-section">
           <div className="profile-header">
             <div className="flex items-center gap-3">
-              <CalendarIcon className="w-6 h-6 text-pink-500" />
-              <h3 className="profile-title">Tranche d'âge</h3>
+              <CalendarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-pink-500" />
+              <h3 className="profile-title text-base sm:text-lg">Tranche d'âge</h3>
             </div>
           </div>
           
@@ -126,7 +126,7 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
           </div>
           
           <div className="mt-4 text-center">
-            <span className="text-gray-600 bg-gray-50 px-4 py-2 rounded-lg">
+            <span className="text-gray-600 bg-gray-50 px-3 py-2 sm:px-4 sm:py-2 rounded-lg text-sm sm:text-base">
               Entre {formData.minAge} et {formData.maxAge} ans
             </span>
           </div>
@@ -136,11 +136,12 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
         <div className="profile-section">
           <div className="profile-header">
             <div className="flex items-center gap-3">
-              <MapPinIcon className="w-6 h-6 text-pink-500" />
-              <h3 className="profile-title">Distance maximale</h3>
+              <MapPinIcon className="w-5 h-5 sm:w-6 sm:h-6 text-pink-500" />
+              <h3 className="profile-title text-base sm:text-lg">Distance maximale</h3>
             </div>
           </div>
           
+          {/* Responsive : 2 colonnes sur mobile, 4 sur desktop */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {DISTANCE_OPTIONS.map((option) => (
               <motion.button
@@ -149,12 +150,12 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleInputChange('maxDistance', option.value)}
-                className={`preference-option ${
+                className={`preference-option text-center py-3 sm:py-4 ${
                   formData.maxDistance === option.value ? 'selected' : ''
                 }`}
               >
-                <div className="font-medium">{option.label}</div>
-                <div className="text-xs opacity-75">{option.description}</div>
+                <div className="font-medium text-sm sm:text-base">{option.label}</div>
+                <div className="text-xs opacity-75 hidden sm:block">{option.description}</div>
               </motion.button>
             ))}
           </div>
@@ -164,12 +165,13 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
         <div className="profile-section">
           <div className="profile-header">
             <div className="flex items-center gap-3">
-              <UserIcon className="w-6 h-6 text-pink-500" />
-              <h3 className="profile-title">Je recherche</h3>
+              <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 text-pink-500" />
+              <h3 className="profile-title text-base sm:text-lg">Je recherche</h3>
             </div>
           </div>
           
-          <div className="form-grid">
+          {/* Responsive : 2 colonnes sur mobile, 4 sur desktop */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {genderOptions.map((option) => (
               <motion.button
                 key={option.value}
@@ -177,11 +179,13 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleInputChange('gender', option.value)}
-                className={`preference-option ${
+                className={`preference-option py-3 sm:py-4 ${
                   formData.gender === option.value ? 'selected' : ''
                 }`}
               >
-                {option.label}
+                {/* Texte court sur mobile, complet sur desktop */}
+                <span className="sm:hidden font-medium text-sm">{option.shortLabel}</span>
+                <span className="hidden sm:inline font-medium">{option.label}</span>
               </motion.button>
             ))}
           </div>
@@ -191,12 +195,13 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
         <div className="profile-section">
           <div className="profile-header">
             <div className="flex items-center gap-3">
-              <HeartIcon className="w-6 h-6 text-pink-500" />
-              <h3 className="profile-title">Type de relation recherchée</h3>
+              <HeartIcon className="w-5 h-5 sm:w-6 sm:h-6 text-pink-500" />
+              <h3 className="profile-title text-base sm:text-lg">Type de relation recherchée</h3>
             </div>
           </div>
           
-          <div className="form-grid">
+          {/* Stack sur mobile, grid sur desktop */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {LOOKING_FOR_OPTIONS.map((option) => (
               <motion.button
                 key={option.value}
@@ -204,21 +209,21 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleInputChange('lookingFor', option.value)}
-                className={`preference-option ${
+                className={`preference-option text-left p-3 sm:p-4 ${
                   formData.lookingFor === option.value ? 'selected' : ''
                 }`}
               >
-                <div className="font-medium">{option.label}</div>
-                <div className="text-sm opacity-75">{option.description}</div>
+                <div className="font-medium text-sm sm:text-base">{option.label}</div>
+                <div className="text-xs sm:text-sm opacity-75 mt-1">{option.description}</div>
               </motion.button>
             ))}
           </div>
         </div>
 
-        {/* Résumé des préférences */}
-        <div className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-xl p-6 border border-pink-200">
-          <h4 className="font-semibold text-gray-800 mb-3">Résumé de vos préférences</h4>
-          <div className="space-y-2 text-sm text-gray-700">
+        {/* Résumé des préférences - Responsive */}
+        <div className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-xl p-4 sm:p-6 border border-pink-200">
+          <h4 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">Résumé de vos préférences</h4>
+          <div className="space-y-2 text-xs sm:text-sm text-gray-700">
             <p>
               <span className="font-medium">Âge :</span> {formData.minAge}-{formData.maxAge} ans
             </p>
@@ -244,7 +249,7 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
           </div>
         </div>
 
-        {/* Boutons d'action */}
+        {/* Boutons d'action - Responsive */}
         <div className="section-actions">
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -256,12 +261,29 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
             {isSubmitting ? (
               <div className="loading-content">
                 <div className="loading-spinner"></div>
-                Sauvegarde...
+                <span className="hidden sm:inline">Sauvegarde...</span>
+                <span className="sm:hidden">...</span>
               </div>
             ) : (
-              'Sauvegarder mes préférences'
+              <>
+                <span className="hidden sm:inline">Sauvegarder mes préférences</span>
+                <span className="sm:hidden">Sauvegarder</span>
+              </>
             )}
           </motion.button>
+        </div>
+
+        {/* Info box responsive */}
+        <div className="info-box">
+          <h4 className="info-box-title text-sm sm:text-base">
+            💡 Pourquoi définir vos préférences ?
+          </h4>
+          <ul className="info-box-text space-y-1 text-xs sm:text-sm">
+            <li>• Recevez des suggestions plus pertinentes</li>
+            <li>• Gagnez du temps dans vos recherches</li>
+            <li className="hidden sm:list-item">• Augmentez vos chances de compatibilité</li>
+            <li>• Personnalisez votre expérience de rencontres</li>
+          </ul>
         </div>
       </motion.form>
     </div>

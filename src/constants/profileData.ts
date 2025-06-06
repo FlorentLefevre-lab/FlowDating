@@ -114,7 +114,7 @@ export const GENDERS = [
     
     // Voyage et aventure
     'Voyage', 'Aventure', 'Backpacking', 'Road trip', 'Camping', 'Glamping',
-    'Randonnée', 'Trekking', 'Alpinisme', 'Spéléologie', 'Géocaching',
+    'Trekking', 'Alpinisme', 'Spéléologie', 'Géocaching',
     'Photographie de voyage', 'Culture locale', 'Gastronomie locale',
     
     // Arts et culture

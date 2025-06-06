@@ -75,7 +75,13 @@ const BasicInfoForm: React.FC<ProfileFormProps> = ({
         </p>
       </div>
       
-      <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
+      <motion.form
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        onSubmit={handleSubmit} 
+        className="space-y-responsive max-w-4xl"
+      >
+        {/* Ligne 1 : Nom et Âge */}
         <div className="form-grid">
           <div className="form-group">
             <label className="form-label">
@@ -119,6 +125,7 @@ const BasicInfoForm: React.FC<ProfileFormProps> = ({
           </div>
         </div>
 
+        {/* Ligne 2 : Profession et Localisation */}
         <div className="form-grid">
           <div className="form-group">
             <label className="form-label">
@@ -152,7 +159,8 @@ const BasicInfoForm: React.FC<ProfileFormProps> = ({
           </div>
         </div>
 
-        <div className="form-group form-grid-full">
+        {/* Bio - Pleine largeur */}
+        <div className="form-group">
           <label className="form-label">
             Bio
           </label>
@@ -177,6 +185,20 @@ const BasicInfoForm: React.FC<ProfileFormProps> = ({
           </div>
         </div>
 
+        {/* Section d'aide */}
+        <div className="info-box">
+          <h4 className="info-box-title">
+            💡 Conseils pour un profil attractif
+          </h4>
+          <ul className="info-box-text space-y-1">
+            <li>• <strong>Nom :</strong> Utilisez votre vrai prénom pour la confiance</li>
+            <li>• <strong>Bio :</strong> Décrivez vos passions, votre personnalité et ce que vous recherchez</li>
+            <li>• <strong>Localisation :</strong> Indiquez votre ville pour des rencontres locales</li>
+            <li>• <strong>Profession :</strong> Partagez ce qui vous passionne dans votre travail</li>
+          </ul>
+        </div>
+
+        {/* Actions - Responsive : Stack sur mobile, inline sur desktop */}
         <div className="section-actions">
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -188,10 +210,14 @@ const BasicInfoForm: React.FC<ProfileFormProps> = ({
             {loading ? (
               <div className="loading-content">
                 <div className="loading-spinner"></div>
-                Sauvegarde...
+                <span className="hidden sm:inline">Sauvegarde...</span>
+                <span className="sm:hidden">...</span>
               </div>
             ) : (
-              'Sauvegarder les modifications'
+              <>
+                <span className="hidden sm:inline">Sauvegarder les modifications</span>
+                <span className="sm:hidden">Sauvegarder</span>
+              </>
             )}
           </motion.button>
           <button
@@ -202,7 +228,7 @@ const BasicInfoForm: React.FC<ProfileFormProps> = ({
             Annuler
           </button>
         </div>
-      </form>
+      </motion.form>
     </div>
   );
 };
