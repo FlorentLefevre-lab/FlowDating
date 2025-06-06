@@ -1,6 +1,5 @@
-// src/app/api/auth/[...nextauth]/route.ts - Route API pour NextAuth v5
-
+// /app/api/auth/[...nextauth]/route.ts
 import { handlers } from "@/auth"
 
-// ✅ Pour NextAuth v5, utilisez directement les handlers
+// Export des handlers pour NextAuth v5
 export const { GET, POST } = handlers

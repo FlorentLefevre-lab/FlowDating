@@ -1,17 +1,13 @@
-'use client';
+'use client'
 
-import React from 'react';
-import { SessionProvider } from 'next-auth/react';
-import ProfileManager from '../../components/ProfileManager';
+import { useSession } from 'next-auth/react'
+import AuthGuard from '@/components/auth/AuthGuard'
+import ProfileManager from '@/components/profile/ProfileManager'
 
-const ProfilePage: React.FC = () => {
+export default function ProfilePage() {
   return (
-    <SessionProvider>
-      <div className="min-h-screen">
-        <ProfileManager />
-      </div>
-    </SessionProvider>
-  );
-};
-
-export default ProfilePage;
+    <AuthGuard requireAuth={true}>
+      <ProfileManager />
+    </AuthGuard>
+  )
+}

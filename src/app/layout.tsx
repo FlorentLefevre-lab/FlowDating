@@ -4,12 +4,13 @@ import './globals.css'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { Providers } from './providers'
+import Navbar from '@/components/layout/Navbar'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Dating App',
-  description: 'Application de rencontre moderne',
+  title: 'Flow Dating',
+  description: 'Application de rencontre sentimental moderne',
 }
 
 export default function RootLayout({
@@ -21,7 +22,13 @@ export default function RootLayout({
     <html lang="fr">
       <body className={inter.className}>
         <Providers>
-          {children}
+          {/* Navbar conditionnelle basée sur la route et l'authentification */}
+          <Navbar />
+          
+          {/* Contenu principal */}
+          <main>
+            {children}
+          </main>
         </Providers>
       </body>
     </html>

@@ -233,9 +233,9 @@ const PhotosManager: React.FC<PhotosManagerProps> = ({ photos, onMessage }) => {
         </p>
       </div>
 
-      {/* Bouton d'upload Cloudinary - Responsive */}
+      {/* Bouton d'upload Cloudinary */}
       {canAddMore && (
-        <div className="mb-6 sm:mb-8">
+        <div className="mb-8">
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -246,27 +246,26 @@ const PhotosManager: React.FC<PhotosManagerProps> = ({ photos, onMessage }) => {
             {uploading ? (
               <div className="flex flex-col items-center justify-center">
                 <div className="loading-spinner mb-3"></div>
-                <span className="text-gray-600 font-medium text-sm sm:text-base">Upload en cours...</span>
-                <span className="text-xs sm:text-sm text-gray-500">Traitement de vos photos</span>
+                <span className="text-gray-600 font-medium">Upload en cours...</span>
+                <span className="text-sm text-gray-500">Traitement de vos photos</span>
               </div>
             ) : !cloudinaryLoaded ? (
               <div className="flex flex-col items-center justify-center">
-                <div className="animate-pulse rounded-full h-6 w-6 sm:h-8 sm:w-8 bg-gray-300 mb-3"></div>
-                <span className="text-gray-600 font-medium text-sm sm:text-base">Chargement...</span>
-                <span className="text-xs sm:text-sm text-gray-500">Préparation du widget photo</span>
+                <div className="animate-pulse rounded-full h-8 w-8 bg-gray-300 mb-3"></div>
+                <span className="text-gray-600 font-medium">Chargement...</span>
+                <span className="text-sm text-gray-500">Préparation du widget photo</span>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center">
-                <div className="flex items-center gap-2 sm:gap-3 mb-3">
-                  <CameraIcon className="w-8 h-8 sm:w-10 sm:h-10 text-pink-500" />
-                  <ArrowUpTrayIcon className="w-8 h-8 sm:w-10 sm:h-10 text-pink-500" />
+                <div className="flex items-center gap-3 mb-3">
+                  <CameraIcon className="w-10 h-10 text-pink-500" />
+                  <ArrowUpTrayIcon className="w-10 h-10 text-pink-500" />
                 </div>
-                <span className="text-gray-700 font-semibold text-base sm:text-lg mb-1">
+                <span className="text-gray-700 font-semibold text-lg mb-1">
                   Ajouter des photos
                 </span>
-                <span className="text-gray-500 text-xs sm:text-sm text-center">
-                  <span className="hidden sm:inline">Caméra • Galerie • Recherche • URL</span>
-                  <span className="sm:hidden">Caméra • Galerie</span>
+                <span className="text-gray-500">
+                  Caméra • Galerie • Recherche • URL
                 </span>
               </div>
             )}
@@ -274,7 +273,7 @@ const PhotosManager: React.FC<PhotosManagerProps> = ({ photos, onMessage }) => {
         </div>
       )}
 
-      {/* Grille des photos - Responsive */}
+      {/* Grille des photos */}
       {localPhotos.length > 0 ? (
         <div className="photos-grid mb-6">
           <AnimatePresence>
@@ -293,33 +292,32 @@ const PhotosManager: React.FC<PhotosManagerProps> = ({ photos, onMessage }) => {
                   className="w-full h-full object-cover"
                 />
 
-                {/* Badge photo principale - Responsive */}
+                {/* Badge photo principale */}
                 {photo.isPrimary && (
-                  <div className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
+                  <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
                     <StarIcon className="w-3 h-3" />
-                    <span className="hidden sm:inline">Principale</span>
-                    <span className="sm:hidden">Main</span>
+                    Principale
                   </div>
                 )}
 
                 {/* Numéro de la photo */}
-                <div className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-black/50 text-white w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold">
+                <div className="absolute top-3 right-3 bg-black/50 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold">
                   {index + 1}
                 </div>
 
                 {/* Overlay avec actions */}
                 <div className="photo-overlay">
-                  <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3 flex justify-between items-center gap-2">
+                  <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center">
                     {/* Bouton définir comme principale */}
                     {!photo.isPrimary && (
                       <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                         onClick={() => setPrimaryPhoto(photo.id)}
-                        className="bg-white/90 backdrop-blur-sm text-gray-700 p-2 sm:p-2.5 rounded-lg hover:bg-white transition-all shadow-lg"
+                        className="bg-white/90 backdrop-blur-sm text-gray-700 p-2.5 rounded-lg hover:bg-white transition-all shadow-lg"
                         title="Définir comme photo principale"
                       >
-                        <StarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <StarIcon className="w-4 h-4" />
                       </motion.button>
                     )}
 
@@ -328,10 +326,10 @@ const PhotosManager: React.FC<PhotosManagerProps> = ({ photos, onMessage }) => {
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       onClick={() => deletePhoto(photo.id)}
-                      className="bg-red-500/90 backdrop-blur-sm text-white p-2 sm:p-2.5 rounded-lg hover:bg-red-600 transition-all shadow-lg ml-auto"
+                      className="bg-red-500/90 backdrop-blur-sm text-white p-2.5 rounded-lg hover:bg-red-600 transition-all shadow-lg ml-auto"
                       title="Supprimer cette photo"
                     >
-                      <TrashIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <TrashIcon className="w-4 h-4" />
                     </motion.button>
                   </div>
                 </div>
@@ -340,15 +338,15 @@ const PhotosManager: React.FC<PhotosManagerProps> = ({ photos, onMessage }) => {
           </AnimatePresence>
         </div>
       ) : (
-        // État vide - Responsive
-        <div className="text-center py-12 sm:py-16 mb-6">
-          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
-            <PhotoIcon className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" />
+        // État vide
+        <div className="text-center py-16 mb-6">
+          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <PhotoIcon className="w-12 h-12 text-gray-400" />
           </div>
-          <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">
             Aucune photo ajoutée
           </h3>
-          <p className="text-gray-500 max-w-md mx-auto text-sm sm:text-base px-4">
+          <p className="text-gray-500 max-w-md mx-auto">
             Commencez par ajouter quelques photos pour créer un profil attractif !
           </p>
         </div>
@@ -362,12 +360,12 @@ const PhotosManager: React.FC<PhotosManagerProps> = ({ photos, onMessage }) => {
           className="alert alert-warning mb-6"
         >
           <div className="flex items-start gap-3">
-            <ExclamationTriangleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 flex-shrink-0 mt-0.5" />
+            <ExclamationTriangleIcon className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="font-semibold text-amber-800 mb-1 text-sm sm:text-base">
+              <h4 className="font-semibold text-amber-800 mb-1">
                 Limite de photos atteinte
               </h4>
-              <p className="text-amber-700 text-xs sm:text-sm">
+              <p className="text-amber-700 text-sm">
                 Vous avez ajouté le maximum de 6 photos. Pour en ajouter de nouvelles, 
                 supprimez d'abord une photo existante.
               </p>
@@ -376,15 +374,15 @@ const PhotosManager: React.FC<PhotosManagerProps> = ({ photos, onMessage }) => {
         </motion.div>
       )}
 
-      {/* Conseils pour de meilleures photos - Responsive */}
+      {/* Conseils pour de meilleures photos */}
       <div className="info-box">
-        <h4 className="info-box-title text-sm sm:text-base">
+        <h4 className="info-box-title">
           💡 Conseils pour de meilleures photos
         </h4>
-        <ul className="info-box-text space-y-2 text-xs sm:text-sm">
+        <ul className="info-box-text space-y-2">
           <li>• Utilisez des photos récentes et de bonne qualité</li>
           <li>• Montrez votre visage clairement sur votre photo principale</li>
-          <li className="hidden sm:list-item">• Variez les types de photos : portrait, corps entier, activités</li>
+          <li>• Variez les types de photos : portrait, corps entier, activités</li>
           <li>• Évitez les filtres trop prononcés</li>
           <li>• Souriez naturellement !</li>
         </ul>

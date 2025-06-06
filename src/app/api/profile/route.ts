@@ -1,5 +1,4 @@
-// src/app/api/profile/route.ts - Version corrigée (remplacer les sections concernées)
-
+// /app/api/profile/route.ts - Version corrigée avec Prisma
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '../../../auth';
 import { PrismaClient } from '@prisma/client';

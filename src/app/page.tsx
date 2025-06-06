@@ -1,4 +1,4 @@
-// app/page.tsx
+// src/app/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -6,10 +6,24 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 
-export default function HomePage() {
-  const { data: session } = useSession()
+export default function LandingPage() {
+  const { data: session, status } = useSession()
   const router = useRouter()
   const [animatedStats, setAnimatedStats] = useState({ users: 0, matches: 0, messages: 0 })
+
+  // Debug pour NextAuth v5
+  useEffect(() => {
+    console.log('🔍 Session state:', { session, status })
+  }, [session, status])
+
+  // Redirection pour les utilisateurs connectés
+  useEffect(() => {
+    if (status === 'authenticated' && session) {
+      console.log('✅ Utilisateur connecté, redirection vers /home')
+      router.push('/home')
+      return
+    }
+  }, [session, status, router])
 
   // Animation des statistiques
   useEffect(() => {
@@ -42,17 +56,35 @@ export default function HomePage() {
   }, [])
 
   const handleGetStarted = () => {
-    if (session) {
-      router.push('/dashboard')
-    } else {
-      router.push('/auth/register')
-    }
+    router.push('/auth/register')
+  }
+
+  const handleLogin = () => {
+    router.push('/auth/login')
+  }
+
+  // Afficher un loader pendant la vérification de session
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">💖</div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Ne rien afficher si l'utilisateur est connecté (redirection en cours)
+  if (status === 'authenticated') {
+    return null
   }
 
   return (
     <div className="min-h-screen">
-      {/* Navigation */}
-      <Navbar />
+      {/* Navigation publique */}
+      <Navbar userName={''} userInitial={''} isPublic={true} />
 
       {/* Hero Section */}
       <section className="relative overflow-hidden py-20 lg:py-32">
@@ -92,22 +124,18 @@ export default function HomePage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <button 
                   onClick={handleGetStarted}
-                  className="btn-primary flex items-center justify-center space-x-2"
+                  className="btn-primary flex items-center justify-center space-x-2 group"
                 >
-                  <span>
-                    {session ? 'Accéder à mon tableau de bord' : 'S\'inscrire'}
-                  </span>
+                  <span>Commencer l'aventure</span>
                   <span className="group-hover:translate-x-1 transition-transform">→</span>
                 </button>
                 
-                {!session && (
-                  <button 
-                    onClick={() => router.push('/auth/login')}
-                    className="btn-secondary"
-                  >
-                    Se connecter
-                  </button>
-                )}
+                <button 
+                  onClick={handleLogin}
+                  className="btn-secondary"
+                >
+                  Se connecter
+                </button>
               </div>
 
               {/* Stats */}
@@ -245,6 +273,54 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Testimonials Section */}
+      <section className="py-20 bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-800 mb-4">
+              Ils ont trouvé l'amour sur Flow Dating
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Découvrez les témoignages de nos membres qui ont trouvé leur âme sœur
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                name: "Alice & Thomas",
+                story: "Après 6 mois d'échanges, nous nous sommes mariés ! Flow Dating a changé notre vie.",
+                avatar: "👫",
+                time: "Mariés en 2024"
+              },
+              {
+                name: "Marie & Lucas",
+                story: "L'algorithme était parfait ! Nous avons tout de suite su que c'était le bon.",
+                avatar: "💑",
+                time: "En couple depuis 1 an"
+              },
+              {
+                name: "Sophie & Alex",
+                story: "Une app intuitive qui m'a permis de rencontrer mon âme sœur en quelques semaines.",
+                avatar: "👩‍❤️‍👨",
+                time: "Fiancés"
+              }
+            ].map((testimonial, index) => (
+              <div key={index} className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-lg transition-all duration-300">
+                <div className="text-center mb-6">
+                  <div className="text-4xl mb-4">{testimonial.avatar}</div>
+                  <h4 className="font-bold text-gray-800 text-lg">{testimonial.name}</h4>
+                  <p className="text-sm text-pink-600 font-medium">{testimonial.time}</p>
+                </div>
+                <p className="text-gray-600 leading-relaxed text-center italic">
+                  "{testimonial.story}"
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-primary-500 via-primary-400 to-secondary-600">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -256,12 +332,20 @@ export default function HomePage() {
             Rejoignez Flow Dating dès aujourd'hui et commencez votre histoire d'amour
           </p>
 
-          <button 
-            onClick={handleGetStarted}
-            className="bg-white text-primary-600 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-primary-50 transition-smooth hover-lift shadow-lg hover:shadow-xl"
-          >
-            {session ? 'Accéder à mon tableau de bord' : 'Créer mon profil gratuitement'}
-          </button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button 
+              onClick={handleGetStarted}
+              className="bg-white text-primary-600 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-primary-50 transition-smooth hover-lift shadow-lg hover:shadow-xl"
+            >
+              Créer mon profil gratuitement
+            </button>
+            <button 
+              onClick={handleLogin}
+              className="border-2 border-white text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-white hover:text-primary-600 transition-smooth"
+            >
+              J'ai déjà un compte
+            </button>
+          </div>
         </div>
       </section>
 

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Gender, MaritalStatus, MessageStatus, MessageType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -13,8 +13,8 @@ interface UserData {
   bio: string;
   location: string;
   profession: string;
-  gender: string;
-  maritalStatus: string;
+  gender: Gender;
+  maritalStatus: MaritalStatus;
   zodiacSign: string;
   dietType: string;
   religion: string;
@@ -47,7 +47,7 @@ const firstNames: string[] = [
   'Victoria', 'Theodore', 'Madison', 'Aiden', 'Luna', 'Samuel', 'Grace', 'Joseph', 'Chloe', 'John',
   'Penelope', 'David', 'Layla', 'Wyatt', 'Riley', 'Matthew', 'Zoey', 'Luke', 'Nora', 'Asher',
   'Lily', 'Carter', 'Eleanor', 'Julian', 'Hannah', 'Grayson', 'Lillian', 'Leo', 'Addison', 'Jayden',
-  'Aubrey', 'Gabriel', 'Ellie', 'Isaac', 'Stella', 'Oliver', 'Natalie', 'Jonathan', 'Zoe', 'Connor',
+  'Aubrey', 'Gabriel', 'Ellie', 'Isaac', 'Stella', 'Oliver', 'Natalie', 'Jonathan', 'Connor',
   'Leah', 'Jeremiah', 'Hazel', 'Ryan', 'Violet', 'Adrian', 'Aurora', 'Maverick', 'Savannah', 'Hudson',
   'Audrey', 'Colton', 'Brooklyn', 'Eli', 'Bella', 'Thomas', 'Claire', 'Aaron', 'Skylar', 'Ian'
 ];
@@ -55,7 +55,7 @@ const firstNames: string[] = [
 const lastNames: string[] = [
   'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez',
   'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin',
-  'Lee', 'Perez', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson',
+  'Perez', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson',
   'Walker', 'Young', 'Allen', 'King', 'Wright', 'Scott', 'Torres', 'Nguyen', 'Hill', 'Flores',
   'Green', 'Adams', 'Nelson', 'Baker', 'Hall', 'Rivera', 'Campbell', 'Mitchell', 'Carter', 'Roberts'
 ];
@@ -72,8 +72,8 @@ const professions: string[] = [
   'Technicien', 'Pharmacien', 'Dentiste', 'Vétérinaire', 'Coiffeur', 'Mécanicien', 'Électricien'
 ];
 
-const genders: string[] = ['Homme', 'Femme', 'Non-binaire'];
-const maritalStatuses: string[] = ['Célibataire', 'En couple', 'Divorcé(e)', 'Veuf/Veuve'];
+const genders: Gender[] = [Gender.MALE, Gender.FEMALE, Gender.NON_BINARY, Gender.OTHER];
+const maritalStatuses: MaritalStatus[] = [MaritalStatus.SINGLE, MaritalStatus.IN_RELATIONSHIP, MaritalStatus.DIVORCED, MaritalStatus.WIDOWED];
 const zodiacSigns: string[] = [
   'Bélier', 'Taureau', 'Gémeaux', 'Cancer', 'Lion', 'Vierge',
   'Balance', 'Scorpion', 'Sagittaire', 'Capricorne', 'Verseau', 'Poissons'
@@ -131,16 +131,69 @@ async function hashPassword(password: string): Promise<string> {
   return await bcrypt.hash(password, saltRounds);
 }
 
+async function clearDatabase(): Promise<void> {
+  console.log('🧹 Nettoyage de la base de données...');
+  
+  // Ordre important pour respecter les contraintes de clés étrangères
+  await prisma.notificationSettings.deleteMany();
+  await prisma.message.deleteMany();
+  await prisma.profileView.deleteMany();
+  await prisma.dislike.deleteMany();
+  await prisma.like.deleteMany();
+  await prisma.block.deleteMany();
+  await prisma.photo.deleteMany();
+  await prisma.userPreferences.deleteMany();
+  await prisma.session.deleteMany();
+  await prisma.account.deleteMany();
+  await prisma.user.deleteMany();
+  
+  console.log('✅ Base de données nettoyée !');
+}
+
 async function generateUsers(): Promise<string[]> {
   console.log('🚀 Génération de 100 utilisateurs...');
   
   const hashedPassword = await hashPassword('123456');
   const users: UserData[] = [];
 
-  for (let i = 0; i < 100; i++) {
+  // 🎯 CRÉATION GARANTIE DE ZOE LEE EN PREMIER
+  console.log('👑 Création spéciale de Zoe Lee...');
+  const zoeUser: UserData = {
+    name: 'Zoe Lee',
+    email: 'zoe.lee0@example.com',
+    hashedPassword: hashedPassword,
+    primaryAuthMethod: 'EMAIL_PASSWORD',
+    age: 28,
+    bio: "Passionnée de photographie et de voyages. J'adore découvrir de nouveaux endroits et rencontrer des gens intéressants ! 📸✈️",
+    location: 'Paris',
+    profession: 'Photographe',
+    gender: Gender.FEMALE,
+    maritalStatus: MaritalStatus.SINGLE,
+    zodiacSign: 'Balance',
+    dietType: 'Végétarien',
+    religion: 'Agnostique',
+    interests: ['Photographie', 'Voyage', 'Art', 'Musique', 'Cinéma', 'Nature'],
+    department: '75',
+    ethnicity: 'Asiatique',
+    postcode: '75001',
+    region: 'Île-de-France',
+    lastSeen: new Date(Date.now() - 2 * 60 * 60 * 1000), // Il y a 2 heures
+    isOnline: true, // Zoe est en ligne
+  };
+  
+  users.push(zoeUser);
+  console.log('✅ Zoe Lee créée avec succès !');
+
+  // Génération des 99 autres utilisateurs
+  for (let i = 1; i < 100; i++) {
     const firstName = getRandomElement(firstNames);
     const lastName = getRandomElement(lastNames);
-    const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@example.com`;
+    let email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@example.com`;
+    
+    // S'assurer qu'on ne duplique pas l'email de Zoe
+    if (email === 'zoe.lee0@example.com') {
+      email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i + 100}@example.com`;
+    }
     
     const userData: UserData = {
       name: `${firstName} ${lastName}`,
@@ -176,8 +229,16 @@ async function generateUsers(): Promise<string[]> {
   console.log('✅ 100 utilisateurs créés avec succès !');
   
   const createdUsers = await prisma.user.findMany({
-    select: { id: true }
+    select: { id: true, email: true }
   });
+  
+  // Vérifier que Zoe est bien créée
+  const zoeCreated = createdUsers.find(user => user.email === 'zoe.lee0@example.com');
+  if (zoeCreated) {
+    console.log(`🎯 Zoe Lee confirmée avec l'ID: ${zoeCreated.id}`);
+  } else {
+    console.error('❌ ERREUR: Zoe Lee n\'a pas été créée !');
+  }
   
   return createdUsers.map((user: { id: string }) => user.id);
 }
@@ -202,23 +263,66 @@ async function generatePreferences(userIds: string[]): Promise<void> {
   console.log('✅ Préférences utilisateur créées !');
 }
 
+async function generateNotificationSettings(userIds: string[]): Promise<void> {
+  console.log('🔔 Génération des paramètres de notification...');
+  
+  const notificationSettings = userIds.map((userId: string) => ({
+    userId,
+    messageNotifications: Math.random() > 0.2,
+    likeNotifications: Math.random() > 0.1,
+    matchNotifications: Math.random() > 0.05,
+    soundEnabled: Math.random() > 0.3,
+    vibrationEnabled: Math.random() > 0.4,
+    quietHoursStart: Math.random() > 0.5 ? "22:00" : null,
+    quietHoursEnd: Math.random() > 0.5 ? "08:00" : null
+  }));
+
+  await prisma.notificationSettings.createMany({
+    data: notificationSettings,
+    skipDuplicates: true
+  });
+
+  console.log('✅ Paramètres de notification créés !');
+}
+
 async function generatePhotos(userIds: string[]): Promise<void> {
   console.log('📸 Génération des photos de profil...');
   
+  // 🎯 Trouver l'ID de Zoe pour lui donner des photos spéciales
+  const zoeUser = await prisma.user.findUnique({
+    where: { email: 'zoe.lee0@example.com' },
+    select: { id: true }
+  });
+
   const photos: Array<{
     userId: string;
     url: string;
     isPrimary: boolean;
+    alt: string;
   }> = [];
   
   userIds.forEach((userId: string) => {
     const photoCount = Math.floor(Math.random() * 5) + 1;
     
     for (let i = 0; i < photoCount; i++) {
+      let photoUrl: string;
+      
+      // 🎯 Photos spéciales pour Zoe (femme)
+      if (userId === zoeUser?.id) {
+        const photoNumber = Math.floor(Math.random() * 99) + 1;
+        photoUrl = `https://randomuser.me/api/portraits/women/${photoNumber}.jpg`;
+      } else {
+        // Photos aléatoires pour les autres
+        const gender = Math.random() > 0.5 ? 'men' : 'women';
+        const photoNumber = Math.floor(Math.random() * 99) + 1;
+        photoUrl = `https://randomuser.me/api/portraits/${gender}/${photoNumber}.jpg`;
+      }
+      
       photos.push({
         userId,
-        url: `https://randomuser.me/api/portraits/${Math.random() > 0.5 ? 'men' : 'women'}/${Math.floor(Math.random() * 99) + 1}.jpg`,
-        isPrimary: i === 0
+        url: photoUrl,
+        isPrimary: i === 0,
+        alt: `Photo de profil ${i + 1}`
       });
     }
   });
@@ -234,10 +338,69 @@ async function generatePhotos(userIds: string[]): Promise<void> {
 async function generateLikes(userIds: string[]): Promise<LikeData[]> {
   console.log('❤️ Génération des likes...');
   
+  // 🎯 Trouver l'ID de Zoe Lee
+  const zoeUser = await prisma.user.findUnique({
+    where: { email: 'zoe.lee0@example.com' },
+    select: { id: true }
+  });
+
+  const zoeId = zoeUser?.id;
+  
+  if (!zoeId) {
+    console.error('❌ ERREUR: Zoe Lee introuvable pour les likes !');
+    return [];
+  }
+  
+  console.log(`📍 Zoe trouvée avec l'ID: ${zoeId}`);
+  
   const likes: LikeData[] = [];
   const likePairs = new Set<string>();
+  const today = new Date(); // 🎯 Date d'aujourd'hui pour Zoe
   
+  // 🎯 GARANTIR DES LIKES POUR ZOE D'ABORD
+  console.log('💕 Génération de likes spéciaux pour Zoe...');
+  const otherUserIds = userIds.filter(id => id !== zoeId);
+  
+  // Zoe reçoit 8-12 likes aujourd'hui
+  const zoeReceivedLikesCount = Math.floor(Math.random() * 5) + 8; // 8-12 likes
+  for (let i = 0; i < zoeReceivedLikesCount && i < otherUserIds.length; i++) {
+    const senderId = otherUserIds[i];
+    const hoursAgo = Math.floor(Math.random() * 12); // Entre 0 et 12 heures
+    const likeDate = new Date(today.getTime() - (hoursAgo * 60 * 60 * 1000));
+    
+    likes.push({
+      senderId,
+      receiverId: zoeId,
+      createdAt: likeDate
+    });
+    
+    likePairs.add(`${senderId}-${zoeId}`);
+    console.log(`💕 Like pour Zoe de l'utilisateur ${senderId} à ${likeDate.toLocaleString()}`);
+  }
+  
+  // Zoe envoie quelques likes aussi (pour créer des matches)
+  const zoeSentLikesCount = Math.floor(Math.random() * 4) + 3; // 3-6 likes envoyés
+  for (let i = 0; i < zoeSentLikesCount && i < otherUserIds.length; i++) {
+    const receiverId = otherUserIds[i + 10]; // Utilisateurs différents
+    if (receiverId && !likePairs.has(`${zoeId}-${receiverId}`)) {
+      const hoursAgo = Math.floor(Math.random() * 12);
+      const likeDate = new Date(today.getTime() - (hoursAgo * 60 * 60 * 1000));
+      
+      likes.push({
+        senderId: zoeId,
+        receiverId,
+        createdAt: likeDate
+      });
+      
+      likePairs.add(`${zoeId}-${receiverId}`);
+      console.log(`💕 Like de Zoe vers l'utilisateur ${receiverId} à ${likeDate.toLocaleString()}`);
+    }
+  }
+  
+  // Générer les likes pour les autres utilisateurs
   for (const senderId of userIds) {
+    if (senderId === zoeId) continue; // Zoe déjà traitée
+    
     const likeCount = Math.floor(Math.random() * 21) + 5;
     const availableTargets = userIds.filter((id: string) => id !== senderId);
     
@@ -248,10 +411,14 @@ async function generateLikes(userIds: string[]): Promise<LikeData[]> {
       
       if (!likePairs.has(pairKey)) {
         likePairs.add(pairKey);
+        
+        // Pour les autres (pas Zoe), dates aléatoires dans le passé
+        const likeDate = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
+        
         likes.push({
           senderId,
           receiverId,
-          createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000)
+          createdAt: likeDate
         });
         
         availableTargets.splice(randomIndex, 1);
@@ -265,11 +432,24 @@ async function generateLikes(userIds: string[]): Promise<LikeData[]> {
   });
 
   console.log(`✅ ${likes.length} likes créés !`);
+  
+  // 🎯 Compter les likes de Zoe spécifiquement
+  const zoeLikes = likes.filter(like => like.receiverId === zoeId);
+  console.log(`🎯 Zoe a reçu ${zoeLikes.length} likes aujourd'hui !`);
+  
   return likes;
 }
 
 async function generateDislikes(userIds: string[]): Promise<void> {
   console.log('👎 Génération des dislikes...');
+  
+  // 🎯 Trouver l'ID de Zoe Lee
+  const zoeUser = await prisma.user.findUnique({
+    where: { email: 'zoe.lee0@example.com' },
+    select: { id: true }
+  });
+
+  const zoeId = zoeUser?.id;
   
   const dislikes: Array<{
     senderId: string;
@@ -277,6 +457,7 @@ async function generateDislikes(userIds: string[]): Promise<void> {
     createdAt: Date;
   }> = [];
   const dislikePairs = new Set<string>();
+  const today = new Date(); // 🎯 Date d'aujourd'hui pour Zoe
   
   for (const senderId of userIds) {
     const dislikeCount = Math.floor(Math.random() * 9) + 2;
@@ -289,10 +470,20 @@ async function generateDislikes(userIds: string[]): Promise<void> {
       
       if (!dislikePairs.has(pairKey)) {
         dislikePairs.add(pairKey);
+        
+        // 🎯 Si c'est pour Zoe (receiverId) ou de Zoe (senderId), utiliser la date d'aujourd'hui
+        let dislikeDate: Date;
+        if (receiverId === zoeId || senderId === zoeId) {
+          const hoursAgo = Math.floor(Math.random() * 12);
+          dislikeDate = new Date(today.getTime() - (hoursAgo * 60 * 60 * 1000));
+        } else {
+          dislikeDate = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
+        }
+        
         dislikes.push({
           senderId,
           receiverId,
-          createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000)
+          createdAt: dislikeDate
         });
         
         availableTargets.splice(randomIndex, 1);
@@ -311,24 +502,67 @@ async function generateDislikes(userIds: string[]): Promise<void> {
 async function generateProfileViews(userIds: string[]): Promise<void> {
   console.log('👀 Génération des vues de profil...');
   
+  // 🎯 Trouver l'ID de Zoe Lee
+  const zoeUser = await prisma.user.findUnique({
+    where: { email: 'zoe.lee0@example.com' },
+    select: { id: true }
+  });
+
+  const zoeId = zoeUser?.id;
+  
   const profileViews: Array<{
     viewerId: string;
     viewedId: string;
-    viewedAt: Date;
+    createdAt: Date;
   }> = [];
   const viewPairs = new Set<string>();
+  const today = new Date();
   
-  for (let i = 0; i < 500; i++) {
+  // 🎯 GARANTIR DES VUES POUR ZOE D'ABORD
+  if (zoeId) {
+    console.log('👀 Génération de vues spéciales pour le profil de Zoe...');
+    const otherUserIds = userIds.filter(id => id !== zoeId);
+    
+    // Zoe reçoit 15-25 vues de profil aujourd'hui
+    const zoeViewsCount = Math.floor(Math.random() * 11) + 15; // 15-25 vues
+    for (let i = 0; i < zoeViewsCount && i < otherUserIds.length; i++) {
+      const viewerId = otherUserIds[i];
+      const hoursAgo = Math.floor(Math.random() * 12);
+      const viewDate = new Date(today.getTime() - (hoursAgo * 60 * 60 * 1000));
+      
+      profileViews.push({
+        viewerId,
+        viewedId: zoeId,
+        createdAt: viewDate
+      });
+      
+      viewPairs.add(`${viewerId}-${zoeId}`);
+      console.log(`👀 Vue du profil de Zoe par l'utilisateur ${viewerId} à ${viewDate.toLocaleString()}`);
+    }
+  }
+  
+  // Générer les autres vues de profil
+  for (let i = profileViews.length; i < 500; i++) {
     const viewerId = getRandomElement(userIds);
     const viewedId = getRandomElement(userIds.filter((id: string) => id !== viewerId));
     const pairKey = `${viewerId}-${viewedId}`;
     
     if (!viewPairs.has(pairKey)) {
       viewPairs.add(pairKey);
+      
+      // 🎯 Si c'est pour Zoe (viewedId) ou de Zoe (viewerId), utiliser la date d'aujourd'hui
+      let viewDate: Date;
+      if (viewedId === zoeId || viewerId === zoeId) {
+        const hoursAgo = Math.floor(Math.random() * 12);
+        viewDate = new Date(today.getTime() - (hoursAgo * 60 * 60 * 1000));
+      } else {
+        viewDate = new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000);
+      }
+      
       profileViews.push({
         viewerId,
         viewedId,
-        viewedAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000)
+        createdAt: viewDate
       });
     }
   }
@@ -339,13 +573,28 @@ async function generateProfileViews(userIds: string[]): Promise<void> {
   });
 
   console.log(`✅ ${profileViews.length} vues de profil créées !`);
+  
+  // 🎯 Compter les vues de profil de Zoe spécifiquement
+  if (zoeId) {
+    const zoeViews = profileViews.filter(view => view.viewedId === zoeId);
+    console.log(`🎯 Le profil de Zoe a été vu ${zoeViews.length} fois aujourd'hui !`);
+  }
 }
 
 async function generateMessages(userIds: string[], likes: LikeData[]): Promise<void> {
   console.log('💬 Génération des messages...');
   
+  // 🎯 Trouver l'ID de Zoe Lee
+  const zoeUser = await prisma.user.findUnique({
+    where: { email: 'zoe.lee0@example.com' },
+    select: { id: true }
+  });
+
+  const zoeId = zoeUser?.id;
+  
   const matches = new Map<string, Match>();
   
+  // Identifier les matches (likes mutuels)
   likes.forEach((like: LikeData) => {
     const reverseMatch = likes.find((l: LikeData) => 
       l.senderId === like.receiverId && l.receiverId === like.senderId
@@ -368,8 +617,8 @@ async function generateMessages(userIds: string[], likes: LikeData[]): Promise<v
     senderId: string;
     receiverId: string;
     content: string;
-    messageType: 'TEXT';
-    status: 'READ' | 'DELIVERED';
+    messageType: MessageType;
+    status: MessageStatus;
     createdAt: Date;
     readAt: Date | null;
     deliveredAt: Date;
@@ -398,23 +647,39 @@ async function generateMessages(userIds: string[], likes: LikeData[]): Promise<v
     "C'est clair ! On se ressemble 😊"
   ];
 
+  const today = new Date();
+
   for (const [conversationKey, match] of Array.from(matches.entries())) {
     const messageCount = Math.floor(Math.random() * 20) + 5;
     const participants = [match.user1, match.user2];
+    
+    // 🎯 Vérifier si Zoe fait partie de cette conversation
+    const isZoeConversation = participants.includes(zoeId || '');
     
     for (let i = 0; i < messageCount; i++) {
       const senderId = getRandomElement(participants);
       const receiverId = participants.find((p: string) => p !== senderId)!;
       
+      // 🎯 Si c'est une conversation avec Zoe, utiliser des dates d'aujourd'hui
+      let messageDate: Date;
+      if (isZoeConversation) {
+        const hoursAgo = Math.floor(Math.random() * 12);
+        messageDate = new Date(today.getTime() - (hoursAgo * 60 * 60 * 1000));
+      } else {
+        messageDate = new Date(Date.now() - Math.random() * 14 * 24 * 60 * 60 * 1000);
+      }
+      
+      const deliveredAt = new Date(messageDate.getTime() + Math.random() * 60 * 1000);
+      
       messages.push({
         senderId,
         receiverId,
         content: getRandomElement(sampleMessages),
-        messageType: 'TEXT',
-        status: Math.random() > 0.1 ? 'READ' : 'DELIVERED',
-        createdAt: new Date(Date.now() - Math.random() * 14 * 24 * 60 * 60 * 1000),
-        readAt: Math.random() > 0.2 ? new Date(Date.now() - Math.random() * 13 * 24 * 60 * 60 * 1000) : null,
-        deliveredAt: new Date(Date.now() - Math.random() * 13 * 24 * 60 * 60 * 1000)
+        messageType: MessageType.TEXT,
+        status: Math.random() > 0.1 ? MessageStatus.READ : MessageStatus.DELIVERED,
+        createdAt: messageDate,
+        readAt: Math.random() > 0.2 ? new Date(deliveredAt.getTime() + Math.random() * 60 * 60 * 1000) : null,
+        deliveredAt
       });
     }
   }
@@ -427,60 +692,122 @@ async function generateMessages(userIds: string[], likes: LikeData[]): Promise<v
   }
 
   console.log(`✅ ${messages.length} messages créés pour ${matches.size} conversations !`);
-}
-
-async function generateNotificationSettings(userIds: string[]): Promise<void> {
-  console.log('🔔 Génération des paramètres de notification...');
   
-  const notificationSettings = userIds.map((userId: string) => ({
-    userId,
-    messageNotifications: Math.random() > 0.2,
-    soundEnabled: Math.random() > 0.3,
-    vibrationEnabled: Math.random() > 0.4,
-    quietHours: Math.random() > 0.5 ? {
-      start: "22:00",
-      end: "08:00"
-    } : undefined
-  }));
-
-  await prisma.notificationSettings.createMany({
-    data: notificationSettings,
-    skipDuplicates: true
-  });
-
-  console.log('✅ Paramètres de notification créés !');
+  // 🎯 Compter les messages de Zoe spécifiquement
+  if (zoeId) {
+    const zoeMessages = messages.filter(message => message.receiverId === zoeId);
+    console.log(`🎯 Zoe a reçu ${zoeMessages.length} messages aujourd'hui !`);
+  }
 }
 
 async function main(): Promise<void> {
   try {
     console.log('🎬 Début de la génération des données de test...\n');
+    console.log('👑 MODIFICATION SPÉCIALE : Création garantie de Zoe Lee avec activités d\'aujourd\'hui !\n');
 
+    await clearDatabase();
     const userIds = await generateUsers();
     await generatePreferences(userIds);
+    await generateNotificationSettings(userIds);
     await generatePhotos(userIds);
     const likes = await generateLikes(userIds);
     await generateDislikes(userIds);
     await generateProfileViews(userIds);
     await generateMessages(userIds, likes);
-    await generateNotificationSettings(userIds);
 
-    const stats = await prisma.user.count();
-    const likesCount = await prisma.like.count();
-    const dislikesCount = await prisma.dislike.count();
-    const messagesCount = await prisma.message.count();
-    const viewsCount = await prisma.profileView.count();
+    // Statistiques finales
+    const stats = {
+      users: await prisma.user.count(),
+      likes: await prisma.like.count(),
+      dislikes: await prisma.dislike.count(),
+      messages: await prisma.message.count(),
+      views: await prisma.profileView.count(),
+      photos: await prisma.photo.count(),
+      preferences: await prisma.userPreferences.count(),
+      notifications: await prisma.notificationSettings.count()
+    };
+
+    // Calcul des matches
+    const allLikes = await prisma.like.findMany();
+    const matchCount = allLikes.filter(like => 
+      allLikes.some(otherLike => 
+        otherLike.senderId === like.receiverId && 
+        otherLike.receiverId === like.senderId
+      )
+    ).length / 2;
+
+    // 🎯 Statistiques spéciales pour Zoe
+    const zoeUser = await prisma.user.findUnique({
+      where: { email: 'zoe.lee0@example.com' },
+      select: { id: true }
+    });
+
+    if (zoeUser) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const zoeStatsToday = {
+        likesToday: await prisma.like.count({
+          where: {
+            receiverId: zoeUser.id,
+            createdAt: { gte: today }
+          }
+        }),
+        messagesToday: await prisma.message.count({
+          where: {
+            receiverId: zoeUser.id,
+            createdAt: { gte: today }
+          }
+        }),
+        viewsToday: await prisma.profileView.count({
+          where: {
+            viewedId: zoeUser.id,
+            createdAt: { gte: today }
+          }
+        }),
+        matchesToday: await prisma.like.count({
+          where: {
+            receiverId: zoeUser.id,
+            createdAt: { gte: today },
+            sender: {
+              sentLikes: {
+                some: {
+                  receiverId: zoeUser.id,
+                  createdAt: { gte: today }
+                }
+              }
+            }
+          }
+        })
+      };
+
+      console.log('\n👑 STATISTIQUES SPÉCIALES POUR ZOE LEE (aujourd\'hui) :');
+      console.log(`   ❤️  Likes reçus aujourd'hui : ${zoeStatsToday.likesToday}`);
+      console.log(`   💬 Messages reçus aujourd'hui : ${zoeStatsToday.messagesToday}`);
+      console.log(`   👀 Vues de profil aujourd'hui : ${zoeStatsToday.viewsToday}`);
+      console.log(`   💕 Matches aujourd'hui : ${zoeStatsToday.matchesToday}`);
+      console.log(`   🆔 ID de Zoe : ${zoeUser.id}`);
+    } else {
+      console.error('❌ ERREUR CRITIQUE : Zoe Lee non trouvée après création !');
+    }
 
     console.log('\n🎉 Génération terminée avec succès !');
     console.log('📊 Statistiques finales :');
-    console.log(`   👥 Utilisateurs : ${stats}`);
-    console.log(`   ❤️  Likes : ${likesCount}`);
-    console.log(`   👎 Dislikes : ${dislikesCount}`);
-    console.log(`   💬 Messages : ${messagesCount}`);
-    console.log(`   👀 Vues de profil : ${viewsCount}`);
+    console.log(`   👥 Utilisateurs : ${stats.users}`);
+    console.log(`   ❤️  Likes : ${stats.likes}`);
+    console.log(`   💕 Matches : ${matchCount}`);
+    console.log(`   👎 Dislikes : ${stats.dislikes}`);
+    console.log(`   💬 Messages : ${stats.messages}`);
+    console.log(`   👀 Vues de profil : ${stats.views}`);
+    console.log(`   📸 Photos : ${stats.photos}`);
+    console.log(`   🎯 Préférences : ${stats.preferences}`);
+    console.log(`   🔔 Paramètres notification : ${stats.notifications}`);
     
     console.log('\n🔐 Informations de connexion :');
-    console.log('   📧 Email : [nom].[prenom][numero]@example.com (ex: emma.smith0@example.com)');
-    console.log('   🔑 Mot de passe : 123456 (pour tous les utilisateurs)');
+    console.log('   📧 Email Zoe : zoe.lee0@example.com');
+    console.log('   🔑 Mot de passe : 123456');
+    console.log('   📧 Autres emails : [prenom].[nom][numero]@example.com');
+    console.log('\n👑 SPÉCIAL : Zoe Lee est GARANTIE créée avec toutes ses activités d\'aujourd\'hui !');
 
   } catch (error) {
     console.error('❌ Erreur lors de la génération :', error);

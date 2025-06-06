@@ -20,14 +20,23 @@ model User {
   bio           String?
   location      String?
   
-  // ✅ NOUVEAUX CHAMPS À AJOUTER
+  // Nouveaux champs alignés avec le script de seed
   profession    String?
-  gender        String?
-  maritalStatus String?
+  gender        Gender?   // Utilisation de l'enum au lieu de String
+  maritalStatus MaritalStatus?
   zodiacSign    String?
   dietType      String?
   religion      String?
   ethnicity     String?
+  
+  // Champs géographiques manquants
+  department    String?
+  postcode      String?
+  region        String?
+  
+  // Statut en ligne
+  lastSeen      DateTime?
+  isOnline      Boolean   @default(false)
   
   // Données existantes
   interests     String[]
@@ -40,6 +49,7 @@ model User {
   sessions      Session[]
   photos        Photo[]
   preferences   UserPreferences?
+  notificationSettings NotificationSettings?
   
   // Relations de likes/matches
   receivedLikes     Like[] @relation("LikeReceiver")
@@ -104,23 +114,24 @@ model Dislike {
 }
 
 model Message {
-  id          String    @id @default(cuid())
+  id          String      @id @default(cuid())
   content     String
   senderId    String
   receiverId  String
   readAt      DateTime?
   deliveredAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
   deletedAt   DateTime?
   editedAt    DateTime?
   clientId    String?
   replyToId   String?
-  status      String    @default("SENT")
-  receiver    User      @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
-  replyTo     Message?  @relation("MessageReplies", fields: [replyToId], references: [id])
-  replies     Message[] @relation("MessageReplies")
-  sender      User      @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  status      MessageStatus @default(SENT)
+  messageType MessageType   @default(TEXT)
+  receiver    User        @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  replyTo     Message?    @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies     Message[]   @relation("MessageReplies")
+  sender      User        @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([senderId, receiverId, createdAt])
   @@index([receiverId, readAt])
@@ -145,7 +156,7 @@ model UserPreferences {
   minAge     Int     @default(18)
   maxAge     Int     @default(35)
   maxDistance Int    @default(50)
-  gender     String?
+  gender     Gender?
   lookingFor String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -154,7 +165,7 @@ model UserPreferences {
   user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@map("UserPreferences")
-} // ✅ ACCOLADE FERMANTE AJOUTÉE ICI
+}
 
 model ProfileView {
   id        String   @id @default(cuid())
@@ -168,6 +179,25 @@ model ProfileView {
   @@index([viewerId])
   @@index([viewedId])
   @@map("profile_views")
+}
+
+// Nouveau modèle pour les paramètres de notification
+model NotificationSettings {
+  id                   String  @id @default(cuid())
+  userId               String  @unique
+  messageNotifications Boolean @default(true)
+  likeNotifications    Boolean @default(true)
+  matchNotifications   Boolean @default(true)
+  soundEnabled         Boolean @default(true)
+  vibrationEnabled     Boolean @default(true)
+  quietHoursStart      String? // Format "HH:mm"
+  quietHoursEnd        String? // Format "HH:mm"
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notification_settings")
 }
 
 model Account {
@@ -236,6 +266,27 @@ enum Gender {
   FEMALE
   OTHER
   NON_BINARY
+}
+
+enum MaritalStatus {
+  SINGLE
+  IN_RELATIONSHIP
+  DIVORCED
+  WIDOWED
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  EMOJI
+  GIF
 }
 
 enum AuthMethod {

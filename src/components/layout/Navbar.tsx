@@ -1,335 +1,306 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { signOut } from 'next-auth/react'
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import Link from 'next/link'
+import { useRouter, usePathname } from 'next/navigation'
+import { signOut, useSession } from 'next-auth/react'
+import { useState } from 'react'
 
-interface NavbarProps {
-  userName: string
-  userInitial: string
-}
-
-export default function Navbar({ userName, userInitial }: NavbarProps) {
+export default function Navbar() {
+  const { data: session, status } = useSession()
   const router = useRouter()
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const pathname = usePathname()
+  const [showUserMenu, setShowUserMenu] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
 
-  // Détecter si on est sur mobile
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
-    
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
+  // ✅ ROUTES SANS NAVBAR - CORRIGÉES
+  const routesWithoutNavbar = [
+    '/auth/login',          // Page de connexion
+    '/auth/register',       // Page d'inscription
+    '/auth/error',          // Page d'erreur auth
+    '/auth/verify-email',   // Page de vérification email
+  ]
 
-  // Fermer les menus lors de la navigation
-  useEffect(() => {
-    const handleRouteChange = () => {
-      setIsDropdownOpen(false)
-      setIsMobileMenuOpen(false)
-    }
+  // ✅ VÉRIFICATION CORRIGÉE - Exclusion spécifique de '/' uniquement
+  const shouldHideNavbar = 
+    pathname === '/' ||  // Page d'accueil publique SEULEMENT
+    routesWithoutNavbar.some(route => pathname.startsWith(route))
 
-    // Écouter les changements de route si nécessaire
-    return () => {
-      handleRouteChange()
-    }
-  }, [])
+  console.log('🔍 NavBar Conditions CORRIGÉES:')
+  console.log('  - pathname:', pathname)
+  console.log('  - pathname === \'/\':', pathname === '/')
+  console.log('  - shouldHideNavbar:', shouldHideNavbar)
+  console.log('  - status:', status)
 
-  const handleLogout = async () => {
+  // Ne pas afficher la Navbar si on est sur une route sans navbar
+  if (shouldHideNavbar) {
+    console.log('🚫 NavBar cachée - Route sans navbar')
+    return null
+  }
+
+  // Ne pas afficher la Navbar si l'utilisateur n'est pas connecté
+  if (status === 'unauthenticated') {
+    console.log('🚫 NavBar cachée - Utilisateur non connecté')
+    return null
+  }
+
+  // Afficher un placeholder pendant le chargement
+  if (status === 'loading') {
+    console.log('⏳ NavBar - Chargement en cours')
+    return (
+      <nav className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">💖</span>
+            <span className="text-xl font-bold text-gray-800">Flow Dating (Loading...)</span>
+          </div>
+          <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
+        </div>
+      </nav>
+    )
+  }
+
+  // ✅ FONCTION DE DÉCONNEXION SÉCURISÉE COMPLÈTE
+  const handleSecureSignOut = async () => {
     setIsLoggingOut(true)
+    
     try {
+      console.log('🚪 Début de la déconnexion sécurisée...')
+      
+      // 1. Appel API pour nettoyer la session côté serveur
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          credentials: 'include',
+        })
+        console.log('✅ Session serveur nettoyée')
+      } catch (apiError) {
+        console.warn('⚠️ Erreur nettoyage API (continuer quand même):', apiError)
+      }
+
+      // 2. Déconnexion NextAuth avec redirection vers page publique
       await signOut({ 
-        callbackUrl: '/auth/login',
-        redirect: true 
+        callbackUrl: '/',
+        redirect: false  // On gère la redirection manuellement
       })
+      console.log('✅ NextAuth signOut effectué')
+
+      // 3. Nettoyage manuel des cookies du navigateur
+      const cookieNames = [
+        'next-auth.session-token',
+        'next-auth.csrf-token',
+        'next-auth.callback-url',
+        '__Secure-next-auth.session-token',
+        '__Host-next-auth.csrf-token',
+        'authjs.session-token',
+        'authjs.csrf-token',
+        'dating-app-session',
+        'user-preferences',
+        'auth-token'
+      ]
+
+      cookieNames.forEach(cookieName => {
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname}`
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname}`
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; secure; samesite=strict`
+      })
+      console.log('✅ Cookies navigateur nettoyés')
+
+      // 4. Nettoyage du stockage local et session
+      try {
+        localStorage.clear()
+        sessionStorage.clear()
+        console.log('✅ Stockage local nettoyé')
+      } catch (storageError) {
+        console.warn('⚠️ Erreur nettoyage stockage:', storageError)
+      }
+
+      // 5. Redirection forcée vers la page publique
+      window.location.replace('/')
+
     } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error)
+      console.error('❌ Erreur lors de la déconnexion:', error)
+      window.location.href = '/'
+    } finally {
       setIsLoggingOut(false)
     }
   }
 
-  const menuItems = [
-    {
-      icon: '👤',
-      title: 'Mon Profil',
-      description: 'Gérer mes informations',
-      action: () => router.push('/profile')
-    },
-    {
-      icon: '⚙️',
-      title: 'Paramètres',
-      description: 'Préférences et confidentialité',
-      action: () => router.push('/settings')
-    },
-    {
-      icon: '👑',
-      title: 'Premium',
-      description: 'Débloquer toutes les fonctionnalités',
-      action: () => router.push('/premium'),
-      badge: '✨'
-    },
-    {
-      icon: '❓',
-      title: 'Aide',
-      description: 'Support et FAQ',
-      action: () => router.push('/help')
-    }
-  ]
-
-  const MenuItem = ({ item, onClick, className = "" }) => (
-    <motion.button
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={() => {
-        item.action()
-        onClick?.()
-      }}
-      className={`w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-gray-50 transition-colors rounded-lg ${className}`}
-    >
-      <span className="text-lg">{item.icon}</span>
-      <div className="flex-1">
-        <div className="font-medium text-gray-900 flex items-center gap-2">
-          {item.title}
-          {item.badge && (
-            <span className="text-xs bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-0.5 rounded-full">
-              {item.badge}
-            </span>
-          )}
-        </div>
-        <div className="text-sm text-gray-500">{item.description}</div>
-      </div>
-    </motion.button>
-  )
-
-  return (
-    <>
-      <nav className="dashboard-navbar relative">
-        <div className="dashboard-nav-content">
+  // ✅ CONDITION PRINCIPALE D'AFFICHAGE
+  if (status === 'authenticated' && session) {
+    console.log('✅ NavBar affichée - Utilisateur connecté sur', pathname)
+    return (
+      <nav className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Logo */}
-          <motion.div 
-            className="dashboard-logo cursor-pointer" 
-            onClick={() => router.push('/dashboard')}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <div className="dashboard-logo-icon">💖</div>
-            <h1 className="dashboard-logo-text">Flow Dating</h1>
-          </motion.div>
-          
-          {/* Desktop Menu */}
-          <div className="hidden md:block relative">
-            <motion.div 
-              className="dashboard-user-info cursor-pointer"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+          <Link href="/home" className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
+            <span className="text-2xl">💖</span>
+            <span className="text-xl font-bold text-gray-800">Flow Dating</span>
+          </Link>
+
+          {/* Menu de navigation principal */}
+          <div className="hidden md:flex items-center space-x-8">
+            <Link 
+              href="/home" 
+              className={`text-gray-600 hover:text-gray-900 transition-colors font-medium ${
+                pathname === '/home' ? 'text-pink-600 font-semibold' : ''
+              }`}
             >
-              <div className="avatar avatar-online w-10 h-10">
-                <div className="w-full h-full bg-gradient-to-br from-primary-400 to-secondary-500 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-lg">
-                  {userInitial}
-                </div>
+              Accueil
+            </Link>
+            <Link 
+              href="/discover" 
+              className={`text-gray-600 hover:text-gray-900 transition-colors font-medium ${
+                pathname === '/discover' ? 'text-pink-600 font-semibold' : ''
+              }`}
+            >
+              Découverte
+            </Link>
+            <Link 
+              href="/messages" 
+              className={`text-gray-600 hover:text-gray-900 transition-colors font-medium relative ${
+                pathname === '/messages' ? 'text-pink-600 font-semibold' : ''
+              }`}
+            >
+              Messages
+              <span className="absolute -top-2 -right-2 bg-pink-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                3
+              </span>
+            </Link>
+            <Link 
+              href="/matches" 
+              className={`text-gray-600 hover:text-gray-900 transition-colors font-medium ${
+                pathname === '/matches' ? 'text-pink-600 font-semibold' : ''
+              }`}
+            >
+              Matchs
+            </Link>
+          </div>
+
+          {/* Profil utilisateur */}
+          <div className="relative">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-all duration-200"
+            >
+              <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                {session.user?.name?.[0]?.toUpperCase() || 'U'}
               </div>
-              <span className="dashboard-user-name">{userName}</span>
-              <motion.svg 
-                className="w-4 h-4 text-gray-600"
+              <span className="hidden md:block font-medium text-gray-700">
+                {session.user?.name || 'Utilisateur'}
+              </span>
+              <svg 
+                className={`w-4 h-4 text-gray-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
-                animate={{ rotate: isDropdownOpen ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </motion.svg>
-            </motion.div>
+              </svg>
+            </button>
 
-            {/* Desktop Dropdown Menu */}
-            <AnimatePresence>
-              {isDropdownOpen && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                  className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50 overflow-hidden"
-                >
-                  <div className="px-2">
-                    {menuItems.map((item, index) => (
-                      <MenuItem 
-                        key={item.title}
-                        item={item} 
-                        onClick={() => setIsDropdownOpen(false)}
-                      />
-                    ))}
-                    
-                    {/* Divider */}
-                    <div className="my-2 border-t border-gray-100"></div>
-
-                    {/* Déconnexion */}
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={handleLogout}
-                      disabled={isLoggingOut}
-                      className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-red-50 transition-colors text-red-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
-                    >
-                      <span className="text-lg">
-                        {isLoggingOut ? '⏳' : '🚪'}
-                      </span>
-                      <div>
-                        <div className="font-medium">
-                          {isLoggingOut ? 'Déconnexion...' : 'Se déconnecter'}
-                        </div>
-                        <div className="text-sm text-red-500">
-                          {isLoggingOut ? 'Patientez...' : 'Quitter Flow Dating'}
-                        </div>
-                      </div>
-                    </motion.button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Mobile Hamburger Button */}
-          <div className="md:hidden">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors relative z-50"
-            >
-              <motion.div
-                animate={isMobileMenuOpen ? "open" : "closed"}
-                variants={{
-                  open: { rotate: 180 },
-                  closed: { rotate: 0 }
-                }}
-                transition={{ duration: 0.2 }}
-              >
-                {isMobileMenuOpen ? (
-                  <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                ) : (
-                  <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                )}
-              </motion.div>
-            </motion.button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Mobile Slide-out Menu */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-            />
-            
-            {/* Mobile Menu */}
-            <motion.div
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 h-full w-80 max-w-[85vw] bg-white shadow-2xl z-50 md:hidden overflow-y-auto"
-            >
-              {/* Header du menu mobile */}
-              <div className="p-6 bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                <div className="flex items-center gap-4">
-                  <div className="avatar w-12 h-12">
-                    <div className="w-full h-full bg-white bg-opacity-20 rounded-full flex items-center justify-center text-lg font-bold">
-                      {userInitial}
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg">{userName}</h3>
-                    <p className="text-white text-opacity-80 text-sm">Membre Flow Dating</p>
-                  </div>
+            {/* Menu déroulant */}
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <p className="text-sm font-medium text-gray-900">
+                    {session.user?.name || 'Utilisateur'}
+                  </p>
+                  <p className="text-sm text-gray-500">Membre Flow Dating</p>
                 </div>
-              </div>
-
-              {/* Menu Items */}
-              <div className="p-4 space-y-2">
-                {menuItems.map((item, index) => (
-                  <motion.div
-                    key={item.title}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <MenuItem 
-                      item={item} 
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="border border-gray-100"
-                    />
-                  </motion.div>
-                ))}
                 
-                {/* Divider */}
-                <div className="my-4 border-t border-gray-200"></div>
-
-                {/* Déconnexion */}
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: menuItems.length * 0.1 }}
-                >
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleLogout}
-                    disabled={isLoggingOut}
-                    className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-red-50 transition-colors text-red-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg border border-red-200"
+                <div className="py-2">
+                  <Link 
+                    href="/home"
+                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    onClick={() => setShowUserMenu(false)}
                   >
-                    <span className="text-lg">
+                    <span className="mr-3">🏠</span>
+                    Accueil
+                  </Link>
+                  <Link 
+                    href="/profile"
+                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <span className="mr-3">👤</span>
+                    Mon profil
+                  </Link>
+                  <Link 
+                    href="/settings"
+                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <span className="mr-3">⚙️</span>
+                    Paramètres
+                  </Link>
+                  <Link 
+                    href="/premium"
+                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <span className="mr-3">⭐</span>
+                    Premium
+                    <span className="ml-auto bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs px-2 py-1 rounded-full">
+                      Pro
+                    </span>
+                  </Link>
+                </div>
+                
+                <div className="py-2 border-t border-gray-100">
+                  <Link 
+                    href="/help"
+                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <span className="mr-3">❓</span>
+                    Aide
+                  </Link>
+                  
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false)
+                      handleSecureSignOut()
+                    }}
+                    disabled={isLoggingOut}
+                    className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="mr-3">
                       {isLoggingOut ? '⏳' : '🚪'}
                     </span>
-                    <div>
-                      <div className="font-medium">
-                        {isLoggingOut ? 'Déconnexion...' : 'Se déconnecter'}
-                      </div>
-                      <div className="text-sm text-red-500">
-                        {isLoggingOut ? 'Patientez...' : 'Quitter Flow Dating'}
-                      </div>
-                    </div>
-                  </motion.button>
-                </motion.div>
+                    {isLoggingOut ? 'Déconnexion sécurisée...' : 'Se déconnecter'}
+                  </button>
+                </div>
               </div>
+            )}
+          </div>
 
-              {/* Footer du menu mobile */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gray-50 border-t">
-                <p className="text-center text-sm text-gray-500">
-                  Flow Dating v1.0
-                </p>
-              </div>
-            </motion.div>
-          </>
+          {/* Bouton mobile */}
+          <div className="md:hidden flex items-center gap-2">
+            <button 
+              onClick={handleSecureSignOut}
+              disabled={isLoggingOut}
+              className="p-2 rounded-lg hover:bg-gray-50 text-red-600 disabled:opacity-50"
+              title="Se déconnecter"
+            >
+              {isLoggingOut ? '⏳' : '🚪'}
+            </button>
+          </div>
+        </div>
+
+        {/* Effet de fermeture du menu */}
+        {showUserMenu && (
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setShowUserMenu(false)}
+          ></div>
         )}
-      </AnimatePresence>
+      </nav>
+    )
+  }
 
-      {/* Desktop Overlay pour fermer le dropdown */}
-      {isDropdownOpen && (
-        <div 
-          className="fixed inset-0 z-40 md:block hidden" 
-          onClick={() => setIsDropdownOpen(false)}
-        />
-      )}
-    </>
-  )
+  // Si on arrive ici, quelque chose ne va pas
+  console.log('❌ NavBar non affichée - Condition non remplie')
+  console.log('   Status:', status, 'Session:', !!session)
+  return null
 }

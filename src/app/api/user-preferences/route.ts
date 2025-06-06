@@ -1,10 +1,8 @@
-// src/app/api/user-preferences/route.ts - Version corrigée
+// src/app/api/user-preferences/route.ts - Version corrigée avec mapping
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '../../../auth'; // ✅ Import correct
+import { auth } from '../../../auth';
 import { PrismaClient } from '@prisma/client';
-
-// ❌ SUPPRIMÉ : const session = await auth() - ne doit pas être ici au niveau global
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -14,18 +12,48 @@ const prisma = globalForPrisma.prisma ?? new PrismaClient();
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
+// 🔄 MAPPING des valeurs françaises vers les enums Prisma
+const genderMapping = {
+  'homme': 'MALE',
+  'femme': 'FEMALE',
+  'autre': 'OTHER',
+  'non-binaire': 'NON_BINARY'
+} as const;
+
+const lookingForMapping = {
+  'relation-serieuse': 'SERIOUS_RELATIONSHIP',
+  'relation-occasionnelle': 'CASUAL',
+  'amitie': 'FRIENDSHIP',
+  'aventure': 'ADVENTURE',
+  'mariage': 'MARRIAGE'
+} as const;
+
+// 🔄 MAPPING inverse pour le retour des données
+const genderMappingReverse = {
+  'MALE': 'homme',
+  'FEMALE': 'femme',
+  'OTHER': 'autre',
+  'NON_BINARY': 'non-binaire'
+} as const;
+
+const lookingForMappingReverse = {
+  'SERIOUS_RELATIONSHIP': 'relation-serieuse',
+  'CASUAL': 'relation-occasionnelle',
+  'FRIENDSHIP': 'amitie',
+  'ADVENTURE': 'aventure',
+  'MARRIAGE': 'mariage'
+} as const;
+
 export async function PUT(request: NextRequest) {
   try {
     console.log('🔥 API user-preferences PUT appelée');
     
-    // ✅ CORRECTION : Utiliser auth() au lieu de getServerSession
     const session = await auth();
     
-    if (!session?.user?.id) { // ✅ CORRECTION : Utiliser user.id au lieu de user.email
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    // ✅ CORRECTION : Rechercher par ID au lieu d'email
     const user = await prisma.user.findUnique({
       where: { id: session.user.id }
     });
@@ -39,7 +67,7 @@ export async function PUT(request: NextRequest) {
 
     const { minAge, maxAge, maxDistance, gender, lookingFor } = body;
 
-    // ✅ CORRECTION : Validation améliorée
+    // Validation des champs requis
     if (minAge === undefined || maxAge === undefined || maxDistance === undefined) {
       return NextResponse.json({
         error: 'Les âges minimum, maximum et la distance sont requis'
@@ -69,15 +97,39 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // 🔄 VALIDATION et MAPPING des enums
+    let mappedGender = null;
+    let mappedLookingFor = null;
+
+    if (gender && gender.trim()) {
+      const trimmedGender = gender.trim();
+      if (!Object.keys(genderMapping).includes(trimmedGender)) {
+        return NextResponse.json({
+          error: `Valeur gender invalide: ${trimmedGender}. Valeurs acceptées: ${Object.keys(genderMapping).join(', ')}`
+        }, { status: 400 });
+      }
+      mappedGender = genderMapping[trimmedGender as keyof typeof genderMapping];
+    }
+
+    if (lookingFor && lookingFor.trim()) {
+      const trimmedLookingFor = lookingFor.trim();
+      if (!Object.keys(lookingForMapping).includes(trimmedLookingFor)) {
+        return NextResponse.json({
+          error: `Valeur lookingFor invalide: ${trimmedLookingFor}. Valeurs acceptées: ${Object.keys(lookingForMapping).join(', ')}`
+        }, { status: 400 });
+      }
+      mappedLookingFor = lookingForMapping[trimmedLookingFor as keyof typeof lookingForMapping];
+    }
+
     console.log('✅ Validation préférences OK');
 
-    // Préparer les données à sauvegarder
+    // Préparer les données à sauvegarder avec les valeurs mappées
     const preferencesData = {
       minAge: minAgeNum,
       maxAge: maxAgeNum,
       maxDistance: maxDistanceNum,
-      gender: gender?.trim() || null,
-      lookingFor: lookingFor?.trim() || null
+      gender: mappedGender,
+      lookingFor: mappedLookingFor
     };
 
     console.log('📝 Données à sauvegarder:', preferencesData);
@@ -91,14 +143,12 @@ export async function PUT(request: NextRequest) {
 
     if (existingPreferences) {
       console.log('🔄 Mise à jour des préférences existantes');
-      // Mettre à jour les préférences existantes
       savedPreferences = await prisma.userPreferences.update({
         where: { userId: user.id },
         data: preferencesData
       });
     } else {
       console.log('✨ Création de nouvelles préférences');
-      // Créer de nouvelles préférences
       savedPreferences = await prisma.userPreferences.create({
         data: {
           userId: user.id,
@@ -109,14 +159,14 @@ export async function PUT(request: NextRequest) {
 
     console.log('✅ Préférences sauvegardées en base:', savedPreferences);
 
-    // Retourner les préférences sauvegardées
+    // 🔄 Retourner les données avec mapping inverse (français)
     const responseData = {
       id: savedPreferences.id,
       minAge: savedPreferences.minAge,
       maxAge: savedPreferences.maxAge,
       maxDistance: savedPreferences.maxDistance,
-      gender: savedPreferences.gender,
-      lookingFor: savedPreferences.lookingFor,
+      gender: savedPreferences.gender ? genderMappingReverse[savedPreferences.gender as keyof typeof genderMappingReverse] : null,
+      lookingFor: savedPreferences.lookingFor ? lookingForMappingReverse[savedPreferences.lookingFor as keyof typeof lookingForMappingReverse] : null,
       createdAt: savedPreferences.createdAt,
       updatedAt: savedPreferences.updatedAt
     };
@@ -136,14 +186,12 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔍 API user-preferences GET appelée');
     
-    // ✅ CORRECTION : Utiliser auth() au lieu de getServerSession
     const session = await auth();
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    // ✅ CORRECTION : Rechercher par ID
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       include: {
@@ -157,8 +205,17 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ Préférences récupérées:', user.preferences);
 
-    // Retourner les préférences ou des valeurs par défaut
-    const preferences = user.preferences || {
+    // 🔄 Retourner les préférences avec mapping inverse ou des valeurs par défaut
+    const preferences = user.preferences ? {
+      id: user.preferences.id,
+      minAge: user.preferences.minAge,
+      maxAge: user.preferences.maxAge,
+      maxDistance: user.preferences.maxDistance,
+      gender: user.preferences.gender ? genderMappingReverse[user.preferences.gender as keyof typeof genderMappingReverse] : null,
+      lookingFor: user.preferences.lookingFor ? lookingForMappingReverse[user.preferences.lookingFor as keyof typeof lookingForMappingReverse] : null,
+      createdAt: user.preferences.createdAt,
+      updatedAt: user.preferences.updatedAt
+    } : {
       minAge: 18,
       maxAge: 35,
       maxDistance: 50,

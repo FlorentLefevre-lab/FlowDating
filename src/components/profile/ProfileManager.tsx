@@ -11,28 +11,24 @@ import {
   PhotoIcon,
   HeartIcon,
   CogIcon,
-  HomeIcon,
-  Bars3Icon,
-  XMarkIcon,
-  UserIcon,
-  ChevronRightIcon
+  HomeIcon
 } from '@heroicons/react/24/outline';
 
 // Import des types
-import type { UserProfile, TabType, MessageType } from '../types/profiles';
+import type { UserProfile, TabType, MessageType } from '../../types/profiles';
 
 // Import des composants avec des imports dynamiques
 import dynamic from 'next/dynamic';
 
-const ProfileOverview = dynamic(() => import('./profile/ProfileOverview'), {
-  loading: () => <div className="p-responsive animate-pulse">
+const ProfileOverview = dynamic(() => import('./ProfileOverview'), {
+  loading: () => <div className="p-4 animate-pulse">
     <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
     <div className="h-64 bg-gray-200 rounded"></div>
   </div>
 });
 
-const BasicInfoForm = dynamic(() => import('./profile/BasicInfoForm'), {
-  loading: () => <div className="p-responsive animate-pulse">
+const BasicInfoForm = dynamic(() => import('./BasicInfoForm'), {
+  loading: () => <div className="p-4 animate-pulse">
     <div className="h-8 bg-gray-200 rounded w-1/2 mb-6"></div>
     <div className="space-y-4">
       <div className="h-12 bg-gray-200 rounded"></div>
@@ -42,8 +38,8 @@ const BasicInfoForm = dynamic(() => import('./profile/BasicInfoForm'), {
   </div>
 });
 
-const PersonalInfoForm = dynamic(() => import('./profile/PersonalInfoForm'), {
-  loading: () => <div className="p-responsive animate-pulse">
+const PersonalInfoForm = dynamic(() => import('./PersonalInfoForm'), {
+  loading: () => <div className="p-4 animate-pulse">
     <div className="h-8 bg-gray-200 rounded w-1/2 mb-6"></div>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {[...Array(6)].map((_, i) => (
@@ -53,8 +49,8 @@ const PersonalInfoForm = dynamic(() => import('./profile/PersonalInfoForm'), {
   </div>
 });
 
-const PhotosManager = dynamic(() => import('./profile/PhotosManager'), {
-  loading: () => <div className="p-responsive animate-pulse">
+const PhotosManager = dynamic(() => import('./PhotosManager'), {
+  loading: () => <div className="p-4 animate-pulse">
     <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
       {[...Array(6)].map((_, i) => (
@@ -64,8 +60,8 @@ const PhotosManager = dynamic(() => import('./profile/PhotosManager'), {
   </div>
 });
 
-const PreferencesForm = dynamic(() => import('./profile/PreferencesForm'), {
-  loading: () => <div className="p-responsive animate-pulse">
+const PreferencesForm = dynamic(() => import('./PreferencesForm'), {
+  loading: () => <div className="p-4 animate-pulse">
     <div className="h-8 bg-gray-200 rounded w-1/2 mb-6"></div>
     <div className="space-y-6">
       <div className="h-32 bg-gray-200 rounded"></div>
@@ -74,8 +70,8 @@ const PreferencesForm = dynamic(() => import('./profile/PreferencesForm'), {
   </div>
 });
 
-const SettingsPanel = dynamic(() => import('./profile/SettingsPanel'), {
-  loading: () => <div className="p-responsive animate-pulse">
+const SettingsPanel = dynamic(() => import('./SettingsPanel'), {
+  loading: () => <div className="p-4 animate-pulse">
     <div className="h-8 bg-gray-200 rounded w-1/2 mb-6"></div>
     <div className="space-y-4">
       {[...Array(3)].map((_, i) => (
@@ -93,37 +89,21 @@ const ProfileManager: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<MessageType>('success');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
 
-  // Détecter si on est sur mobile
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // Configuration des onglets avec responsive
+  // Configuration des onglets
   const tabs = [
     { 
       id: 'dashboard' as const, 
       label: 'Accueil', 
-      shortLabel: 'Home',
       icon: HomeIcon, 
       color: 'blue',
-      description: 'Retour au tableau de bord',
+      description: 'Retour aà l\'accueil',
       isLink: true,
-      href: '/dashboard'
+      href: '/home'
     },
     { 
       id: 'overview' as TabType, 
       label: 'Aperçu', 
-      shortLabel: 'Vue',
       icon: EyeIcon, 
       color: 'blue',
       description: 'Vue d\'ensemble de votre profil'
@@ -131,7 +111,6 @@ const ProfileManager: React.FC = () => {
     { 
       id: 'edit' as TabType, 
       label: 'Infos de base', 
-      shortLabel: 'Base',
       icon: PencilIcon, 
       color: 'green',
       description: 'Nom, âge, bio, localisation'
@@ -139,7 +118,6 @@ const ProfileManager: React.FC = () => {
     { 
       id: 'personal' as TabType, 
       label: 'Infos personnelles', 
-      shortLabel: 'Perso',
       icon: IdentificationIcon, 
       color: 'purple',
       description: 'Genre, profession, centres d\'intérêt'
@@ -147,7 +125,6 @@ const ProfileManager: React.FC = () => {
     { 
       id: 'photos' as TabType, 
       label: 'Photos', 
-      shortLabel: 'Photos',
       icon: PhotoIcon, 
       color: 'yellow',
       description: 'Gérer vos photos de profil'
@@ -155,7 +132,6 @@ const ProfileManager: React.FC = () => {
     { 
       id: 'preferences' as TabType, 
       label: 'Préférences', 
-      shortLabel: 'Pref',
       icon: HeartIcon, 
       color: 'red',
       description: 'Critères de recherche'
@@ -163,7 +139,6 @@ const ProfileManager: React.FC = () => {
     { 
       id: 'settings' as TabType, 
       label: 'Paramètres', 
-      shortLabel: 'Config',
       icon: CogIcon, 
       color: 'gray',
       description: 'Confidentialité et sécurité'
@@ -357,47 +332,19 @@ const ProfileManager: React.FC = () => {
     }
   };
 
-  // Fonction pour changer d'onglet et fermer le menu mobile
+  // Fonction pour changer d'onglet
   const handleTabChange = (tabId: TabType | 'dashboard') => {
     if (tabId === 'dashboard') {
       window.location.href = '/dashboard';
       return;
     }
     setActiveTab(tabId);
-    setIsMobileMenuOpen(false);
   };
-
-  // Obtenir le titre de l'onglet actif
-  const getActiveTabTitle = () => {
-    const activeTabConfig = tabs.find(tab => tab.id === activeTab);
-    return activeTabConfig ? (isMobile ? activeTabConfig.shortLabel : activeTabConfig.label) : 'Profil';
-  };
-
-  // Fermer le menu mobile si on clique en dehors
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (isMobileMenuOpen && !(event.target as Element).closest('.mobile-menu')) {
-        setIsMobileMenuOpen(false);
-      }
-    };
-
-    if (isMobileMenuOpen) {
-      document.addEventListener('click', handleClickOutside);
-      document.body.style.overflow = 'hidden'; // Empêcher le scroll
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isMobileMenuOpen]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="responsive-container">
+        <div className="max-w-6xl mx-auto p-4 md:p-6">
           <div className="animate-pulse space-y-6">
             {/* Header skeleton */}
             <div className="bg-white rounded-2xl p-4 md:p-6">
@@ -405,9 +352,9 @@ const ProfileManager: React.FC = () => {
                 <div className="h-8 bg-gray-200 rounded w-1/3"></div>
                 <div className="h-6 bg-gray-200 rounded w-16"></div>
               </div>
-              <div className="hidden md:flex space-x-4">
+              <div className="flex space-x-4 overflow-x-auto">
                 {[...Array(7)].map((_, i) => (
-                  <div key={i} className="h-12 bg-gray-200 rounded flex-1"></div>
+                  <div key={i} className="h-12 bg-gray-200 rounded flex-1 min-w-32"></div>
                 ))}
               </div>
             </div>
@@ -423,7 +370,7 @@ const ProfileManager: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="responsive-container">
+      <div className="max-w-6xl mx-auto p-4 md:p-6">
 
         {/* Header avec barre de progression */}
         <motion.div
@@ -431,64 +378,38 @@ const ProfileManager: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-2xl shadow-lg border border-gray-100 mb-6"
         >
-          <div className="mobile-header">
-            <div className="mobile-header-content">
-              <div className="mobile-header-title-container">
-                {/* Mobile Hamburger Button */}
-                <button
-                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                  className="hamburger-button"
-                  aria-label="Menu de navigation"
-                >
-                  <motion.div
-                    animate={isMobileMenuOpen ? "open" : "closed"}
-                    variants={{
-                      open: { rotate: 180 },
-                      closed: { rotate: 0 }
-                    }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {isMobileMenuOpen ? (
-                      <XMarkIcon className="w-6 h-6 text-gray-700" />
-                    ) : (
-                      <Bars3Icon className="w-6 h-6 text-gray-700" />
-                    )}
-                  </motion.div>
-                </button>
-
-                {/* Title */}
-                <div className="min-w-0 flex-1">
-                  <h1 className="mobile-title truncate">
-                    ✨ {getActiveTabTitle()}
-                  </h1>
-                  <p className="mobile-subtitle">
-                    Gérez vos informations et préférences
-                  </p>
-                </div>
-              </div>
+          {/* Header principal */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between p-4 md:p-6 border-b border-gray-200">
+            <div className="mb-4 md:mb-0">
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-pink-500 to-blue-500 bg-clip-text text-transparent">
+                ✨ Gestion du Profil
+              </h1>
+              <p className="text-gray-600 text-sm md:text-base">
+                Gérez vos informations et préférences de rencontres
+              </p>
             </div>
             
             {/* Indicateur de progression */}
-            <div className="progress-container">
-              <div className="progress-label">Profil complété</div>
-              <div className="progress-bar-container">
-                <div className="progress-bar">
+            <div className="text-right">
+              <div className="text-xs md:text-sm text-gray-500 mb-2">Profil complété</div>
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="relative w-16 md:w-20 h-2 md:h-3 bg-gray-200 rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${getProfileCompletion()}%` }}
                     transition={{ duration: 1, ease: "easeOut" }}
-                    className="progress-fill"
+                    className="h-full bg-gradient-to-r from-pink-500 to-blue-500 rounded-full"
                   />
                 </div>
-                <div className="progress-percentage">
+                <div className="text-base md:text-lg font-bold bg-gradient-to-r from-pink-500 to-blue-500 bg-clip-text text-transparent">
                   {getProfileCompletion()}%
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Desktop Navigation par onglets */}
-          <div className="desktop-navigation">
+          {/* Navigation par onglets - Horizontale avec scroll */}
+          <div className="flex overflow-x-auto bg-gradient-to-r from-gray-50 to-gray-100">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -501,10 +422,12 @@ const ProfileManager: React.FC = () => {
                     href={tab.href}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="nav-tab inactive"
+                    className="flex flex-col items-center gap-2 p-4 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all duration-300 relative min-w-24 md:min-w-32"
                   >
-                    <Icon className="nav-tab-icon" />
-                    <div className="nav-tab-label">{tab.label}</div>
+                    <Icon className="w-5 h-5" />
+                    <div className="font-medium text-xs text-center whitespace-nowrap">
+                      {tab.label}
+                    </div>
                   </motion.a>
                 );
               }
@@ -515,14 +438,20 @@ const ProfileManager: React.FC = () => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => handleTabChange(tab.id as TabType)}
-                  className={`nav-tab ${isActive ? 'active' : 'inactive'}`}
+                  className={`flex flex-col items-center gap-2 p-4 border-b-2 transition-all duration-300 relative min-w-24 md:min-w-32 ${
+                    isActive 
+                      ? 'border-pink-500 text-pink-600 bg-pink-50' 
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
                 >
-                  <Icon className={`nav-tab-icon ${isActive ? 'active' : ''}`} />
-                  <div className="nav-tab-label">{tab.label}</div>
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-pink-500' : ''}`} />
+                  <div className="font-medium text-xs text-center whitespace-nowrap">
+                    {tab.label}
+                  </div>
                   
                   {/* Badge pour photos */}
                   {tab.id === 'photos' && profile?.photos?.length && (
-                    <span className="nav-tab-badge">
+                    <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-xs rounded-full bg-pink-500 text-white">
                       {profile.photos.length}
                     </span>
                   )}
@@ -546,7 +475,7 @@ const ProfileManager: React.FC = () => {
               initial={{ opacity: 0, x: -50, scale: 0.9 }}
               animate={{ opacity: 1, x: 0, scale: 1 }}
               exit={{ opacity: 0, x: 50, scale: 0.9 }}
-              className={`p-4 rounded-xl mb-6 shadow-lg mx-4 md:mx-0 ${
+              className={`p-4 rounded-xl mb-6 shadow-lg ${
                 messageType === 'success'
                   ? 'bg-green-50 text-green-700 border border-green-200' 
                   : 'bg-red-50 text-red-700 border border-red-200'
@@ -627,121 +556,6 @@ const ProfileManager: React.FC = () => {
           </motion.div>
         </AnimatePresence>
       </div>
-
-      {/* Mobile Menu Slide-out */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="mobile-menu-backdrop"
-            />
-            
-            {/* Mobile Menu */}
-            <motion.div
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="mobile-menu"
-            >
-              {/* Header du menu mobile */}
-              <div className="mobile-menu-header">
-                <div className="mobile-menu-avatar-container">
-                  <div className="mobile-menu-avatar">
-                    {profile?.photos?.[0] ? (
-                      <img 
-                        src={profile.photos[0].url} 
-                        alt="Avatar" 
-                        className="w-full h-full rounded-full object-cover"
-                      />
-                    ) : (
-                      <UserIcon className="w-6 h-6" />
-                    )}
-                  </div>
-                  <div className="mobile-menu-user-info">
-                    <h3 className="truncate">{profile?.name || 'Utilisateur'}</h3>
-                    <p>Profil complété à {getProfileCompletion()}%</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Menu Items */}
-              <div className="mobile-menu-items">
-                {tabs.map((tab, index) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-                  
-                  return (
-                    <motion.div
-                      key={`menu-${index}-${tab.label}`}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                    >
-                      {tab.isLink ? (
-                        <motion.a
-                          href={tab.href}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          className="mobile-menu-item inactive"
-                        >
-                          <Icon className={`mobile-menu-item-icon text-${tab.color}-600`} />
-                          <div className="mobile-menu-item-content">
-                            <div className="mobile-menu-item-title">{tab.label}</div>
-                            <div className="mobile-menu-item-description text-xs">{tab.description}</div>
-                          </div>
-                          <ChevronRightIcon className="w-4 h-4 text-gray-400" />
-                        </motion.a>
-                      ) : (
-                        <motion.button
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => handleTabChange(tab.id as TabType)}
-                          className={`mobile-menu-item ${isActive ? 'active' : 'inactive'}`}
-                        >
-                          <Icon className={`mobile-menu-item-icon text-${tab.color}-${isActive ? '600' : '500'}`} />
-                          <div className="mobile-menu-item-content">
-                            <div className={`mobile-menu-item-title ${isActive ? 'active' : ''}`}>
-                              {tab.label}
-                              {tab.id === 'photos' && profile?.photos?.length && (
-                                <span className="mobile-menu-item-badge">
-                                  {profile.photos.length}
-                                </span>
-                              )}
-                            </div>
-                            <div className="mobile-menu-item-description text-xs">{tab.description}</div>
-                          </div>
-                          {isActive && (
-                            <div className="mobile-menu-item-indicator"></div>
-                          )}
-                        </motion.button>
-                      )}
-                    </motion.div>
-                  );
-                })}
-              </div>
-
-              {/* Footer du menu mobile */}
-              <div className="mobile-menu-footer">
-                <div className="mobile-menu-footer-content">
-                  <p className="text-xs">Flow Dating v1.0</p>
-                  <div className="mobile-menu-progress">
-                    <div 
-                      className="progress-fill"
-                      style={{ width: `${getProfileCompletion()}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

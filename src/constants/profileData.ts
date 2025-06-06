@@ -1,212 +1,211 @@
-// constants/profileData.ts - Données statiques pour les formulaires
+// src/constants/profileData.ts
 
 export const GENDERS = [
-    { value: 'homme', label: 'Homme' },
-    { value: 'femme', label: 'Femme' },
-    { value: 'non-binaire', label: 'Non-binaire' },
-    { value: 'autre', label: 'Autre' }
-  ] as const;
+  { value: 'homme', label: 'Homme' },
+  { value: 'femme', label: 'Femme' },
+  { value: 'non-binaire', label: 'Non-binaire' },
+  { value: 'autre', label: 'Autre' },
+  { value: 'prefer-not-to-say', label: 'Préfère ne pas dire' }
+];
+
+export const PROFESSIONS = [
+  { value: 'etudiant', label: 'Étudiant(e)' },
+  { value: 'ingenieur', label: 'Ingénieur(e)' },
+  { value: 'medecin', label: 'Médecin' },
+  { value: 'enseignant', label: 'Enseignant(e)' },
+  { value: 'avocat', label: 'Avocat(e)' },
+  { value: 'artiste', label: 'Artiste' },
+  { value: 'entrepreneur', label: 'Entrepreneur(se)' },
+  { value: 'commercial', label: 'Commercial(e)' },
+  { value: 'developpeur', label: 'Développeur(se)' },
+  { value: 'designer', label: 'Designer' },
+  { value: 'marketing', label: 'Marketing' },
+  { value: 'finance', label: 'Finance' },
+  { value: 'sante', label: 'Santé' },
+  { value: 'education', label: 'Éducation' },
+  { value: 'restauration', label: 'Restauration' },
+  { value: 'sport', label: 'Sport' },
+  { value: 'mode', label: 'Mode' },
+  { value: 'media', label: 'Médias' },
+  { value: 'agriculture', label: 'Agriculture' },
+  { value: 'artisanat', label: 'Artisanat' },
+  { value: 'transport', label: 'Transport' },
+  { value: 'securite', label: 'Sécurité' },
+  { value: 'fonction-publique', label: 'Fonction publique' },
+  { value: 'retraite', label: 'Retraité(e)' },
+  { value: 'recherche-emploi', label: 'En recherche d\'emploi' },
+  { value: 'autre', label: 'Autre' }
+];
+
+export const MARITAL_STATUS = [
+  { value: 'celibataire', label: 'Célibataire' },
+  { value: 'divorce', label: 'Divorcé(e)' },
+  { value: 'veuf', label: 'Veuf(ve)' },
+  { value: 'separe', label: 'Séparé(e)' },
+  { value: 'complique', label: 'C\'est compliqué' }
+];
+
+export const ZODIAC_SIGNS = [
+  { value: 'belier', label: 'Bélier ♈' },
+  { value: 'taureau', label: 'Taureau ♉' },
+  { value: 'gemeaux', label: 'Gémeaux ♊' },
+  { value: 'cancer', label: 'Cancer ♋' },
+  { value: 'lion', label: 'Lion ♌' },
+  { value: 'vierge', label: 'Vierge ♍' },
+  { value: 'balance', label: 'Balance ♎' },
+  { value: 'scorpion', label: 'Scorpion ♏' },
+  { value: 'sagittaire', label: 'Sagittaire ♐' },
+  { value: 'capricorne', label: 'Capricorne ♑' },
+  { value: 'verseau', label: 'Verseau ♒' },
+  { value: 'poissons', label: 'Poissons ♓' }
+];
+
+export const DIET_TYPES = [
+  { value: 'omnivore', label: 'Omnivore' },
+  { value: 'vegetarien', label: 'Végétarien' },
+  { value: 'vegan', label: 'Vegan' },
+  { value: 'pescetarien', label: 'Pescétarien' },
+  { value: 'flexitarien', label: 'Flexitarien' },
+  { value: 'sans-gluten', label: 'Sans gluten' },
+  { value: 'keto', label: 'Keto' },
+  { value: 'halal', label: 'Halal' },
+  { value: 'casher', label: 'Casher' },
+  { value: 'autre', label: 'Autre' }
+];
+
+export const RELIGIONS = [
+  { value: 'atheisme', label: 'Athéisme' },
+  { value: 'agnosticisme', label: 'Agnosticisme' },
+  { value: 'christianisme', label: 'Christianisme' },
+  { value: 'catholicisme', label: 'Catholicisme' },
+  { value: 'protestantisme', label: 'Protestantisme' },
+  { value: 'orthodoxe', label: 'Orthodoxe' },
+  { value: 'islam', label: 'Islam' },
+  { value: 'judaisme', label: 'Judaïsme' },
+  { value: 'hindouisme', label: 'Hindouisme' },
+  { value: 'bouddhisme', label: 'Bouddhisme' },
+  { value: 'sikhisme', label: 'Sikhisme' },
+  { value: 'spiritualite', label: 'Spiritualité' },
+  { value: 'autre', label: 'Autre' }
+];
+
+export const ETHNICITIES = [
+  { value: 'caucasien', label: 'Caucasien' },
+  { value: 'africain', label: 'Africain' },
+  { value: 'afro-americain', label: 'Afro-américain' },
+  { value: 'asiatique', label: 'Asiatique' },
+  { value: 'hispanique', label: 'Hispanique/Latino' },
+  { value: 'arabe', label: 'Arabe' },
+  { value: 'indien', label: 'Indien' },
+  { value: 'metisse', label: 'Métissé' },
+  { value: 'autre', label: 'Autre' },
+  { value: 'prefer-not-to-say', label: 'Préfère ne pas dire' }
+];
+
+export const INTEREST_OPTIONS = [
+  // Sports et fitness
+  'Sport', 'Fitness', 'Yoga', 'Running', 'Natation', 'Football', 'Basketball', 'Tennis',
+  'Escalade', 'Randonnée', 'Vélo', 'Ski', 'Surf', 'Danse', 'Arts martiaux',
   
-  export const PROFESSIONS = [
-    { value: 'agriculture', label: 'Agriculture' },
-    { value: 'artisan', label: 'Artisan' },
-    { value: 'cadre', label: 'Cadre' },
-    { value: 'commerce', label: 'Commerce' },
-    { value: 'communication', label: 'Communication' },
-    { value: 'education', label: 'Éducation' },
-    { value: 'employe', label: 'Employé' },
-    { value: 'etudiant', label: 'Étudiant' },
-    { value: 'finance', label: 'Finance' },
-    { value: 'fonctionnaire', label: 'Fonctionnaire' },
-    { value: 'freelance', label: 'Freelance' },
-    { value: 'ingenieur', label: 'Ingénieur' },
-    { value: 'juridique', label: 'Juridique' },
-    { value: 'medical', label: 'Médical' },
-    { value: 'professionliberale', label: 'Profession libérale' },
-    { value: 'retraite', label: 'Retraité' },
-    { value: 'sante', label: 'Santé' },
-    { value: 'sansemploi', label: 'Sans emploi' },
-    { value: 'technologie', label: 'Technologie' },
-    { value: 'transport', label: 'Transport' },
-    { value: 'autre', label: 'Autre' }
-  ] as const;
+  // Musique et arts
+  'Musique', 'Concert', 'Festival', 'Piano', 'Guitare', 'Chant', 'Peinture', 'Dessin',
+  'Photographie', 'Sculpture', 'Théâtre', 'Opéra', 'Art moderne', 'Street art',
   
-  export const MARITAL_STATUS = [
-    { value: 'celibataire', label: 'Célibataire' },
-    { value: 'divorce', label: 'Divorcé(e)' },
-    { value: 'veuf', label: 'Veuf/Veuve' },
-    { value: 'separe', label: 'Séparé(e)' },
-    { value: 'complique', label: 'C\'est compliqué' },
-    { value: 'ouvert', label: 'Relation ouverte' }
-  ] as const;
+  // Culture et divertissement
+  'Cinéma', 'Séries', 'Lecture', 'Littérature', 'Poésie', 'Écriture', 'Blogging',
+  'Podcast', 'Documentaire', 'Histoire', 'Philosophie', 'Musées', 'Expositions',
   
-  export const ZODIAC_SIGNS = [
-    { value: 'belier', label: 'Bélier ♈' },
-    { value: 'taureau', label: 'Taureau ♉' },
-    { value: 'gemeaux', label: 'Gémeaux ♊' },
-    { value: 'cancer', label: 'Cancer ♋' },
-    { value: 'lion', label: 'Lion ♌' },
-    { value: 'vierge', label: 'Vierge ♍' },
-    { value: 'balance', label: 'Balance ♎' },
-    { value: 'scorpion', label: 'Scorpion ♏' },
-    { value: 'sagittaire', label: 'Sagittaire ♐' },
-    { value: 'capricorne', label: 'Capricorne ♑' },
-    { value: 'verseau', label: 'Verseau ♒' },
-    { value: 'poissons', label: 'Poissons ♓' }
-  ] as const;
+  // Gastronomie
+  'Cuisine', 'Pâtisserie', 'Oenologie', 'Bière artisanale', 'Café', 'Restaurant',
+  'Gastronomie', 'Végétarisme', 'Nutrition', 'Food truck',
   
-  export const DIET_TYPES = [
-    { value: 'omnivore', label: 'Omnivore' },
-    { value: 'vegetarien', label: 'Végétarien' },
-    { value: 'vegetalien', label: 'Végétalien/Vegan' },
-    { value: 'pescetarien', label: 'Pescétarien' },
-    { value: 'flexitarien', label: 'Flexitarien' },
-    { value: 'paleo', label: 'Paléo' },
-    { value: 'keto', label: 'Kétogène' },
-    { value: 'sans-gluten', label: 'Sans gluten' },
-    { value: 'sans-lactose', label: 'Sans lactose' },
-    { value: 'halal', label: 'Halal' },
-    { value: 'casher', label: 'Casher' },
-    { value: 'autre', label: 'Autre' }
-  ] as const;
+  // Voyage et aventure
+  'Voyage', 'Backpacking', 'Road trip', 'Camping', 'Plage', 'Montagne', 'City break',
+  'Culture locale', 'Langues étrangères', 'Géographie',
   
-  export const RELIGIONS = [
-    { value: 'chretien', label: 'Chrétien' },
-    { value: 'catholique', label: 'Catholique' },
-    { value: 'protestant', label: 'Protestant' },
-    { value: 'orthodoxe', label: 'Orthodoxe' },
-    { value: 'musulman', label: 'Musulman' },
-    { value: 'juif', label: 'Juif' },
-    { value: 'bouddhiste', label: 'Bouddhiste' },
-    { value: 'hindou', label: 'Hindou' },
-    { value: 'sikh', label: 'Sikh' },
-    { value: 'athee', label: 'Athée' },
-    { value: 'agnostique', label: 'Agnostique' },
-    { value: 'spirituel', label: 'Spirituel sans religion' },
-    { value: 'autre', label: 'Autre' },
-    { value: 'non-specifie', label: 'Je préfère ne pas préciser' }
-  ] as const;
+  // Technologie et sciences
+  'Technologie', 'Informatique', 'Programmation', 'Gaming', 'Sciences', 'Astronomie',
+  'Physique', 'Mathématiques', 'Intelligence artificielle', 'Robotique',
   
-  export const ETHNICITIES = [
-    { value: 'europeen', label: 'Européen' },
-    { value: 'africain', label: 'Africain' },
-    { value: 'maghrebin', label: 'Maghrébin' },
-    { value: 'asiatique', label: 'Asiatique' },
-    { value: 'asie-est', label: 'Asie de l\'Est' },
-    { value: 'asie-sud', label: 'Asie du Sud' },
-    { value: 'asie-sud-est', label: 'Asie du Sud-Est' },
-    { value: 'americain', label: 'Américain' },
-    { value: 'latino', label: 'Latino/Hispanique' },
-    { value: 'moyen-orient', label: 'Moyen-Orient' },
-    { value: 'oceanien', label: 'Océanien' },
-    { value: 'metisse', label: 'Métissé' },
-    { value: 'autre', label: 'Autre' },
-    { value: 'non-specifie', label: 'Je préfère ne pas préciser' }
-  ] as const;
+  // Nature et environnement
+  'Nature', 'Jardinage', 'Écologie', 'Environnement', 'Animaux', 'Chiens', 'Chats',
+  'Équitation', 'Ornithologie', 'Botanique',
   
-  export const INTEREST_OPTIONS = [
-    // Sport et fitness
-    'Sport', 'Fitness', 'Yoga', 'Pilates', 'Course à pied', 'Marathon', 'Natation', 
-    'Cyclisme', 'VTT', 'Football', 'Basketball', 'Tennis', 'Badminton', 'Volleyball',
-    'Rugby', 'Hockey', 'Golf', 'Ski', 'Snowboard', 'Surf', 'Plongée', 'Escalade',
-    'Randonnée', 'Trail', 'Musculation', 'CrossFit', 'Arts martiaux', 'Boxe',
-    'Danse', 'Salsa', 'Bachata', 'Tango', 'Ballet', 'Hip-hop',
-    
-    // Voyage et aventure
-    'Voyage', 'Aventure', 'Backpacking', 'Road trip', 'Camping', 'Glamping',
-    'Trekking', 'Alpinisme', 'Spéléologie', 'Géocaching',
-    'Photographie de voyage', 'Culture locale', 'Gastronomie locale',
-    
-    // Arts et culture
-    'Photographie', 'Peinture', 'Dessin', 'Sculpture', 'Céramique', 'Art numérique',
-    'Musique', 'Piano', 'Guitare', 'Chant', 'DJ', 'Composition', 'Concert',
-    'Festival de musique', 'Opéra', 'Jazz', 'Rock', 'Électro', 'Classique',
-    'Théâtre', 'Improvisation', 'Stand-up', 'Cinéma', 'Série TV', 'Documentaires',
-    'Animation', 'Court-métrage', 'Festival de cinéma',
-    
-    // Littérature et écriture
-    'Lecture', 'Romans', 'Science-fiction', 'Fantasy', 'Thriller', 'Biographies',
-    'Poésie', 'BD', 'Manga', 'Écriture', 'Nouvelles', 'Blog', 'Journalisme',
-    'Club de lecture', 'Librairies', 'Salon du livre',
-    
-    // Cuisine et gastronomie
-    'Cuisine', 'Pâtisserie', 'Boulangerie', 'Gastronomie', 'Œnologie', 'Dégustation',
-    'Vin', 'Champagne', 'Bière artisanale', 'Cocktails', 'Café', 'Thé',
-    'Cuisine du monde', 'Végétarienne', 'Vegan', 'Cuisine française', 'Sushi',
-    'Street food', 'Marché', 'Restaurant', 'Food truck',
-    
-    // Technologie et innovation
-    'Technologie', 'Informatique', 'Programmation', 'Intelligence artificielle',
-    'Robotique', 'Gaming', 'Jeux vidéo', 'E-sport', 'Réalité virtuelle',
-    'Blockchain', 'Cryptomonnaies', 'Startups', 'Innovation', 'Gadgets',
-    'Électronique', 'Impression 3D', 'Drones',
-    
-    // Nature et environnement
-    'Nature', 'Écologie', 'Environnement', 'Développement durable', 'Jardinage',
-    'Permaculture', 'Botanique', 'Ornithologie', 'Astronomie', 'Météorologie',
-    'Géologie', 'Minéralogie', 'Animaux', 'Chiens', 'Chats', 'Équitation',
-    'Apiculture', 'Agriculture bio',
-    
-    // Bien-être et spiritualité
-    'Méditation', 'Mindfulness', 'Spiritualité', 'Développement personnel',
-    'Psychologie', 'Coaching', 'Bien-être', 'Relaxation', 'Massage',
-    'Aromathérapie', 'Naturopathie', 'Ayurveda', 'Feng shui',
-    
-    // Mode et beauté
-    'Mode', 'Stylisme', 'Couture', 'Tricot', 'Shopping', 'Vintage',
-    'Beauté', 'Maquillage', 'Coiffure', 'Parfums', 'Bijoux', 'Accessoires'
-  ] as const;
+  // Lifestyle et bien-être
+  'Méditation', 'Mindfulness', 'Développement personnel', 'Spiritualité', 'Mode',
+  'Beauté', 'DIY', 'Décoration', 'Architecture', 'Design',
   
-  export const LOOKING_FOR_OPTIONS = [
-    { value: 'relation-serieuse', label: 'Relation sérieuse', description: 'Je cherche une relation durable' },
-    { value: 'relation-casual', label: 'Relation décontractée', description: 'Sans engagement particulier' },
-    { value: 'amitie', label: 'Amitié', description: 'Je cherche de nouveaux amis' },
-    { value: 'aventure', label: 'Aventure', description: 'Rencontres sans lendemain' },
-    { value: 'mariage', label: 'Mariage', description: 'Je veux fonder une famille' },
-    { value: 'reseau', label: 'Réseau professionnel', description: 'Contacts professionnels' },
-    { value: 'activites', label: 'Partenaire d\'activités', description: 'Quelqu\'un pour partager mes loisirs' },
-    { value: 'pas-sur', label: 'Je ne sais pas encore', description: 'Je reste ouvert aux possibilités' }
-  ] as const;
+  // Social et politique
+  'Politique', 'Actualités', 'Débat', 'Bénévolat', 'Humanitaire', 'Justice sociale',
+  'Féminisme', 'Droits humains',
   
-  export const DISTANCE_OPTIONS = [
-    { value: 5, label: '5 km', description: 'Très proche' },
-    { value: 10, label: '10 km', description: 'Quartier élargi' },
-    { value: 25, label: '25 km', description: 'Agglomération' },
-    { value: 50, label: '50 km', description: 'Région proche' },
-    { value: 100, label: '100 km', description: 'Département' },
-    { value: 250, label: '250 km', description: 'Plusieurs départements' },
-    { value: 500, label: '500 km', description: 'Partout en France' },
-    { value: 1000, label: '1000+ km', description: 'Europe' },
-    { value: 999999, label: 'Partout dans le monde', description: 'Aucune limite' }
-  ] as const;
-  
-  export const DEFAULT_PROFILE_CONFIG = {
-    maxPhotos: 6,
-    maxInterests: 15,
-    maxBioLength: 500,
-    minAge: 18,
-    maxAge: 99,
-    defaultDistance: 50,
-    defaultAgeRange: { min: 22, max: 35 }
-  } as const;
-  
-  export const VALIDATION_RULES = {
-    name: {
-      minLength: 2,
-      maxLength: 100,
-      required: true
-    },
-    bio: {
-      maxLength: 500,
-      required: false
-    },
-    age: {
-      min: 18,
-      max: 99,
-      required: false
-    },
-    interests: {
-      max: 15,
-      required: false
-    }
-  } as const;
+  // Business et entrepreneuriat
+  'Entrepreneuriat', 'Business', 'Marketing', 'Finance', 'Investissement',
+  'Immobilier', 'Networking', 'Leadership'
+];
+
+export const LOOKING_FOR_OPTIONS = [
+  {
+    value: 'relation-serieuse',
+    label: 'Relation sérieuse',
+    description: 'Je cherche une relation durable et engagée'
+  },
+  {
+    value: 'relation-decontractee',
+    label: 'Relation décontractée',
+    description: 'Je veux prendre le temps de me connaître'
+  },
+  {
+    value: 'amitie',
+    label: 'Amitié',
+    description: 'Je recherche de nouveaux amis'
+  },
+  {
+    value: 'aventure',
+    label: 'Aventure',
+    description: 'Je suis ouvert(e) à toutes les possibilités'
+  },
+  {
+    value: 'pas-sur',
+    label: 'Je ne sais pas encore',
+    description: 'Je verrai bien où ça me mène'
+  },
+  {
+    value: 'mariage',
+    label: 'Mariage',
+    description: 'Je cherche la personne avec qui fonder une famille'
+  }
+];
+
+export const DISTANCE_OPTIONS = [
+  {
+    value: 10,
+    label: '10 km',
+    description: 'Très proche'
+  },
+  {
+    value: 25,
+    label: '25 km',
+    description: 'À proximité'
+  },
+  {
+    value: 50,
+    label: '50 km',
+    description: 'Région'
+  },
+  {
+    value: 100,
+    label: '100 km',
+    description: 'Large zone'
+  },
+  {
+    value: 200,
+    label: '200 km',
+    description: 'Très large'
+  },
+  {
+    value: 500,
+    label: '500+ km',
+    description: 'Partout'
+  }
+];
