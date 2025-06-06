@@ -1,4 +1,4 @@
-// src/auth.ts
+// src/auth.ts - Configuration NextAuth v5 corrigée
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import FacebookProvider from "next-auth/providers/facebook"
@@ -93,6 +93,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 jours
+    updateAge: 24 * 60 * 60, // 24 heures - ✅ AJOUTÉ pour éviter les re-authentifications fréquentes
+  },
+
+  // ✅ Configuration des cookies pour NextAuth v5
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === 'production' 
+        ? '__Secure-authjs.session-token'
+        : 'authjs.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 30 * 24 * 60 * 60, // 30 jours
+      },
+    },
   },
 
   callbacks: {
@@ -101,12 +118,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id
         token.provider = account?.provider || "credentials"
         
-        const dbUser = await prisma.user.findUnique({
-          where: { id: user.id },
-          select: { emailVerified: true }
-        })
-        token.emailVerified = dbUser?.emailVerified
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { emailVerified: true }
+          })
+          token.emailVerified = dbUser?.emailVerified
+        } catch (error) {
+          console.error("❌ Erreur lors de la récupération du statut de vérification:", error)
+        }
       }
+      
+      // ✅ Log pour debugging
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔑 JWT Token mis à jour:', {
+          userId: token.id,
+          email: token.email,
+          provider: token.provider
+        })
+      }
+      
       return token
     },
 
@@ -116,6 +147,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.provider = token.provider as string
         session.user.emailVerified = token.emailVerified as Date | null
       }
+      
+      // ✅ Log pour debugging
+      if (process.env.NODE_ENV === 'development') {
+        console.log('👤 Session créée:', {
+          userId: session.user?.id,
+          email: session.user?.email,
+          provider: session.user?.provider
+        })
+      }
+      
       return session
     },
 
@@ -168,32 +209,50 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async redirect({ url, baseUrl }) {
       console.log("🔄 Redirection demandée:", { url, baseUrl })
       
+      // ✅ CORRECTION: Rediriger vers /profile au lieu de /dashboard
+      
       // Si c'est une URL relative
       if (url.startsWith("/")) {
         const fullUrl = `${baseUrl}${url}`
         console.log("🔄 URL relative détectée:", fullUrl)
         
-        // Rediriger /profile vers /dashboard
-        if (url === '/profile') {
-          console.log("🏠 Redirection /profile → /dashboard")
-          return `${baseUrl}/dashboard`
+        // Permettre la navigation vers /profile
+        if (url === '/profile' || url.startsWith('/profile')) {
+          console.log("✅ Redirection vers /profile autorisée")
+          return fullUrl
         }
+        
+        // Rediriger les autres URLs vers /profile par défaut
+        if (url === '/dashboard' || url === '/') {
+          console.log("🏠 Redirection vers /profile")
+          return `${baseUrl}/profile`
+        }
+        
         return fullUrl
       }
 
       // Si c'est une URL du même domaine
       if (new URL(url).origin === baseUrl) {
         const urlObj = new URL(url)
-        if (urlObj.pathname === '/profile') {
-          console.log("🏠 Redirection URL complète /profile → /dashboard")
-          return `${baseUrl}/dashboard`
+        
+        // Permettre l'accès à /profile
+        if (urlObj.pathname === '/profile' || urlObj.pathname.startsWith('/profile')) {
+          console.log("✅ URL complète /profile autorisée")
+          return url
         }
+        
+        // Rediriger dashboard vers profile
+        if (urlObj.pathname === '/dashboard' || urlObj.pathname === '/') {
+          console.log("🏠 Redirection URL complète vers /profile")
+          return `${baseUrl}/profile`
+        }
+        
         return url
       }
 
-      // Par défaut, rediriger vers dashboard
-      console.log("🏠 Redirection par défaut vers /dashboard")
-      return `${baseUrl}/dashboard`
+      // Par défaut, rediriger vers /profile
+      console.log("🏠 Redirection par défaut vers /profile")
+      return `${baseUrl}/profile`
     }
   },
 
@@ -213,4 +272,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
 
   debug: process.env.NODE_ENV === "development",
+  
+  // ✅ IMPORTANT: Définir le secret pour NextAuth v5
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
 })

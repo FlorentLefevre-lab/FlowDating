@@ -380,9 +380,16 @@ body {
     @apply resize-none min-h-[120px] leading-relaxed;
   }
 
-  /* Select uniformisé */
+  /* ✅ Select uniformisé - VERSION CORRIGÉE */
   select.input-field {
     @apply cursor-pointer;
+
+    /* ✅ CORRECTION : Supprimer l'apparence par défaut pour éviter la duplication */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+
+    /* Chevron personnalisé */
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
     background-position: right 0.75rem center;
     background-repeat: no-repeat;
@@ -392,6 +399,11 @@ body {
 
   select.input-field:focus {
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23ec4899' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  }
+
+  /* ✅ CORRECTION : Supprimer le chevron d'Internet Explorer */
+  select.input-field::-ms-expand {
+    display: none;
   }
 
   /* États d'erreur uniformisés */

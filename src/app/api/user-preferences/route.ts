@@ -1,7 +1,10 @@
+// src/app/api/user-preferences/route.ts - Version corrigée
+
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '../../../auth'
-const session = await auth()
+import { auth } from '../../../auth'; // ✅ Import correct
 import { PrismaClient } from '@prisma/client';
+
+// ❌ SUPPRIMÉ : const session = await auth() - ne doit pas être ici au niveau global
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -15,14 +18,16 @@ export async function PUT(request: NextRequest) {
   try {
     console.log('🔥 API user-preferences PUT appelée');
     
-    const session = await getServerSession(authOptions);
+    // ✅ CORRECTION : Utiliser auth() au lieu de getServerSession
+    const session = await auth();
     
-    if (!session?.user?.email) {
+    if (!session?.user?.id) { // ✅ CORRECTION : Utiliser user.id au lieu de user.email
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
+    // ✅ CORRECTION : Rechercher par ID au lieu d'email
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { id: session.user.id }
     });
 
     if (!user) {
@@ -34,16 +39,33 @@ export async function PUT(request: NextRequest) {
 
     const { minAge, maxAge, maxDistance, gender, lookingFor } = body;
 
-    // Validation des champs requis
-    if (!minAge || !maxAge || !maxDistance) {
+    // ✅ CORRECTION : Validation améliorée
+    if (minAge === undefined || maxAge === undefined || maxDistance === undefined) {
       return NextResponse.json({
         error: 'Les âges minimum, maximum et la distance sont requis'
       }, { status: 400 });
     }
 
-    if (minAge > maxAge) {
+    const minAgeNum = parseInt(minAge);
+    const maxAgeNum = parseInt(maxAge);
+    const maxDistanceNum = parseInt(maxDistance);
+
+    // Validation des valeurs numériques
+    if (isNaN(minAgeNum) || isNaN(maxAgeNum) || isNaN(maxDistanceNum)) {
       return NextResponse.json({
-        error: 'L\'âge minimum ne peut pas être supérieur à l\'âge maximum'
+        error: 'Les valeurs doivent être des nombres valides'
+      }, { status: 400 });
+    }
+
+    if (minAgeNum < 18 || maxAgeNum > 99 || minAgeNum > maxAgeNum) {
+      return NextResponse.json({
+        error: 'Âges invalides (18-99 ans, min ≤ max)'
+      }, { status: 400 });
+    }
+
+    if (maxDistanceNum < 1 || maxDistanceNum > 500) {
+      return NextResponse.json({
+        error: 'Distance invalide (1-500 km)'
       }, { status: 400 });
     }
 
@@ -51,11 +73,11 @@ export async function PUT(request: NextRequest) {
 
     // Préparer les données à sauvegarder
     const preferencesData = {
-      minAge: parseInt(minAge),
-      maxAge: parseInt(maxAge),
-      maxDistance: parseInt(maxDistance),
-      gender: gender || null,
-      lookingFor: lookingFor || null
+      minAge: minAgeNum,
+      maxAge: maxAgeNum,
+      maxDistance: maxDistanceNum,
+      gender: gender?.trim() || null,
+      lookingFor: lookingFor?.trim() || null
     };
 
     console.log('📝 Données à sauvegarder:', preferencesData);
@@ -94,7 +116,9 @@ export async function PUT(request: NextRequest) {
       maxAge: savedPreferences.maxAge,
       maxDistance: savedPreferences.maxDistance,
       gender: savedPreferences.gender,
-      lookingFor: savedPreferences.lookingFor
+      lookingFor: savedPreferences.lookingFor,
+      createdAt: savedPreferences.createdAt,
+      updatedAt: savedPreferences.updatedAt
     };
 
     return NextResponse.json(responseData);
@@ -107,19 +131,21 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// Optionnel : Ajout d'un GET pour récupérer les préférences
+// GET pour récupérer les préférences
 export async function GET(request: NextRequest) {
   try {
     console.log('🔍 API user-preferences GET appelée');
     
-    const session = await getServerSession(authOptions);
+    // ✅ CORRECTION : Utiliser auth() au lieu de getServerSession
+    const session = await auth();
     
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
+    // ✅ CORRECTION : Rechercher par ID
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { id: session.user.id },
       include: {
         preferences: true
       }

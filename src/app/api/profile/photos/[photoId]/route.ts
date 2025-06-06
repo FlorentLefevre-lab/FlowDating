@@ -1,25 +1,25 @@
-// src/app/api/profile/photos/[photoId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '../../../../../auth'
-const session = await auth()
+import { auth } from '../../../../../auth';
 import { PrismaClient } from '@prisma/client';
 
-// Singleton pour Prisma
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
+
 const prisma = globalForPrisma.prisma ?? new PrismaClient();
+
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// DELETE - Supprimer une photo
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { photoId: string } }
+  { params }: { params: Promise<{ photoId: string }> }
 ) {
   try {
-    console.log('🗑️ API DELETE photo:', params.photoId);
+    // ✅ Next.js 15 : Il faut awaiter params
+    const { photoId } = await params;
+    console.log('🗑️ API DELETE photo:', photoId);
     
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -33,10 +33,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
     }
 
-    // Vérifier que la photo appartient à l'utilisateur
     const photo = await prisma.photo.findFirst({
       where: {
-        id: params.photoId,
+        id: photoId,
         userId: user.id
       }
     });
@@ -45,33 +44,29 @@ export async function DELETE(
       return NextResponse.json({ error: 'Photo non trouvée' }, { status: 404 });
     }
 
-    // Supprimer la photo
     await prisma.photo.delete({
-      where: { id: params.photoId }
+      where: { id: photoId }
     });
 
-    console.log('✅ Photo supprimée:', params.photoId);
-
-    return NextResponse.json({ message: 'Photo supprimée' }, { status: 200 });
+    console.log('✅ Photo supprimée:', photoId);
+    return NextResponse.json({ message: 'Photo supprimée' });
 
   } catch (error) {
     console.error('❌ Erreur DELETE photo:', error);
-    return NextResponse.json(
-      { error: 'Erreur lors de la suppression' }, 
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Erreur lors de la suppression' }, { status: 500 });
   }
 }
 
-// PUT - Mettre à jour une photo (ex: définir comme principale)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { photoId: string } }
+  { params }: { params: Promise<{ photoId: string }> }
 ) {
   try {
-    console.log('⭐ API PUT photo:', params.photoId);
+    // ✅ Next.js 15 : Il faut awaiter params
+    const { photoId } = await params;
+    console.log('⭐ API PUT photo:', photoId);
     
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -88,10 +83,9 @@ export async function PUT(
     const body = await request.json();
     const { isPrimary } = body;
 
-    // Vérifier que la photo appartient à l'utilisateur
     const photo = await prisma.photo.findFirst({
       where: {
-        id: params.photoId,
+        id: photoId,
         userId: user.id
       }
     });
@@ -100,32 +94,26 @@ export async function PUT(
       return NextResponse.json({ error: 'Photo non trouvée' }, { status: 404 });
     }
 
-    // Si on définit cette photo comme principale, retirer le statut des autres
     if (isPrimary) {
       await prisma.photo.updateMany({
-        where: { 
+        where: {
           userId: user.id,
-          id: { not: params.photoId }
+          id: { not: photoId }
         },
         data: { isPrimary: false }
       });
     }
 
-    // Mettre à jour la photo
     const updatedPhoto = await prisma.photo.update({
-      where: { id: params.photoId },
+      where: { id: photoId },
       data: { isPrimary }
     });
 
     console.log('✅ Photo mise à jour:', updatedPhoto);
-
-    return NextResponse.json(updatedPhoto, { status: 200 });
+    return NextResponse.json(updatedPhoto);
 
   } catch (error) {
     console.error('❌ Erreur PUT photo:', error);
-    return NextResponse.json(
-      { error: 'Erreur lors de la mise à jour' }, 
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Erreur lors de la mise à jour' }, { status: 500 });
   }
 }

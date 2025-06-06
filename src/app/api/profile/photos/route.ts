@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '../../../../auth'
-const session = await auth()
+import { auth } from '../../../../auth';
 import { PrismaClient } from '@prisma/client';
 
-// Singleton pour Prisma (évite les multiples connexions)
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
@@ -12,10 +10,9 @@ const prisma = globalForPrisma.prisma ?? new PrismaClient();
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// POST - Ajouter une photo
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -32,7 +29,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { imageUrl } = body;
 
-    // Debug logs
     console.log('Body reçu:', body);
     console.log('ImageUrl:', imageUrl);
 
@@ -41,7 +37,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'URL de l\'image requise' }, { status: 400 });
     }
 
-    // Vérifier le nombre de photos existantes
     const existingPhotos = await prisma.photo.count({
       where: { userId: user.id }
     });
@@ -57,23 +52,23 @@ export async function POST(request: NextRequest) {
       data: {
         userId: user.id,
         url: imageUrl,
+        alt: '',
         isPrimary: existingPhotos === 0
       }
     });
 
     console.log('Photo créée avec succès:', photo);
     return NextResponse.json(photo, { status: 201 });
-    
+
   } catch (error) {
     console.error('Erreur POST photos:', error);
     return NextResponse.json({ error: 'Erreur lors de l\'ajout de la photo' }, { status: 500 });
   }
 }
 
-// GET - Récupérer les photos de l'utilisateur
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -90,18 +85,80 @@ export async function GET(request: NextRequest) {
     const photos = await prisma.photo.findMany({
       where: { userId: user.id },
       orderBy: [
-        { isPrimary: 'desc' }, // Photo principale en premier
-        { createdAt: 'asc' }   // Puis par ordre de création
+        { isPrimary: 'desc' },
+        { createdAt: 'asc' }
       ]
     });
 
     return NextResponse.json({ photos }, { status: 200 });
-    
+
   } catch (error) {
     console.error('Erreur GET photos:', error);
     return NextResponse.json({ error: 'Erreur lors de la récupération des photos' }, { status: 500 });
   }
 }
 
-// ⚠️ DELETE et PUT ont été déplacés vers /api/profile/photos/[photoId]/route.ts
-// pour être compatibles avec Next.js 15
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await auth();
+    
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const photoId = searchParams.get('id');
+
+    if (!photoId) {
+      return NextResponse.json({ error: 'ID de la photo requis' }, { status: 400 });
+    }
+
+    const photo = await prisma.photo.findFirst({
+      where: {
+        id: photoId,
+        userId: user.id,
+      },
+    });
+
+    if (!photo) {
+      return NextResponse.json({ error: 'Photo non trouvée' }, { status: 404 });
+    }
+
+    if (photo.isPrimary) {
+      const nextPhoto = await prisma.photo.findFirst({
+        where: {
+          userId: user.id,
+          id: { not: photoId }
+        },
+        orderBy: { createdAt: 'asc' }
+      });
+
+      if (nextPhoto) {
+        await prisma.photo.update({
+          where: { id: nextPhoto.id },
+          data: { isPrimary: true }
+        });
+      }
+    }
+
+    await prisma.photo.delete({
+      where: { id: photoId },
+    });
+
+    console.log('Photo supprimée avec succès:', photoId);
+
+    return NextResponse.json({ message: 'Photo supprimée avec succès' });
+
+  } catch (error) {
+    console.error('Erreur DELETE photos:', error);
+    return NextResponse.json({ error: 'Erreur lors de la suppression' }, { status: 500 });
+  }
+}

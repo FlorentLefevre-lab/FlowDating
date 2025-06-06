@@ -1,216 +1,222 @@
-// src/app/api/profile/route.ts
+// src/app/api/profile/route.ts - Version corrigée (remplacer les sections concernées)
+
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '../../../auth'
+import { auth } from '../../../auth';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+// Singleton pour Prisma (évite les multiples connexions)
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+};
+const prisma = globalForPrisma.prisma ?? new PrismaClient();
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// GET - Récupérer le profil
+// GET - Récupérer le profil utilisateur
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 API GET /profile - Début');
+    console.log('📋 API GET Profile - Début');
     
-    const session = await auth()
-    
-    if (!session?.user?.email) {
-      console.log('❌ Pas de session utilisateur');
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    const session = await auth();
+    if (!session?.user?.id) {
+      console.log('❌ Session invalide:', session);
+      return NextResponse.json(
+        { error: 'Non autorisé' },
+        { status: 401 }
+      );
     }
 
-    console.log('👤 Utilisateur connecté:', session.user.email);
+    console.log('👤 Recherche utilisateur:', session.user.id);
 
-    // IMPORTANT : Inclure les photos dans la requête
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { id: session.user.id },
       include: {
         photos: {
           orderBy: [
-            { isPrimary: 'desc' }, // Photo principale en premier
-            { createdAt: 'asc' }
+            { isPrimary: 'desc' },
+            { createdAt: 'desc' }
           ]
         },
-        preferences: true,
+        preferences: true
       }
     });
 
     if (!user) {
-      console.log('❌ Utilisateur non trouvé en base');
-      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
+      console.log('❌ Utilisateur non trouvé:', session.user.id);
+      return NextResponse.json(
+        { error: 'Utilisateur non trouvé' },
+        { status: 404 }
+      );
     }
 
-    console.log('✅ Profil trouvé:', user.id);
-    console.log('📸 Photos trouvées:', user.photos.length); // ← Debug
-
-    // Préparer la réponse avec tous les champs + photos + nouveaux champs de localisation
+    console.log('✅ Profil chargé:', user.email);
+    
     const profileData = {
       id: user.id,
-      name: user.name || '',
-      age: user.age || null,
-      bio: user.bio || '',
-      location: user.location || '',
-      department: user.department || '',
-      region: user.region || '',
-      postcode: user.postcode || '',
-      profession: user.profession || '',
-      gender: user.gender || '',
-      maritalStatus: user.maritalStatus || '',
-      zodiacSign: user.zodiacSign || '',
-      dietType: user.dietType || '',
-      religion: user.religion || '',
-      ethnicity: user.ethnicity || '',
+      email: user.email,
+      name: user.name,
+      age: user.age,
+      bio: user.bio,
+      location: user.location,
+      profession: user.profession,
+      gender: user.gender,
+      maritalStatus: user.maritalStatus,
+      zodiacSign: user.zodiacSign,
+      dietType: user.dietType,
+      religion: user.religion,
+      ethnicity: user.ethnicity,
       interests: user.interests || [],
+      photos: user.photos || [],
       preferences: user.preferences,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
     };
 
-    // IMPORTANT : Retourner les photos séparément
-    return NextResponse.json({
-      profile: profileData,
-      photos: user.photos || [] // ← Cette ligne est cruciale
-    });
+    return NextResponse.json(profileData);
 
   } catch (error) {
-    console.error('❌ Erreur API GET /profile:', error);
+    console.error('❌ Erreur lors de la récupération du profil:', error);
     return NextResponse.json(
-      { error: 'Erreur serveur' }, 
+      { error: 'Erreur interne du serveur' },
       { status: 500 }
     );
   }
 }
 
-// PUT - Mettre à jour le profil
+// PUT - Mettre à jour le profil utilisateur
 export async function PUT(request: NextRequest) {
   try {
-    console.log('🔄 API PUT /profile - Début');
+    console.log('📝 API PUT Profile - Début');
     
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      console.log('❌ Pas de session utilisateur');
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-    }
-
-    console.log('👤 Utilisateur connecté:', session.user.email);
-
-    let body;
-    try {
-      body = await request.json();
-      console.log('📝 Données reçues:', JSON.stringify(body, null, 2));
-    } catch (error) {
-      console.error('❌ Erreur parsing JSON:', error);
-      return NextResponse.json({ error: 'Données JSON invalides' }, { status: 400 });
-    }
-
-    // Validation des données
-    if (!body || typeof body !== 'object') {
-      console.error('❌ Body vide ou invalide:', body);
-      return NextResponse.json({ error: 'Données manquantes' }, { status: 400 });
-    }
-
-    // Chercher l'utilisateur
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
-
-    if (!user) {
-      console.log('❌ Utilisateur non trouvé');
-      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
-    }
-
-    console.log('🔍 Utilisateur trouvé, ID:', user.id);
-
-    // Préparer les données pour la mise à jour (seulement les champs définis)
-    const updateData: any = {
-      updatedAt: new Date(),
-    };
-
-    // Ajouter seulement les champs qui sont présents et valides
-    if (body.name !== undefined && body.name !== null) {
-      updateData.name = String(body.name).trim();
-    }
-    
-    if (body.age !== undefined && body.age !== null && body.age !== '') {
-      const ageNum = parseInt(body.age);
-      if (!isNaN(ageNum) && ageNum > 0 && ageNum < 150) {
-        updateData.age = ageNum;
-      }
-    }
-
-    if (body.bio !== undefined && body.bio !== null) {
-      updateData.bio = String(body.bio).trim();
-    }
-
-    if (body.location !== undefined && body.location !== null) {
-      updateData.location = String(body.location).trim();
-    }
-
-    // NOUVEAUX CHAMPS DE LOCALISATION
-    if (body.department !== undefined && body.department !== null) {
-      updateData.department = String(body.department).trim();
-    }
-
-    if (body.region !== undefined && body.region !== null) {
-      updateData.region = String(body.region).trim();
-    }
-
-    if (body.postcode !== undefined && body.postcode !== null) {
-      updateData.postcode = String(body.postcode).trim();
-    }
-
-    if (body.profession !== undefined && body.profession !== null) {
-      updateData.profession = String(body.profession).trim();
-    }
-
-    if (body.gender !== undefined && body.gender !== null) {
-      updateData.gender = String(body.gender).trim();
-    }
-
-    if (body.maritalStatus !== undefined && body.maritalStatus !== null) {
-      updateData.maritalStatus = String(body.maritalStatus).trim();
-    }
-
-    if (body.zodiacSign !== undefined && body.zodiacSign !== null) {
-      updateData.zodiacSign = String(body.zodiacSign).trim();
-    }
-
-    if (body.dietType !== undefined && body.dietType !== null) {
-      updateData.dietType = String(body.dietType).trim();
-    }
-
-    if (body.religion !== undefined && body.religion !== null) {
-      updateData.religion = String(body.religion).trim();
-    }
-
-    // AJOUT DU CHAMP ETHNICITY
-    if (body.ethnicity !== undefined && body.ethnicity !== null) {
-      updateData.ethnicity = String(body.ethnicity).trim();
-    }
-
-    if (body.interests !== undefined && Array.isArray(body.interests)) {
-      updateData.interests = body.interests.filter(interest => 
-        typeof interest === 'string' && interest.trim().length > 0
+    const session = await auth();
+    if (!session?.user?.id) {
+      console.log('❌ Session invalide pour PUT:', session);
+      return NextResponse.json(
+        { error: 'Non autorisé' },
+        { status: 401 }
       );
     }
 
-    console.log('📝 Données préparées pour mise à jour:', JSON.stringify(updateData, null, 2));
+    console.log('👤 Mise à jour pour utilisateur:', session.user.id);
 
-    // Mettre à jour le profil
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
-      data: updateData
+    // Vérifier que l'utilisateur existe
+    const existingUser = await prisma.user.findUnique({
+      where: { id: session.user.id }
     });
 
-    console.log('✅ Profil mis à jour avec succès:', updatedUser.id);
+    if (!existingUser) {
+      console.log('❌ Utilisateur non trouvé pour PUT:', session.user.id);
+      return NextResponse.json(
+        { error: 'Utilisateur non trouvé' },
+        { status: 404 }
+      );
+    }
 
-    // Retourner les données mises à jour AVEC les nouveaux champs
+    // Lire les données du body
+    const body = await request.json();
+    console.log('📝 Données reçues pour PUT:', JSON.stringify(body, null, 2));
+
+    // ✅ CONSTRUIRE L'OBJET DE MISE À JOUR AVEC SEULEMENT LES CHAMPS EXISTANTS
+    const updateData: any = {};
+    
+    // Champs texte existants dans votre schéma
+    if (body.name !== undefined) {
+      updateData.name = body.name?.trim() || null;
+    }
+    if (body.bio !== undefined) {
+      updateData.bio = body.bio?.trim() || null;
+    }
+    if (body.location !== undefined) {
+      updateData.location = body.location?.trim() || null;
+    }
+    if (body.profession !== undefined) {
+      updateData.profession = body.profession?.trim() || null;
+    }
+    if (body.gender !== undefined) {
+      updateData.gender = body.gender?.trim() || null;
+    }
+    if (body.maritalStatus !== undefined) {
+      updateData.maritalStatus = body.maritalStatus?.trim() || null;
+    }
+    if (body.zodiacSign !== undefined) {
+      updateData.zodiacSign = body.zodiacSign?.trim() || null;
+    }
+    if (body.dietType !== undefined) {
+      updateData.dietType = body.dietType?.trim() || null;
+    }
+    if (body.religion !== undefined) {
+      updateData.religion = body.religion?.trim() || null;
+    }
+    if (body.ethnicity !== undefined) {
+      updateData.ethnicity = body.ethnicity?.trim() || null;
+    }
+    
+    // ✅ IGNORER les champs qui n'existent pas dans le schéma
+    // Les champs department, region, postcode sont ignorés car ils n'existent pas
+    
+    // Traitement de l'âge
+    if (body.age !== undefined) {
+      if (body.age === null || body.age === '') {
+        updateData.age = null;
+      } else {
+        const age = parseInt(body.age);
+        if (isNaN(age) || age < 18 || age > 100) {
+          console.log('❌ Âge invalide:', body.age);
+          return NextResponse.json(
+            { error: 'Âge invalide (doit être entre 18 et 100 ans)' },
+            { status: 400 }
+          );
+        }
+        updateData.age = age;
+      }
+    }
+    
+    // Traitement des centres d'intérêt
+    if (body.interests !== undefined) {
+      if (Array.isArray(body.interests)) {
+        updateData.interests = body.interests
+          .map(interest => String(interest).trim())
+          .filter(interest => interest.length > 0)
+          .slice(0, 15); // Limite à 15 intérêts
+      } else {
+        updateData.interests = [];
+      }
+    }
+
+    // Validation de la bio
+    if (updateData.bio && updateData.bio.length > 500) {
+      console.log('❌ Bio trop longue:', updateData.bio.length);
+      return NextResponse.json(
+        { error: 'Bio limitée à 500 caractères' },
+        { status: 400 }
+      );
+    }
+
+    console.log('📝 Données à mettre à jour (champs valides uniquement):', JSON.stringify(updateData, null, 2));
+
+    // Mise à jour en base de données
+    const updatedUser = await prisma.user.update({
+      where: { id: existingUser.id },
+      data: updateData,
+      include: {
+        photos: {
+          orderBy: [
+            { isPrimary: 'desc' },
+            { createdAt: 'desc' }
+          ]
+        },
+        preferences: true
+      }
+    });
+
+    console.log('✅ Profil mis à jour avec succès:', updatedUser.email);
+    
     const responseData = {
       id: updatedUser.id,
+      email: updatedUser.email,
       name: updatedUser.name,
       age: updatedUser.age,
       bio: updatedUser.bio,
       location: updatedUser.location,
-      department: updatedUser.department,
-      region: updatedUser.region,
-      postcode: updatedUser.postcode,
       profession: updatedUser.profession,
       gender: updatedUser.gender,
       maritalStatus: updatedUser.maritalStatus,
@@ -218,26 +224,19 @@ export async function PUT(request: NextRequest) {
       dietType: updatedUser.dietType,
       religion: updatedUser.religion,
       ethnicity: updatedUser.ethnicity,
-      interests: updatedUser.interests,
+      interests: updatedUser.interests || [],
+      photos: updatedUser.photos || [],
+      preferences: updatedUser.preferences,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt
     };
-
-    console.log('📤 Réponse envoyée:', JSON.stringify(responseData, null, 2));
 
     return NextResponse.json(responseData);
 
   } catch (error) {
-    console.error('❌ Erreur API PUT /profile:', error);
-    
-    // Erreur Prisma spécifique
-    if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: 'Contrainte de base de données violée' }, 
-        { status: 400 }
-      );
-    }
-
+    console.error('❌ Erreur lors de la mise à jour du profil:', error);
     return NextResponse.json(
-      { error: `Erreur lors de la mise à jour: ${error.message}` }, 
+      { error: 'Erreur interne du serveur' },
       { status: 500 }
     );
   }

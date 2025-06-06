@@ -1,5 +1,7 @@
+// src/components/ProfileManager.tsx - Code complet corrigé
+
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // ✅ useEffect ajouté
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import { 
@@ -10,16 +12,16 @@ import {
   IdentificationIcon,
   PhotoIcon,
   HeartIcon,
-  CogIcon
+  CogIcon,
+  HomeIcon
 } from '@heroicons/react/24/outline';
 
 // Import des types
 import type { UserProfile, TabType, MessageType } from '../types/profiles';
 
-// Import des composants - avec des imports dynamiques en cas de problème
+// Import des composants avec des imports dynamiques en cas de problème
 import dynamic from 'next/dynamic';
 
-// Import statique d'abord, avec fallback dynamique si nécessaire
 const ProfileOverview = dynamic(() => import('./profile/ProfileOverview'), {
   loading: () => <div className="p-6">Chargement...</div>
 });
@@ -55,6 +57,15 @@ const ProfileManager: React.FC = () => {
 
   // Configuration des onglets
   const tabs = [
+    { 
+      id: 'dashboard' as const, 
+      label: 'Accueil', 
+      icon: HomeIcon, 
+      color: 'blue',
+      description: 'Retour au tableau de bord',
+      isLink: true,
+      href: '/dashboard'
+    },
     { 
       id: 'overview' as TabType, 
       label: 'Aperçu', 
@@ -107,41 +118,28 @@ const ProfileManager: React.FC = () => {
   const loadProfile = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Chargement du profil...');
       
-      // Simulation d'un appel API pour éviter les erreurs de build
-      // Remplacer par votre vraie API
-      const mockProfile: UserProfile = {
-        id: '1',
-        email: 'user@example.com',
-        name: 'Utilisateur Test',
-        age: 28,
-        bio: 'Bio de test',
-        location: 'Paris, France',
-        interests: ['Sport', 'Voyage', 'Lecture'],
-        photos: [],
-        gender: 'homme',
-        profession: 'ingenieur',
-        maritalStatus: 'celibataire',
-        zodiacSign: 'lion',
-        dietType: 'omnivore',
-        religion: 'autre',
-        ethnicity: 'europeen',
-        preferences: {
-          minAge: 22,
-          maxAge: 35,
-          maxDistance: 50,
-          gender: 'femme',
-          lookingFor: 'relation-serieuse'
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      const response = await fetch('/api/profile', {
+        method: 'GET',
+        credentials: 'include',
+      });
 
-      // Remplacer par: const response = await fetch('/api/user-profile');
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulation délai
-      setProfile(mockProfile);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('📊 Profil chargé:', data);
       
-      console.log('✅ Profil chargé:', mockProfile);
+      // Adapter la structure selon ce que retourne votre API
+      if (data.profile) {
+        setProfile(data.profile);
+      } else {
+        // Si les données sont directement au niveau racine
+        setProfile(data);
+      }
+      
     } catch (error) {
       console.error('❌ Erreur:', error);
       showMessage('Erreur lors du chargement du profil', 'error');
@@ -149,6 +147,44 @@ const ProfileManager: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // ✅ Méthode pour charger les préférences séparément
+  const loadPreferences = async () => {
+    try {
+      console.log('🔄 Chargement des préférences...');
+      
+      // ✅ URL CORRECTE
+      const response = await fetch('/api/user-preferences', {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const preferences = await response.json();
+        console.log('✅ Préférences chargées:', preferences);
+        
+        setProfile(prev => prev ? { 
+          ...prev, 
+          preferences 
+        } : null);
+        
+        return preferences;
+      } else {
+        console.log('⚠️ Pas de préférences trouvées, utilisation des valeurs par défaut');
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ Erreur chargement préférences:', error);
+      return null;
+    }
+  };
+
+  // ✅ useEffect pour charger les préférences si nécessaire
+  useEffect(() => {
+    if (profile && !profile.preferences) {
+      loadPreferences();
+    }
+  }, [profile]);
 
   const showMessage = (msg: string, type: MessageType = 'success') => {
     setMessage(msg);
@@ -169,10 +205,6 @@ const ProfileManager: React.FC = () => {
       profile.photos?.length > 0,
       profile.gender,
       profile.profession,
-      profile.maritalStatus,
-      profile.preferences?.minAge,
-      profile.preferences?.maxAge,
-      profile.preferences?.gender
     ];
     
     const completed = fields.filter(Boolean).length;
@@ -183,22 +215,26 @@ const ProfileManager: React.FC = () => {
   const handleBasicInfoSubmit = async (data: any) => {
     setSaving(true);
     try {
-      // Simulation de sauvegarde
       console.log('💾 Sauvegarde des infos de base:', data);
-      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Mettre à jour le profil local
-      if (profile) {
-        setProfile({
-          ...profile,
-          ...data,
-          updatedAt: new Date().toISOString()
-        });
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
       }
+
+      const updatedData = await response.json();
+      setProfile(prev => prev ? { ...prev, ...updatedData } : null);
       
       showMessage('✅ Informations de base sauvegardées !', 'success');
       setActiveTab('overview');
     } catch (error) {
+      console.error('❌ Erreur sauvegarde:', error);
       showMessage('❌ Erreur lors de la sauvegarde', 'error');
     } finally {
       setSaving(false);
@@ -209,42 +245,60 @@ const ProfileManager: React.FC = () => {
     setSaving(true);
     try {
       console.log('💾 Sauvegarde des infos personnelles:', data);
-      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      if (profile) {
-        setProfile({
-          ...profile,
-          ...data,
-          updatedAt: new Date().toISOString()
-        });
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
       }
+
+      const updatedData = await response.json();
+      setProfile(prev => prev ? { ...prev, ...updatedData } : null);
       
       showMessage('✅ Informations personnelles sauvegardées !', 'success');
       setActiveTab('overview');
     } catch (error) {
+      console.error('❌ Erreur sauvegarde:', error);
       showMessage('❌ Erreur lors de la sauvegarde', 'error');
     } finally {
       setSaving(false);
     }
   };
 
+  // ✅ handlePreferencesSubmit avec la bonne URL
   const handlePreferencesSubmit = async (data: any) => {
     setSaving(true);
     try {
       console.log('💾 Sauvegarde des préférences:', data);
-      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      if (profile) {
-        setProfile({
-          ...profile,
-          preferences: data,
-          updatedAt: new Date().toISOString()
-        });
+      // ✅ URL CORRECTE : /api/user-preferences
+      const response = await fetch('/api/user-preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
+
+      const updatedPreferences = await response.json();
+      setProfile(prev => prev ? { 
+        ...prev, 
+        preferences: updatedPreferences 
+      } : null);
       
       showMessage('✅ Préférences sauvegardées !', 'success');
-    } catch (error) {
-      showMessage('❌ Erreur lors de la sauvegarde', 'error');
+    } catch (error: any) {
+      console.error('❌ Erreur sauvegarde préférences:', error);
+      showMessage(error.message || '❌ Erreur lors de la sauvegarde', 'error');
     } finally {
       setSaving(false);
     }
@@ -257,10 +311,6 @@ const ProfileManager: React.FC = () => {
           <div className="animate-pulse space-y-6">
             <div className="h-8 bg-gray-200 rounded w-1/3"></div>
             <div className="h-64 bg-gray-200 rounded"></div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 h-96 bg-gray-200 rounded"></div>
-              <div className="h-96 bg-gray-200 rounded"></div>
-            </div>
           </div>
         </div>
       </div>
@@ -270,7 +320,7 @@ const ProfileManager: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="max-w-6xl mx-auto p-6">
-        
+
         {/* Header avec barre de progression */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -304,9 +354,6 @@ const ProfileManager: React.FC = () => {
                     <div className="text-lg font-bold bg-gradient-to-r from-pink-500 to-blue-500 bg-clip-text text-transparent">
                       {getProfileCompletion()}%
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {getProfileCompletion() === 100 ? 'Parfait !' : 'Continuez !'}
-                    </div>
                   </div>
                 </div>
               </div>
@@ -314,17 +361,35 @@ const ProfileManager: React.FC = () => {
           </div>
 
           {/* Navigation par onglets */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 bg-gradient-to-r from-gray-50 to-gray-100">
-            {tabs.map((tab, index) => {
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 bg-gradient-to-r from-gray-50 to-gray-100">
+            {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
+              
+              // Si c'est un lien externe (dashboard)
+              if (tab.isLink) {
+                return (
+                  <motion.a
+                    key={tab.id}
+                    href={tab.href}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`flex flex-col items-center gap-2 p-4 border-b-2 transition-all duration-300 relative border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <div className="text-center">
+                      <div className="font-medium text-xs">{tab.label}</div>
+                    </div>
+                  </motion.a>
+                );
+              }
               
               return (
                 <motion.button
                   key={tab.id}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => setActiveTab(tab.id as TabType)}
                   className={`flex flex-col items-center gap-2 p-4 border-b-2 transition-all duration-300 relative ${
                     isActive
                       ? 'border-pink-500 text-pink-600 bg-pink-50'
@@ -334,10 +399,9 @@ const ProfileManager: React.FC = () => {
                   <Icon className={`w-5 h-5 ${isActive ? 'text-pink-500' : ''}`} />
                   <div className="text-center">
                     <div className="font-medium text-xs">{tab.label}</div>
-                    <div className="text-xs opacity-75 hidden lg:block">{tab.description}</div>
                   </div>
                   
-                  {/* Indicateurs visuels */}
+                  {/* Badge pour photos */}
                   {tab.id === 'photos' && profile?.photos?.length && (
                     <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-xs rounded-full bg-pink-500 text-white">
                       {profile.photos.length}
@@ -421,6 +485,7 @@ const ProfileManager: React.FC = () => {
               <PhotosManager 
                 photos={profile?.photos || []}
                 onMessage={showMessage}
+                onPhotosChange={() => loadProfile()}
               />
             )}
 
@@ -447,4 +512,5 @@ const ProfileManager: React.FC = () => {
   );
 };
 
+// ✅ EXPORT PAR DÉFAUT
 export default ProfileManager;

@@ -1,5 +1,3 @@
-// prisma/schema.prisma - Schema complet pour l'application de dating
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,195 +7,183 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enums
-enum Gender {
-  MALE
-  FEMALE
-  OTHER
-  NON_BINARY
-}
-
-enum AuthMethod {
-  EMAIL_PASSWORD
-  GOOGLE
-  FACEBOOK
-}
-
-// Modèle User principal
 model User {
-  id                 String      @id @default(cuid())
-  email              String      @unique
-  name               String?
-  emailVerified      DateTime? 
-  hashedPassword     String?
-  image              String?
-  age                Int?
-  bio                String?     @db.Text
-  location           String?
-  profession         String?
-  gender             String?
-  interests          String[]
-  primaryAuthMethod  AuthMethod  @default(EMAIL_PASSWORD)
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
-
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  hashedPassword String?
+  image         String?
+  
+  // Informations de base
+  name          String?
+  age           Int?
+  bio           String?
+  location      String?
+  
+  // ✅ NOUVEAUX CHAMPS À AJOUTER
+  profession    String?
+  gender        String?
+  maritalStatus String?
+  zodiacSign    String?
+  dietType      String?
+  religion      String?
+  ethnicity     String?
+  
+  // Données existantes
+  interests     String[]
+  primaryAuthMethod AuthMethod @default(EMAIL_PASSWORD)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
   // Relations
-  sentLikes          Like[]      @relation("SentLikes")
-  receivedLikes      Like[]      @relation("ReceivedLikes")
-  sentDislikes       Dislike[]   @relation("SentDislikes")
-  receivedDislikes   Dislike[]   @relation("ReceivedDislikes")
-  sentMessages       Message[]   @relation("SentMessages")
-  receivedMessages   Message[]   @relation("ReceivedMessages")
-  photos             Photo[]
-  preferences        UserPreferences?
-  viewsSent          ProfileView[] @relation("ViewsSent")
-  viewsReceived      ProfileView[] @relation("ViewsReceived")
-
-
-  blocksGiven        Block[]     @relation("BlocksGiven")
-  blocksReceived     Block[]     @relation("BlocksReceived")
+  accounts      Account[]
+  sessions      Session[]
+  photos        Photo[]
+  preferences   UserPreferences?
   
-  // NextAuth
-  accounts           Account[]
-  sessions           Session[]
+  // Relations de likes/matches
+  receivedLikes     Like[] @relation("LikeReceiver")
+  sentLikes         Like[] @relation("LikeSender")
+  receivedDislikes  Dislike[] @relation("DislikeReceiver")
+  sentDislikes      Dislike[] @relation("DislikeSender")
   
-  @@index([email])
+  // Relations de messages
+  receivedMessages Message[] @relation("MessageReceiver")
+  sentMessages     Message[] @relation("MessageSender")
+  
+  // Relations de blocage
+  blocksReceived   Block[] @relation("BlockReceiver")
+  blocksGiven      Block[] @relation("BlockSender")
+  
+  // Relations de vues de profil
+  viewsReceived    ProfileView[] @relation("ProfileViewReceiver")
+  viewsSent        ProfileView[] @relation("ProfileViewSender")
+
+  @@map("User")
 }
-
 
 model Block {
-  id         String   @id @default(cuid())
-  blockerId  String
-  blockedId  String
-  reason     String?
-  createdAt  DateTime @default(now())
-  
-  blocker    User     @relation("BlocksGiven", fields: [blockerId], references: [id], onDelete: Cascade)
-  blocked    User     @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
-  
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  reason    String?
+  createdAt DateTime @default(now())
+  blocked   User     @relation("BlockReceiver", fields: [blockedId], references: [id], onDelete: Cascade)
+  blocker   User     @relation("BlockSender", fields: [blockerId], references: [id], onDelete: Cascade)
+
   @@unique([blockerId, blockedId])
   @@index([blockerId])
   @@index([blockedId])
 }
 
-
-// Modèle pour les likes
 model Like {
   id         String   @id @default(cuid())
   senderId   String
   receiverId String
   createdAt  DateTime @default(now())
-  
-  sender     User     @relation("SentLikes", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver   User     @relation("ReceivedLikes", fields: [receiverId], references: [id], onDelete: Cascade)
-  
+  receiver   User     @relation("LikeReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User     @relation("LikeSender", fields: [senderId], references: [id], onDelete: Cascade)
+
   @@unique([senderId, receiverId])
   @@index([senderId])
   @@index([receiverId])
 }
 
-// Modèle pour les dislikes (nom de table personnalisé)
 model Dislike {
   id         String   @id @default(cuid())
   senderId   String
   receiverId String
   createdAt  DateTime @default(now())
-  
-  sender     User     @relation("SentDislikes", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver   User     @relation("ReceivedDislikes", fields: [receiverId], references: [id], onDelete: Cascade)
-  
+  receiver   User     @relation("DislikeReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User     @relation("DislikeSender", fields: [senderId], references: [id], onDelete: Cascade)
+
   @@unique([senderId, receiverId])
   @@index([senderId])
   @@index([receiverId])
   @@map("dislikes")
 }
 
-// Modèle pour les messages
 model Message {
-  id           String    @id @default(cuid())
-  content      String    @db.Text
-  senderId     String
-  receiverId   String
-  readAt       DateTime?
-  deliveredAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  deletedAt    DateTime?
-  editedAt     DateTime?
-  clientId     String?
-  replyToId    String?
-  status       String    @default("SENT")
-  
-  sender       User      @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver     User      @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
-  replyTo      Message?  @relation("MessageReplies", fields: [replyToId], references: [id])
-  replies      Message[] @relation("MessageReplies")
-  
+  id          String    @id @default(cuid())
+  content     String
+  senderId    String
+  receiverId  String
+  readAt      DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  editedAt    DateTime?
+  clientId    String?
+  replyToId   String?
+  status      String    @default("SENT")
+  receiver    User      @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  replyTo     Message?  @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies     Message[] @relation("MessageReplies")
+  sender      User      @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
   @@index([senderId, receiverId, createdAt])
   @@index([receiverId, readAt])
   @@index([createdAt])
   @@index([clientId])
 }
 
-// Modèle pour les photos
 model Photo {
-  id         String   @id @default(cuid())
-  url        String
-  isPrimary  Boolean  @default(false)
-  userId     String
-  createdAt  DateTime @default(now())
-  
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id        String   @id @default(cuid())
+  url       String
+  isPrimary Boolean  @default(false)
+  userId    String
+  createdAt DateTime @default(now())
+  alt       String   @default("")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }
 
-// Modèle pour les préférences utilisateur
 model UserPreferences {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  ageMin       Int      @default(18)
-  ageMax       Int      @default(99)
-  gender       String?
-  maxDistance  Int      @default(50)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-// Modèle pour les vues de profil (nom de table personnalisé)
-model ProfileView {
-  id         String   @id @default(cuid())
-  viewerId   String
-  viewedId   String
+  id         String  @id @default(cuid())
+  minAge     Int     @default(18)
+  maxAge     Int     @default(35)
+  maxDistance Int    @default(50)
+  gender     String?
+  lookingFor String?
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
   
-  viewer     User     @relation("ViewsSent", fields: [viewerId], references: [id], onDelete: Cascade)
-  viewed     User     @relation("ViewsReceived", fields: [viewedId], references: [id], onDelete: Cascade)
+  userId     String  @unique
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   
+  @@map("UserPreferences")
+} // ✅ ACCOLADE FERMANTE AJOUTÉE ICI
+
+model ProfileView {
+  id        String   @id @default(cuid())
+  viewerId  String
+  viewedId  String
+  createdAt DateTime @default(now())
+  viewed    User     @relation("ProfileViewReceiver", fields: [viewedId], references: [id], onDelete: Cascade)
+  viewer    User     @relation("ProfileViewSender", fields: [viewerId], references: [id], onDelete: Cascade)
+
   @@unique([viewerId, viewedId])
   @@index([viewerId])
   @@index([viewedId])
   @@map("profile_views")
 }
 
-// Modèles NextAuth
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String? @db.Text
-  access_token       String? @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String? @db.Text
-  session_state      String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@index([userId])
@@ -209,7 +195,7 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@index([userId])
 }
 
@@ -220,8 +206,6 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
-
-// Ajoutez ces modèles à votre prisma/schema.prisma
 
 model EmailVerificationToken {
   id        String   @id @default(cuid())
@@ -245,4 +229,17 @@ model PasswordResetToken {
 
   @@unique([email, token])
   @@map("password_reset_tokens")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  NON_BINARY
+}
+
+enum AuthMethod {
+  EMAIL_PASSWORD
+  GOOGLE
+  FACEBOOK
 }
