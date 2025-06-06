@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useSession } from 'next-auth/react';
 import { 
   PencilIcon,
   PhotoIcon,
@@ -48,15 +49,82 @@ type MessageType = 'success' | 'error' | 'warning' | 'info';
 
 interface ProfileOverviewProps {
   profile: UserProfile | null;
-  onTabChange?: (tab: TabType) => void;  // ✅ Optionnel avec valeur par défaut
-  onMessage?: (text: string, type: MessageType) => void;  // ✅ Optionnel
+  onTabChange?: (tab: TabType) => void;
+  onMessage?: (text: string, type: MessageType) => void;
 }
 
 const ProfileOverview: React.FC<ProfileOverviewProps> = ({ 
   profile, 
-  onTabChange = () => {}, // ✅ Fonction par défaut pour éviter les erreurs
-  onMessage = () => {}    // ✅ Fonction par défaut pour éviter les erreurs
+  onTabChange = () => {},
+  onMessage = () => {}
 }) => {
+  const { data: session } = useSession();
+  
+  // État pour les statistiques
+  const [userStats, setUserStats] = useState({
+    // Stats totales (pour la page profil)
+    totalStats: {
+      profileViews: 0,
+      likesReceived: 0,
+      matchesCount: 0,
+      messagesReceived: 0
+    },
+    // Stats du jour (pour comparaison)
+    dailyStats: {
+      profileViews: 0,
+      likesReceived: 0,
+      matchesCount: 0,
+      messagesReceived: 0
+    }
+  });
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  // Charger les statistiques
+  useEffect(() => {
+    const loadUserStats = async () => {
+      if (!session?.user?.id) return;
+      
+      try {
+        console.log('🔄 Chargement des statistiques flexibles pour le profil...');
+        const response = await fetch(`/api/users/${session.user.id}/stats`);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('📊 Stats reçues pour le profil:', {
+            totaux: data.totalStats,
+            aujourdhui: data.dailyStats
+          });
+          
+          setUserStats({
+            totalStats: {
+              profileViews: data.totalStats?.profileViews || 0,
+              likesReceived: data.totalStats?.likesReceived || 0,
+              matchesCount: data.totalStats?.matchesCount || 0,
+              messagesReceived: data.totalStats?.messagesReceived || 0
+            },
+            dailyStats: {
+              profileViews: data.dailyStats?.profileViews || 0,
+              likesReceived: data.dailyStats?.likesReceived || 0,
+              matchesCount: data.dailyStats?.matchesCount || 0,
+              messagesReceived: data.dailyStats?.messagesReceived || 0
+            }
+          });
+        } else {
+          console.error('❌ Erreur HTTP:', response.status);
+        }
+      } catch (error) {
+        console.error('❌ Erreur chargement stats:', error);
+      } finally {
+        setIsLoadingStats(false);
+      }
+    };
+
+    loadUserStats();
+    
+    // Actualiser les stats toutes les 30 secondes
+    const interval = setInterval(loadUserStats, 30000);
+    return () => clearInterval(interval);
+  }, [session?.user?.id]);
+
   if (!profile) {
     return (
       <div className="p-6">
@@ -276,77 +344,118 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({
             )}
           </motion.div>
 
-          {/* Statistiques du profil */}
+          {/* Statistiques du profil - TOTAUX */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-4"
+            className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm"
           >
-            {[
-              { 
-                label: 'Photos', 
-                value: profile.photos?.length || 0, 
-                max: 6, 
-                color: 'pink',
-                icon: PhotoIcon,
-                action: () => {
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                📊 Mes statistiques totales
+              </h3>
+              {isLoadingStats && (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span>Chargement...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Grille des statistiques */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Photos */}
+              <motion.div
+                whileHover={{ scale: 1.05, y: -2 }}
+                className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl p-4 border border-pink-200 text-center transition-all hover:shadow-md cursor-pointer hover:border-pink-300"
+                onClick={() => {
                   console.log('Clic sur stat photos');
                   try {
                     onTabChange('photos');
                   } catch (error) {
                     console.error('Erreur onTabChange photos:', error);
                   }
-                }
-              },
-              { 
-                label: 'Vues', 
-                value: 127, 
-                color: 'blue',
-                icon: EyeIcon 
-              },
-              { 
-                label: 'Likes', 
-                value: 23, 
-                color: 'purple',
-                icon: HeartIcon 
-              },
-              { 
-                label: 'Matches', 
-                value: 8, 
-                color: 'green',
-                icon: CheckIcon 
-              }
-            ].map((stat, index) => {
-              const Icon = stat.icon;
-              return (
-                <motion.div
-                  key={index}
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  className={`bg-white rounded-xl p-4 shadow-sm border border-gray-200 text-center transition-all hover:shadow-md ${
-                    stat.action ? 'cursor-pointer hover:border-pink-300' : ''
-                  }`}
-                  onClick={() => {
-                    if (stat.action) {
-                      console.log(`Clic sur stat ${stat.label}`);
-                      try {
-                        stat.action();
-                      } catch (error) {
-                        console.error(`Erreur stat ${stat.label}:`, error);
-                      }
-                    }
-                  }}
-                >
-                  <div className="flex items-center justify-center mb-2">
-                    <Icon className={`w-6 h-6 text-${stat.color}-500`} />
-                  </div>
-                  <div className={`text-2xl font-bold text-${stat.color}-600 mb-1`}>
-                    {stat.value}{stat.max && `/${stat.max}`}
-                  </div>
-                  <div className="text-sm text-gray-600">{stat.label}</div>
-                </motion.div>
-              );
-            })}
+                }}
+              >
+                <div className="flex items-center justify-center mb-3">
+                  <PhotoIcon className="w-8 h-8 text-pink-600" />
+                </div>
+                <div className="text-3xl font-bold text-pink-700 mb-2">
+                  {profile.photos?.length || 0}
+                </div>
+                <div className="text-sm text-pink-600 font-medium">Photos</div>
+                <div className="text-xs text-pink-500 mt-1">sur 6 max</div>
+              </motion.div>
+
+              {/* Vues totales */}
+              <motion.div
+                whileHover={{ scale: 1.05, y: -2 }}
+                className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200 text-center transition-all hover:shadow-md"
+              >
+                <div className="flex items-center justify-center mb-3">
+                  <EyeIcon className="w-8 h-8 text-blue-600" />
+                </div>
+                <div className="text-3xl font-bold text-blue-700 mb-2">
+                  {isLoadingStats ? '...' : userStats.totalStats.profileViews}
+                </div>
+                <div className="text-sm text-blue-600 font-medium">Vues</div>
+                <div className="text-xs text-blue-500 mt-1">total reçues</div>
+              </motion.div>
+
+              {/* Likes totaux */}
+              <motion.div
+                whileHover={{ scale: 1.05, y: -2 }}
+                className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200 text-center transition-all hover:shadow-md"
+              >
+                <div className="flex items-center justify-center mb-3">
+                  <HeartIcon className="w-8 h-8 text-purple-600" />
+                </div>
+                <div className="text-3xl font-bold text-purple-700 mb-2">
+                  {isLoadingStats ? '...' : userStats.totalStats.likesReceived}
+                </div>
+                <div className="text-sm text-purple-600 font-medium">Likes</div>
+                <div className="text-xs text-purple-500 mt-1">total reçus</div>
+              </motion.div>
+
+              {/* Matches totaux */}
+              <motion.div
+                whileHover={{ scale: 1.05, y: -2 }}
+                className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200 text-center transition-all hover:shadow-md"
+              >
+                <div className="flex items-center justify-center mb-3">
+                  <CheckIcon className="w-8 h-8 text-green-600" />
+                </div>
+                <div className="text-3xl font-bold text-green-700 mb-2">
+                  {isLoadingStats ? '...' : userStats.totalStats.matchesCount}
+                </div>
+                <div className="text-sm text-green-600 font-medium">Matches</div>
+                <div className="text-xs text-green-500 mt-1">total obtenus</div>
+              </motion.div>
+            </div>
+
+            {/* Message informatif avec comparaison */}
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="text-center">
+                  <p className="text-sm font-medium text-gray-700 mb-2">
+                    📊 Statistiques totales
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Depuis la création de votre profil
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-gray-600 mb-2">
+                    📅 Aujourd'hui : {userStats.dailyStats.profileViews} vues, {userStats.dailyStats.likesReceived} likes, {userStats.dailyStats.matchesCount} matches
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Activité du jour
+                  </p>
+                </div>
+              </div>
+            </div>
           </motion.div>
         </div>
 
@@ -479,60 +588,89 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({
             </h2>
             
             <div className="space-y-3">
-              {[
-                { 
-                  label: 'Mes préférences', 
-                  tab: 'preferences', 
-                  icon: HeartIcon, 
-                  color: 'red',
-                  description: 'Critères de recherche'
-                },
-                { 
-                  label: 'Infos personnelles', 
-                  tab: 'personal', 
-                  icon: IdentificationIcon, 
-                  color: 'purple',
-                  description: 'Genre, profession, etc.'
-                },
-                { 
-                  label: 'Paramètres', 
-                  tab: 'settings', 
-                  icon: CogIcon, 
-                  color: 'gray',
-                  description: 'Confidentialité, notifications'
-                }
-              ].map((action, index) => {
-                const Icon = action.icon;
-                return (
-                  <motion.button
-                    key={index}
-                    whileHover={{ scale: 1.02, x: 4 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => {
-                      console.log(`Clic sur action ${action.label}`);
-                      try {
-                        onTabChange(action.tab as TabType);
-                      } catch (error) {
-                        console.error(`Erreur action ${action.label}:`, error);
-                      }
-                    }}
-                    className={`w-full flex items-center justify-between p-4 rounded-lg bg-${action.color}-50 hover:bg-${action.color}-100 transition-all group border border-${action.color}-100`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Icon className={`w-5 h-5 text-${action.color}-600`} />
-                      <div className="text-left">
-                        <div className="font-medium text-gray-900">
-                          {action.label}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {action.description}
-                        </div>
-                      </div>
+              {/* Préférences */}
+              <motion.button
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  console.log('Clic sur action Mes préférences');
+                  try {
+                    onTabChange('preferences');
+                  } catch (error) {
+                    console.error('Erreur action Mes préférences:', error);
+                  }
+                }}
+                className="w-full flex items-center justify-between p-4 rounded-lg bg-red-50 hover:bg-red-100 transition-all group border border-red-100"
+              >
+                <div className="flex items-center gap-3">
+                  <HeartIcon className="w-5 h-5 text-red-600" />
+                  <div className="text-left">
+                    <div className="font-medium text-gray-900">
+                      Mes préférences
                     </div>
-                    <ChevronRightIcon className={`w-4 h-4 text-${action.color}-400 group-hover:text-${action.color}-600 transition-colors`} />
-                  </motion.button>
-                );
-              })}
+                    <div className="text-xs text-gray-500">
+                      Critères de recherche
+                    </div>
+                  </div>
+                </div>
+                <ChevronRightIcon className="w-4 h-4 text-red-400 group-hover:text-red-600 transition-colors" />
+              </motion.button>
+
+              {/* Infos personnelles */}
+              <motion.button
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  console.log('Clic sur action Infos personnelles');
+                  try {
+                    onTabChange('personal');
+                  } catch (error) {
+                    console.error('Erreur action Infos personnelles:', error);
+                  }
+                }}
+                className="w-full flex items-center justify-between p-4 rounded-lg bg-purple-50 hover:bg-purple-100 transition-all group border border-purple-100"
+              >
+                <div className="flex items-center gap-3">
+                  <IdentificationIcon className="w-5 h-5 text-purple-600" />
+                  <div className="text-left">
+                    <div className="font-medium text-gray-900">
+                      Infos personnelles
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Genre, profession, etc.
+                    </div>
+                  </div>
+                </div>
+                <ChevronRightIcon className="w-4 h-4 text-purple-400 group-hover:text-purple-600 transition-colors" />
+              </motion.button>
+
+              {/* Paramètres */}
+              <motion.button
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  console.log('Clic sur action Paramètres');
+                  try {
+                    onTabChange('settings');
+                  } catch (error) {
+                    console.error('Erreur action Paramètres:', error);
+                  }
+                }}
+                className="w-full flex items-center justify-between p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-all group border border-gray-100"
+              >
+                <div className="flex items-center gap-3">
+                  <CogIcon className="w-5 h-5 text-gray-600" />
+                  <div className="text-left">
+                    <div className="font-medium text-gray-900">
+                      Paramètres
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Confidentialité, notifications
+                    </div>
+                  </div>
+                </div>
+                <ChevronRightIcon className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
+              </motion.button>
             </div>
           </motion.div>
         </div>

@@ -1,33 +1,70 @@
-// src/components/profile/StatsDashboard.tsx
+// src/components/profile/StatsDashboard.tsx - Version corrigée avec props
 'use client'
 
 import { useState } from 'react'
-import { useRealTimeStats, useActivityNotifications } from './../../hooks/useRealTimeStats'
+
+interface StatsData {
+  profileViews: number;
+  likesReceived: number;
+  matchesCount: number;
+  messagesReceived: number;
+  dailyStats: {
+    profileViews: number;
+    likesReceived: number;
+    matchesCount: number;
+    messagesReceived: number;
+  };
+  totalStats?: {
+    profileViews: number;
+    likesReceived: number;
+    matchesCount: number;
+    messagesReceived: number;
+  };
+}
 
 interface StatsDashboardProps {
   className?: string
   showDetailedStats?: boolean
+  // ✅ Nouvelles props pour recevoir les données du parent
+  stats?: StatsData
+  isLoading?: boolean
+  error?: string | null
+  onRefresh?: () => void
+  lastUpdated?: Date | null
 }
 
 export const StatsDashboard: React.FC<StatsDashboardProps> = ({
   className = '',
-  showDetailedStats = false
+  showDetailedStats = false,
+  // ✅ Props reçues du composant parent
+  stats,
+  isLoading = false,
+  error = null,
+  onRefresh,
+  lastUpdated
 }) => {
-  const { 
-    stats, 
-    isLoading, 
-    error, 
-    refreshStats, 
-    lastUpdated 
-  } = useRealTimeStats(30000)
-  
-  const { newActivities, hasNewActivity } = useActivityNotifications()
   const [expanded, setExpanded] = useState(showDetailedStats)
+
+  // ✅ Valeurs par défaut si pas de stats
+  const defaultStats = {
+    profileViews: 0,
+    likesReceived: 0,
+    matchesCount: 0,
+    messagesReceived: 0,
+    dailyStats: {
+      profileViews: 0,
+      likesReceived: 0,
+      matchesCount: 0,
+      messagesReceived: 0
+    }
+  }
+
+  const currentStats = stats || defaultStats
 
   const getDetailedStats = () => [
     { 
       label: 'Profil vu cette semaine', 
-      value: stats.profileViews.toString(), 
+      value: (currentStats.totalStats?.profileViews || currentStats.profileViews).toString(), 
       icon: '👀', 
       color: 'text-blue-600',
       change: '+12%',
@@ -35,7 +72,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
     },
     { 
       label: 'Likes reçus ce mois', 
-      value: stats.likesReceived.toString(), 
+      value: (currentStats.totalStats?.likesReceived || currentStats.likesReceived).toString(), 
       icon: '💗', 
       color: 'text-pink-600',
       change: '+23%',
@@ -43,7 +80,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
     },
     { 
       label: 'Messages reçus', 
-      value: stats.messagesReceived.toString(), 
+      value: (currentStats.totalStats?.messagesReceived || currentStats.messagesReceived).toString(), 
       icon: '💬', 
       color: 'text-green-600',
       change: '+8%',
@@ -51,7 +88,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
     },
     { 
       label: 'Matches actifs', 
-      value: stats.matchesCount.toString(), 
+      value: currentStats.matchesCount.toString(), 
       icon: '🔥', 
       color: 'text-orange-600',
       change: '+2',
@@ -76,14 +113,6 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
           <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
             📊 Tableau de bord
           </h3>
-          
-          {/* Indicateur de nouvelles activités */}
-          {hasNewActivity && (
-            <div className="flex items-center gap-1 bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-medium animate-pulse">
-              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-              {newActivities.length} nouveau{newActivities.length > 1 ? 'x' : ''}
-            </div>
-          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -99,14 +128,16 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
           </div>
 
           {/* Bouton refresh */}
-          <button
-            onClick={refreshStats}
-            disabled={isLoading}
-            className="text-sm text-pink-600 hover:text-pink-700 transition-colors disabled:opacity-50"
-            title="Actualiser"
-          >
-            <span className={isLoading ? 'animate-spin' : ''}>🔄</span>
-          </button>
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="text-sm text-pink-600 hover:text-pink-700 transition-colors disabled:opacity-50"
+              title="Actualiser"
+            >
+              <span className={isLoading ? 'animate-spin' : ''}>🔄</span>
+            </button>
+          )}
 
           {/* Bouton détails */}
           <button
@@ -123,19 +154,19 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
         {[
           { 
             label: 'Profil vu aujourd\'hui', 
-            value: stats.dailyStats.profileViews.toString(), 
+            value: currentStats.dailyStats.profileViews.toString(), 
             icon: '👀', 
             color: 'text-blue-600' 
           },
           { 
             label: 'Likes reçus', 
-            value: stats.dailyStats.likesReceived.toString(), 
+            value: currentStats.dailyStats.likesReceived.toString(), 
             icon: '💗', 
             color: 'text-pink-600' 
           },
           { 
             label: 'Messages reçus', 
-            value: stats.dailyStats.messagesReceived.toString(), 
+            value: currentStats.dailyStats.messagesReceived.toString(), 
             icon: '💬', 
             color: 'text-green-600' 
           }
@@ -204,17 +235,20 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
               💡 Analyse de performance
             </h5>
             <div className="space-y-1 text-xs text-blue-700">
-              {stats.dailyStats.profileViews > 20 && (
+              {currentStats.dailyStats.profileViews > 20 && (
                 <p>🔥 Votre profil attire beaucoup d'attention aujourd'hui !</p>
               )}
-              {stats.dailyStats.likesReceived > 5 && (
+              {currentStats.dailyStats.likesReceived > 5 && (
                 <p>💖 Excellent taux de likes aujourd'hui</p>
               )}
-              {stats.matchesCount > 10 && (
+              {currentStats.matchesCount > 10 && (
                 <p>⭐ Vous avez un bon nombre de matches actifs</p>
               )}
-              {stats.dailyStats.messagesReceived === 0 && (
+              {currentStats.dailyStats.messagesReceived === 0 && (
                 <p>💬 Pensez à engager la conversation avec vos matches</p>
+              )}
+              {currentStats.dailyStats.profileViews === 0 && currentStats.dailyStats.likesReceived === 0 && (
+                <p>📈 Essayez de vous connecter plus souvent pour augmenter votre visibilité</p>
               )}
             </div>
           </div>
@@ -226,12 +260,14 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
         <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-sm text-red-700 flex items-center gap-2">
             ⚠️ {error}
-            <button 
-              onClick={refreshStats}
-              className="text-red-600 hover:text-red-800 font-medium underline"
-            >
-              Réessayer
-            </button>
+            {onRefresh && (
+              <button 
+                onClick={onRefresh}
+                className="text-red-600 hover:text-red-800 font-medium underline"
+              >
+                Réessayer
+              </button>
+            )}
           </p>
         </div>
       )}

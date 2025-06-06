@@ -1,4 +1,4 @@
-// src/app/page.tsx - Version réorganisée avec stats en haut
+// src/app/page.tsx - Version corrigée pour les erreurs de nesting DOM
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -158,9 +158,9 @@ export default function HomePage() {
                 <h1 className="text-3xl font-bold text-gray-800 mb-2">
                   Salut {session?.user?.name?.split(' ')[0] || 'toi'} ! 👋
                 </h1>
-                <p className="text-gray-600">
+                <div className="text-gray-600">
                   Voici votre activité et les dernières notifications
-                </p>
+                </div>
               </div>
               
               {/* Indicateur de statut temps réel */}
@@ -178,9 +178,9 @@ export default function HomePage() {
                   </span>
                 </div>
                 {statsError && (
-                  <p className="text-xs text-red-500 mt-1">
+                  <div className="text-xs text-red-500 mt-1">
                     Erreur de connexion
-                  </p>
+                  </div>
                 )}
               </div>
             </div>
@@ -193,14 +193,14 @@ export default function HomePage() {
             <div className="xl:w-1/3 bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
               {/* Stats rapides en un coup d'œil */}
               <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                ⚡ En un coup d'œil
+                ⚡ En un coup d&apos;œil
               </h3>
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <div className="text-center p-3 bg-blue-50 rounded-lg">
                   <div className="text-2xl font-bold text-blue-600">
                     {statsLoading ? '...' : stats.dailyStats.profileViews}
                   </div>
-                  <div className="text-xs text-blue-700">Vues aujourd'hui</div>
+                  <div className="text-xs text-blue-700">Vues aujourd&apos;hui</div>
                 </div>
                 <div className="text-center p-3 bg-pink-50 rounded-lg">
                   <div className="text-2xl font-bold text-pink-600">
@@ -239,7 +239,7 @@ export default function HomePage() {
               {/* Activité récente */}
               <div className="border-t border-gray-200 pt-6">
                 <RecentActivity
-                  activities={recentActivity}
+                  activities={recentActivity || []}
                   isLoading={statsLoading}
                   onRefresh={refreshStats}
                   maxItems={4}
@@ -279,7 +279,7 @@ export default function HomePage() {
                           <h3 className="text-lg font-bold mb-1 truncate">
                             {currentUser.name}, {currentUser.age}
                           </h3>
-                          <p className="text-pink-100 flex items-center gap-1 text-xs">
+                          <div className="text-pink-100 flex items-center gap-1 text-xs">
                             📍 À {currentUser.distance} km
                             {currentUser.isOnline && (
                               <span className="ml-1 flex items-center gap-1 bg-green-500/30 px-1.5 py-0.5 rounded-full text-xs">
@@ -287,12 +287,12 @@ export default function HomePage() {
                                 En ligne
                               </span>
                             )}
-                          </p>
+                          </div>
                         </div>
                       </div>
 
                       <div className="mb-4 flex-1 min-h-0">
-                        <h4 className="text-xs font-semibold mb-2">Centres d'intérêt</h4>
+                        <h4 className="text-xs font-semibold mb-2">Centres d&apos;intérêt</h4>
                         <div className="flex flex-wrap gap-1.5 overflow-hidden">
                           {currentUser.interests.slice(0, 4).map((interest, index) => (
                             <span 
@@ -316,6 +316,7 @@ export default function HomePage() {
                           onClick={() => handlePass(currentUser.id)}
                           className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center backdrop-blur-sm transition-all duration-200 hover:scale-110"
                           title="Passer"
+                          type="button"
                         >
                           <span className="text-sm">👎</span>
                         </button>
@@ -324,6 +325,7 @@ export default function HomePage() {
                           onClick={() => handleLike(currentUser.id)}
                           className="w-12 h-12 bg-pink-500 hover:bg-pink-600 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 shadow-lg border border-white/30"
                           title="Liker"
+                          type="button"
                         >
                           <span className="text-lg">💖</span>
                         </button>
@@ -331,6 +333,7 @@ export default function HomePage() {
                         <button 
                           className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center backdrop-blur-sm transition-all duration-200 hover:scale-110"
                           title="Super Like"
+                          type="button"
                         >
                           <span className="text-sm">⭐</span>
                         </button>
@@ -358,9 +361,9 @@ export default function HomePage() {
                   <h3 className="text-sm font-semibold text-gray-800 mb-1">
                     Plus de profils !
                   </h3>
-                  <p className="text-gray-600 text-xs mb-3">
+                  <div className="text-gray-600 text-xs mb-3">
                     Revenez demain pour découvrir de nouveaux profils
-                  </p>
+                  </div>
                   <Link 
                     href="/discover" 
                     className="bg-pink-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-pink-600 transition-colors inline-block"
@@ -447,14 +450,14 @@ export default function HomePage() {
                   <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                     💡 Conseil du jour
                   </h3>
-                  <p className="text-orange-100 text-xs leading-relaxed mb-3">
+                  <div className="text-orange-100 text-xs leading-relaxed mb-3">
                     {stats.dailyStats.profileViews === 0 ? 
                       'Votre profil n\'a pas encore été vu aujourd\'hui. Pensez à vous connecter plus souvent et à optimiser vos photos !' :
                       stats.dailyStats.profileViews > 20 ?
                       'Excellent ! Votre profil attire beaucoup d\'attention. Continuez sur cette lancée !' :
                       'Ajoutez plus de photos à votre profil pour augmenter vos chances de match de 40% !'
                     }
-                  </p>
+                  </div>
                   <Link 
                     href="/profile" 
                     className="inline-flex items-center gap-1 bg-white text-orange-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-orange-50 transition-colors"

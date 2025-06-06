@@ -1,7 +1,7 @@
-// src/app/api/users/[userId]/stats/route.ts
+// src/app/api/users/[userId]/stats/route.ts - Version FLEXIBLE et rétro-compatible
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/auth' // Si vous utilisez auth.js v5import { prisma } from '@/lib/db';
-import { prisma } from '@/lib/db';
+import { auth } from '@/auth'
+import { prisma } from '@/lib/db'
 
 export async function GET(
   request: NextRequest,
@@ -10,8 +10,7 @@ export async function GET(
   try {
     // ⚡ AWAIT des params pour Next.js 15
     const { userId } = await params
-    
-    const session = await auth()  
+    const session = await auth()
     
     // Vérification de l'authentification
     if (!session?.user?.id) {
@@ -23,20 +22,27 @@ export async function GET(
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
 
+    // 📅 Calcul des dates pour les stats du jour
     const now = new Date()
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
-    // 📊 REQUÊTES PARALLÈLES POUR LES STATISTIQUES
+    console.log(`🔄 Calcul des statistiques FLEXIBLES pour l'utilisateur: ${userId}`)
+
+    // 📊 REQUÊTES PARALLÈLES POUR TOUTES LES STATISTIQUES
     const [
-      messagesReceived,
+      // 🔢 TOTAUX (depuis la création du profil)
+      totalMessagesReceived,
+      totalMatchesCount, 
+      totalProfileViews,
+      totalLikesReceived,
+      
+      // 📅 STATS DU JOUR (pour la page home)
       dailyMessagesReceived,
-      matchesCount,
-      profileViews,
       dailyProfileViews,
-      likesReceived,
-      dailyLikesReceived
+      dailyLikesReceived,
+      dailyMatchesCount
     ] = await Promise.all([
-      // Messages reçus (total)
+      // Messages reçus (TOTAL)
       prisma.message.count({
         where: {
           receiverId: userId,
@@ -44,7 +50,35 @@ export async function GET(
         }
       }),
       
-      // Messages reçus aujourd'hui
+      // Matches effectifs (TOTAL) - likes réciproques
+      prisma.like.count({
+        where: {
+          receiverId: userId,
+          sender: {
+            receivedLikes: {
+              some: {
+                senderId: userId
+              }
+            }
+          }
+        }
+      }),
+      
+      // Vues de profil (TOTAL)
+      prisma.profileView.count({
+        where: {
+          viewedId: userId
+        }
+      }),
+      
+      // Likes reçus (TOTAL)
+      prisma.like.count({
+        where: {
+          receiverId: userId
+        }
+      }),
+
+      // Messages reçus (AUJOURD'HUI)
       prisma.message.count({
         where: {
           receiverId: userId,
@@ -55,35 +89,7 @@ export async function GET(
         }
       }),
       
-      // Matches effectifs (likes réciproques)
-      prisma.like.count({
-        where: {
-          receiverId: userId,
-          sender: {
-            sentLikes: {
-              some: {
-                receiverId: userId,
-                sender: {
-                  receivedLikes: {
-                    some: {
-                      senderId: userId
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }),
-      
-      // Vues de profil (total)
-      prisma.profileView.count({
-        where: {
-          viewedId: userId
-        }
-      }),
-      
-      // Vues de profil aujourd'hui
+      // Vues de profil (AUJOURD'HUI)
       prisma.profileView.count({
         where: {
           viewedId: userId,
@@ -93,14 +99,7 @@ export async function GET(
         }
       }),
       
-      // Likes reçus (total)
-      prisma.like.count({
-        where: {
-          receiverId: userId
-        }
-      }),
-      
-      // Likes reçus aujourd'hui
+      // Likes reçus (AUJOURD'HUI)
       prisma.like.count({
         where: {
           receiverId: userId,
@@ -108,34 +107,88 @@ export async function GET(
             gte: startOfDay
           }
         }
+      }),
+      
+      // Matches du jour (AUJOURD'HUI) - likes réciproques créés aujourd'hui
+      prisma.like.count({
+        where: {
+          receiverId: userId,
+          createdAt: {
+            gte: startOfDay
+          },
+          sender: {
+            receivedLikes: {
+              some: {
+                senderId: userId
+              }
+            }
+          }
+        }
       })
     ])
 
+    // 📊 STRUCTURE FLEXIBLE - Rétro-compatible ET nouvelles fonctionnalités
     const stats = {
-      messagesReceived,
-      matchesCount,
-      profileViews,
-      likesReceived,
+      // 🔄 RÉTRO-COMPATIBILITÉ : Propriétés de niveau racine (stats du jour pour page home)
+      messagesReceived: dailyMessagesReceived,
+      matchesCount: dailyMatchesCount, 
+      profileViews: dailyProfileViews,
+      likesReceived: dailyLikesReceived,
+      
+      // 📅 Stats du jour (explicites)
       dailyStats: {
         messagesReceived: dailyMessagesReceived,
         profileViews: dailyProfileViews,
         likesReceived: dailyLikesReceived,
+        matchesCount: dailyMatchesCount
+      },
+      
+      // 🔢 NOUVEAUTÉ : Stats totales
+      totalStats: {
+        messagesReceived: totalMessagesReceived,
+        profileViews: totalProfileViews,
+        likesReceived: totalLikesReceived,
+        matchesCount: totalMatchesCount
+      },
+      
+      // 📈 Métadonnées utiles
+      metadata: {
+        userId: userId,
+        calculatedAt: new Date().toISOString(),
+        startOfDay: startOfDay.toISOString()
       }
     }
 
-    // 📝 LOG POUR DEBUGGING
-    console.log(`📊 Stats calculées pour ${userId}:`, {
-      messagesReceived,
-      matchesCount,
-      profileViews,
-      likesReceived,
-      dailyStats: stats.dailyStats
+    // 📝 LOG DÉTAILLÉ POUR DEBUGGING
+    console.log(`📊 Stats FLEXIBLES calculées pour ${userId}:`, {
+      '🔄 Rétro-compatible (niveau racine)': {
+        messagesReceived: dailyMessagesReceived,
+        profileViews: dailyProfileViews,
+        likesReceived: dailyLikesReceived,
+        matchesCount: dailyMatchesCount
+      },
+      '📅 Stats du jour': stats.dailyStats,
+      '🔢 Stats totales': stats.totalStats
     })
+
+    // ✅ Vérification de cohérence
+    const issues = []
+    if (totalProfileViews < dailyProfileViews) issues.push('profileViews')
+    if (totalLikesReceived < dailyLikesReceived) issues.push('likesReceived')
+    if (totalMessagesReceived < dailyMessagesReceived) issues.push('messagesReceived')
+    if (totalMatchesCount < dailyMatchesCount) issues.push('matchesCount')
+    
+    if (issues.length > 0) {
+      console.warn(`⚠️ ATTENTION: Incohérence détectée pour ${issues.join(', ')}`, {
+        totaux: stats.totalStats,
+        jour: stats.dailyStats
+      })
+    }
 
     return NextResponse.json(stats, {
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
+        'Pragma': 'no-cache', 
         'Expires': '0'
       }
     })
