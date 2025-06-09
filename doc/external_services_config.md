@@ -5,16 +5,19 @@
 ### 1. Aller sur [Google Cloud Console](https://console.cloud.google.com/)
 
 ### 2. Créer un projet (si nécessaire)
+
 ```
 Nom: Dating App
 ```
 
 ### 3. Activer l'API Google+
+
 ```
 APIs & Services > Enable APIs > Google+ API
 ```
 
 ### 4. Créer les identifiants OAuth
+
 ```
 APIs & Services > Credentials > Create Credentials > OAuth 2.0 Client ID
 
@@ -30,6 +33,7 @@ Authorized redirect URIs:
 ```
 
 ### 5. Copier dans .env
+
 ```env
 GOOGLE_CLIENT_ID=123456789-abcdef.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-votre-secret
@@ -42,12 +46,14 @@ GOOGLE_CLIENT_SECRET=GOCSPX-votre-secret
 ### 1. Aller sur [Facebook Developers](https://developers.facebook.com/)
 
 ### 2. Créer une app
+
 ```
 App Type: Consumer
 App Name: Dating App
 ```
 
 ### 3. Configurer Facebook Login
+
 ```
 Products > Facebook Login > Settings
 
@@ -57,6 +63,7 @@ Valid OAuth Redirect URIs:
 ```
 
 ### 4. Copier dans .env
+
 ```env
 FACEBOOK_CLIENT_ID=1234567890123456
 FACEBOOK_CLIENT_SECRET=abcdef123456789
@@ -69,14 +76,16 @@ FACEBOOK_CLIENT_SECRET=abcdef123456789
 ### 1. S'inscrire sur [Cloudinary](https://cloudinary.com/)
 
 ### 2. Aller dans Dashboard
+
 ```
 Account Details > Copy:
 - Cloud Name
-- API Key  
+- API Key
 - API Secret
 ```
 
 ### 3. Créer un Upload Preset
+
 ```
 Settings > Upload > Add upload preset
 Upload preset name: dating_app_photos
@@ -85,7 +94,8 @@ Folder: dating-app/profiles
 ```
 
 ### 4. Copier dans .env
-```env
+
+```dans env.local
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=votre-cloud-name
 NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=dating_app_photos
 CLOUDINARY_API_KEY=123456789012345
@@ -99,13 +109,15 @@ CLOUDINARY_API_SECRET=abcdefghijklmnop
 ### 1. S'inscrire sur [Stream.io](https://getstream.io/)
 
 ### 2. Créer une app
+
 ```
 App Name: Dating App
 Environment: Development (puis Production)
 ```
 
 ### 3. Copier les clés
-```env
+
+```dans env.local
 STREAM_API_KEY=votre-api-key
 STREAM_API_SECRET=votre-secret
 ```
@@ -117,22 +129,26 @@ STREAM_API_SECRET=votre-secret
 ### 1. Aller sur [Firebase Console](https://console.firebase.google.com/)
 
 ### 2. Créer un projet
+
 ```
 Project Name: Dating App
 ```
 
 ### 3. Ajouter une app Web
+
 ```
 App Name: Dating App Web
 ```
 
 ### 4. Génerer une clé privée
+
 ```
 Project Settings > Service Accounts > Generate new private key
 ```
 
 ### 5. Copier dans .env
-```env
+
+```dans env.local
 FIREBASE_PROJECT_ID=votre-project-id
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nvotre-clé\n-----END PRIVATE KEY-----\n"
 FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@votre-project.iam.gserviceaccount.com
@@ -143,16 +159,19 @@ FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@votre-project.iam.gserviceaccount.
 ## 📧 Email (Gmail)
 
 ### 1. Activer l'authentification à 2 facteurs
+
 Sur votre compte Gmail
 
 ### 2. Générer un mot de passe d'application
+
 ```
 Account Settings > Security > 2-Step Verification > App passwords
 Name: Dating App
 ```
 
 ### 3. Copier dans .env
-```env
+
+```dans env.local
 EMAIL_SERVER_HOST=smtp.gmail.com
 EMAIL_SERVER_PORT=587
 EMAIL_SERVER_USER=votre-email@gmail.com
@@ -165,49 +184,51 @@ EMAIL_SERVER_PASSWORD=abcd-efgh-ijkl-mnop
 ## 🔧 Script de Vérification
 
 ### Créer verify-config.js
+
 ```javascript
 // scripts/verify-config.js
-const https = require('https');
+const https = require("https");
 
 async function verifyGoogle() {
   // Vérifier la configuration Google OAuth
-  console.log('🔍 Vérification Google OAuth...');
+  console.log("🔍 Vérification Google OAuth...");
   // Code de vérification
 }
 
 async function verifyFacebook() {
   // Vérifier la configuration Facebook
-  console.log('🔍 Vérification Facebook OAuth...');
-  // Code de vérification  
+  console.log("🔍 Vérification Facebook OAuth...");
+  // Code de vérification
 }
 
 async function verifyCloudinary() {
   // Vérifier Cloudinary
-  console.log('🔍 Vérification Cloudinary...');
+  console.log("🔍 Vérification Cloudinary...");
   // Code de vérification
 }
 
 async function verifyEmail() {
   // Vérifier la configuration email
-  console.log('🔍 Vérification Email...');
+  console.log("🔍 Vérification Email...");
   // Code de vérification
 }
 
 async function main() {
-  console.log('🚀 Vérification de la configuration...\n');
-  
+  console.log("🚀 Vérification de la configuration...\n");
+
   await verifyGoogle();
-  await verifyFacebook(); 
+  await verifyFacebook();
   await verifyCloudinary();
   await verifyEmail();
-  
-  console.log('\n✅ Configuration vérifiée!');
+
+  console.log("\n✅ Configuration vérifiée!");
 }
 
 main().catch(console.error);
 ```
 
 ### Exécuter la vérification
+
 ```bash
 node scripts/verify-config.js
 ```
@@ -231,7 +252,7 @@ node scripts/verify-config.js
 Remplacer `localhost:3000` par votre vrai domaine dans :
 
 - [ ] Google OAuth redirect URIs
-- [ ] Facebook OAuth redirect URIs  
+- [ ] Facebook OAuth redirect URIs
 - [ ] NEXTAUTH_URL dans .env.production
 
 ### Test de production
@@ -256,33 +277,38 @@ Remplacer `localhost:3000` par votre vrai domaine dans :
 ### Erreurs communes
 
 **OAuth Error: redirect_uri_mismatch**
+
 ```
 Solution: Vérifier les URLs de callback dans Google/Facebook
 ```
 
 **Cloudinary Upload Failed**
+
 ```
 Solution: Vérifier le upload preset et les permissions
 ```
 
 **Email not sending**
+
 ```
 Solution: Vérifier le mot de passe d'application Gmail
 ```
 
 **NextAuth Error**
+
 ```
 Solution: Vérifier NEXTAUTH_URL et NEXTAUTH_SECRET
 ```
 
 ### Logs utiles
+
 ```bash
 # Logs de l'application
-./deploy.sh logs dating-app
+./scripts/deploy.sh logs dating-app
 
-# Logs de la base de données  
-./deploy.sh logs database
+# Logs de la base de données
+./scripts/deploy.sh logs database
 
 # Logs en temps réel
-./deploy.sh logs dating-app -f
+./scripts/deploy.sh logs dating-app -f
 ```
