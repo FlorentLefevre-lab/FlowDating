@@ -28,12 +28,13 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [suspendReason, setSuspendReason] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isSuspending, setIsSuspending] = useState(false);
 
   // ✅ Vérifier si le compte est suspendu
   const isAccountSuspended = profile?.accountStatus === 'SUSPENDED';
 
-  // ✅ Utilisation du hook pour la suspension ET réactivation
-  const { suspendAccount, reactivateAccount, isLoading: isSuspending } = useAccountSuspension();
+  // ✅ Utilisation du hook pour la réactivation seulement
+  const { reactivateAccount, isLoading: hookIsLoading } = useAccountSuspension();
 
   const suspendReasons = [
     { value: 'break', label: 'Pause temporaire' },
@@ -44,28 +45,130 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
     { value: 'other', label: 'Autre raison' }
   ];
 
-  // ✅ Fonction de suspension utilisant le hook
-  const handleSuspendAccount = async () => {
+  // 🔧 FONCTION DE NETTOYAGE COMPLÈTE DES COOKIES ET STORAGE
+  const clearAllUserData = async () => {
     try {
-      console.log('🔄 Début suspension avec hook:', { reason: suspendReason });
+      console.log('🧹 Nettoyage complet des données utilisateur...');
       
-      // Utiliser le hook pour suspendre
-      await suspendAccount({ reason: suspendReason });
+      // 1. Nettoyer le localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+        console.log('✅ Storage nettoyé');
+      }
       
-      // Fermer la modale (le hook gère la redirection)
-      setShowSuspendModal(false);
-      setSuspendReason('');
+      // 2. Supprimer manuellement tous les cookies
+      if (typeof document !== 'undefined') {
+        const cookies = document.cookie.split(";");
+        
+        for (let cookie of cookies) {
+          const eqPos = cookie.indexOf("=");
+          const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+          
+          // Supprimer le cookie sur différents domaines et paths
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;`;
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname};`;
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${window.location.hostname};`;
+        }
+        console.log('✅ Cookies nettoyés');
+      }
       
-      // Afficher un message de succès
-      onMessage('Suspension en cours...', 'success');
+      // 3. Déconnexion NextAuth
+      await signOut({ 
+        redirect: false, // Empêcher la redirection automatique
+        callbackUrl: '/' // URL de callback après déconnexion
+      });
+      console.log('✅ Session NextAuth fermée');
       
     } catch (error) {
-      console.error('❌ Erreur suspension via hook:', error);
-      onMessage(error instanceof Error ? error.message : 'Erreur lors de la suspension du compte', 'error');
+      console.error('❌ Erreur lors du nettoyage:', error);
     }
   };
 
-  // ✅ NOUVELLE FONCTION - Réactivation du compte
+  // 🔧 FONCTION DE SUSPENSION SIMPLIFIÉE AVEC APPEL DIRECT À L'API
+  const handleSuspendAccount = async () => {
+    // Empêcher les clics multiples
+    if (isSuspending) {
+      console.log('⚠️ Suspension déjà en cours, ignoré');
+      return;
+    }
+
+    // Sauvegarder la raison avant de modifier l'état
+    const currentReason = suspendReason;
+    
+    setIsSuspending(true);
+    
+    try {
+      console.log('🔄 Début suspension avec déconnexion automatique:', { reason: currentReason });
+      
+      // Fermer la modale immédiatement pour éviter les interactions
+      setShowSuspendModal(false);
+      setSuspendReason('');
+      
+      // Afficher un message de début de suspension
+      onMessage('Suspension du compte en cours...', 'info');
+      
+      // 1. Appel direct à l'API de suspension (sans passer par le hook)
+      console.log('📡 Appel direct API suspension...');
+      const response = await fetch('/api/user/suspend-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: currentReason }),
+      });
+
+      const result = await response.json();
+      console.log('📤 Réponse API suspension:', result);
+
+      if (!response.ok) {
+        // Gérer le cas où le compte est déjà suspendu
+        if (response.status === 400 && result.suggestion === 'reactivate') {
+          throw new Error(`${result.message} Utilisez le bouton "Réactiver" à la place.`);
+        }
+        
+        // Gérer d'autres cas d'erreur
+        if (response.status === 401) {
+          throw new Error('Session expirée. Veuillez vous reconnecter.');
+        }
+        
+        if (response.status === 404) {
+          throw new Error('Utilisateur introuvable. Veuillez vous reconnecter.');
+        }
+        
+        throw new Error(result.message || result.error || 'Erreur lors de la suspension');
+      }
+
+      console.log('✅ Suspension API réussie, début de la déconnexion...');
+      
+      // 2. Afficher un message de succès
+      onMessage('Compte suspendu avec succès. Déconnexion en cours...', 'success');
+      
+      // 3. Attendre un petit délai pour que l'utilisateur puisse voir le message
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // 4. Nettoyer toutes les données utilisateur et déconnecter
+      await clearAllUserData();
+      
+      // 5. Redirection forcée vers la racine
+      console.log('🔄 Redirection vers la racine...');
+      window.location.href = '/';
+      
+    } catch (error) {
+      console.error('❌ Erreur suspension:', error);
+      
+      // Remettre l'état en cas d'erreur
+      setIsSuspending(false);
+      setShowSuspendModal(true);
+      setSuspendReason(currentReason); // Restaurer la raison sauvegardée
+      
+      onMessage(
+        error instanceof Error ? error.message : 'Erreur lors de la suspension du compte', 
+        'error'
+      );
+    }
+    // Note: Pas de finally car la page sera rechargée en cas de succès
+  };
+
+  // ✅ FONCTION DE RÉACTIVATION (utilise le hook)
   const handleReactivateAccount = async () => {
     try {
       console.log('🔄 Début réactivation avec hook');
@@ -85,6 +188,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
   };
 
+  // 🔧 FONCTION DE SUPPRESSION AMÉLIORÉE AVEC DÉCONNEXION SIMILAIRE
   const handleDeleteAccount = async () => {
     if (deleteConfirmation !== 'SUPPRIMER') {
       onMessage('Veuillez taper "SUPPRIMER" pour confirmer', 'error');
@@ -107,6 +211,10 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         return;
       }
       
+      // Fermer la modale immédiatement
+      setShowDeleteModal(false);
+      setDeleteConfirmation('');
+      
       const response = await fetch('/api/user/delete-account', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -119,40 +227,25 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
       if (response.ok) {
         onMessage('Compte supprimé avec succès. Déconnexion...', 'success');
         
+        // Attendre un délai puis déconnecter
         setTimeout(async () => {
-          try {
-            await signOut({ redirect: false });
-            
-            const cookies = document.cookie.split(";");
-            for (let cookie of cookies) {
-              const eqPos = cookie.indexOf("=");
-              const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
-              document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-            }
-            
-            localStorage.clear();
-            sessionStorage.clear();
-            
-            window.location.replace('/');
-          } catch (logoutError) {
-            window.location.replace('/');
-          }
+          await clearAllUserData();
+          window.location.href = '/'; // Redirection forcée
         }, 2000);
       } else {
         throw new Error('Erreur lors de la suppression');
       }
     } catch (error) {
       onMessage('Erreur lors de la suppression du compte', 'error');
-    } finally {
       setLoading(false);
-      setShowDeleteModal(false);
-      setDeleteConfirmation('');
+      // Rouvrir la modale en cas d'erreur
+      setShowDeleteModal(true);
     }
   };
 
   return (
     <div className="p-6">
-      {/* ✅ NOUVELLE BANNIÈRE - Alerte si compte suspendu */}
+      {/* ✅ BANNIÈRE - Alerte si compte suspendu */}
       {isAccountSuspended && (
         <div className="bg-orange-100 border-l-4 border-orange-500 p-4 rounded-r-lg mb-6">
           <div className="flex items-center">
@@ -215,7 +308,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 <div className="text-sm font-medium text-gray-500">Nombre de photos</div>
                 <div className="text-gray-800">{photos.length}/6</div>
               </div>
-              {/* ✅ STATUT DU COMPTE MODIFIÉ */}
               <div>
                 <div className="text-sm font-medium text-gray-500">Statut du compte</div>
                 <div className={`text-gray-800 flex items-center ${isAccountSuspended ? 'text-orange-600' : 'text-green-600'}`}>
@@ -362,7 +454,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
           </div>
         </div>
 
-        {/* ✅ ZONE DE DANGER MODIFIÉE */}
+        {/* ✅ ZONE DE DANGER AVEC DÉCONNEXION AUTOMATIQUE */}
         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
           <div className="flex items-center mb-4">
             <ExclamationTriangleIcon className="w-6 h-6 text-red-600 mr-3" />
@@ -377,7 +469,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             </p>
             
             <div className="space-y-3">
-              {/* ✅ LOGIQUE CONDITIONNELLE - Suspension OU Réactivation */}
+              {/* Logique conditionnelle - Suspension OU Réactivation */}
               {isAccountSuspended ? (
                 /* COMPTE SUSPENDU - Bouton de réactivation */
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
@@ -392,10 +484,10 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                       </p>
                       <button
                         onClick={handleReactivateAccount}
-                        disabled={isSuspending}
+                        disabled={hookIsLoading}
                         className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
                       >
-                        {isSuspending ? (
+                        {hookIsLoading ? (
                           <div className="flex items-center">
                             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                             Réactivation...
@@ -408,23 +500,51 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   </div>
                 </div>
               ) : (
-                /* COMPTE ACTIF - Bouton de suspension normal */
-                <button 
-                  onClick={() => {
-                    console.log('🔄 Clic bouton suspension');
-                    setShowSuspendModal(true);
-                  }}
-                  disabled={isSuspending}
-                  className="w-full md:w-auto px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm disabled:opacity-50"
-                >
-                  🔒 Désactiver temporairement mon compte
-                </button>
+                /* COMPTE ACTIF - Bouton de suspension avec avertissement de déconnexion */
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                      <PauseIcon className="w-5 h-5 text-orange-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-orange-800 mb-2">Suspendre temporairement mon compte</h4>
+                      <div className="text-sm text-orange-700 mb-3">
+                        <p className="mb-2">
+                          <strong>⚠️ Attention :</strong> Cette action va :
+                        </p>
+                        <ul className="list-disc list-inside space-y-1 text-xs ml-4">
+                          <li>Suspendre votre compte immédiatement</li>
+                          <li><strong>Vous déconnecter automatiquement</strong></li>
+                          <li>Supprimer vos cookies de session</li>
+                          <li>Vous rediriger vers la page d'accueil publique</li>
+                        </ul>
+                      </div>
+                      <button
+                        onClick={() => {
+                          console.log('🔄 Ouverture modale suspension avec déconnexion');
+                          setShowSuspendModal(true);
+                        }}
+                        disabled={isSuspending}
+                        className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 text-sm"
+                      >
+                        {isSuspending ? (
+                          <div className="flex items-center">
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                            Suspension...
+                          </div>
+                        ) : (
+                          '🔒 Suspendre et me déconnecter'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
               
               {/* Bouton de suppression - toujours visible */}
               <button 
                 onClick={() => setShowDeleteModal(true)}
-                className="w-full md:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm ml-0 md:ml-3 mt-3 md:mt-0"
+                className="w-full md:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
               >
                 🗑️ Supprimer définitivement mon compte
               </button>
@@ -433,7 +553,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         </div>
       </div>
 
-      {/* ✅ MODALE DE SUSPENSION - Seulement si compte actif */}
+      {/* ✅ MODALE DE SUSPENSION MODIFIÉE AVEC AVERTISSEMENT DE DÉCONNEXION */}
       <AnimatePresence>
         {showSuspendModal && !isAccountSuspended && (
           <motion.div
@@ -458,11 +578,24 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   <PauseIcon className="w-8 h-8 text-orange-600" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Suspendre temporairement votre compte ?
+                  Suspendre et me déconnecter ?
                 </h3>
                 <p className="text-gray-600">
-                  Votre compte sera désactivé mais vous pourrez le réactiver à tout moment.
+                  Votre compte sera suspendu et vous serez automatiquement déconnecté.
                 </p>
+              </div>
+
+              {/* ⚠️ AVERTISSEMENT DE DÉCONNEXION */}
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <h4 className="font-medium text-red-800 mb-3 flex items-center gap-2">
+                  ⚠️ Déconnexion automatique
+                </h4>
+                <ul className="text-sm text-red-700 space-y-1">
+                  <li>• Vous serez immédiatement déconnecté</li>
+                  <li>• Vos cookies de session seront supprimés</li>
+                  <li>• Vous serez redirigé vers la page d'accueil</li>
+                  <li>• Pour vous reconnecter, utilisez vos identifiants habituels</li>
+                </ul>
               </div>
 
               {/* Informations sur la suspension */}
@@ -524,16 +657,16 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   ) : (
                     <>
                       <PauseIcon className="w-4 h-4 mr-2" />
-                      Confirmer la suspension
+                      Suspendre et déconnecter
                     </>
                   )}
                 </button>
               </div>
 
-              {/* Avertissement */}
+              {/* Avertissement final */}
               <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-xs text-blue-700 text-center">
-                  ℹ️ Vous pourrez réactiver votre compte à tout moment en vous reconnectant.
+                  ℹ️ Après suspension, connectez-vous avec vos identifiants pour réactiver votre compte.
                 </p>
               </div>
             </motion.div>
@@ -541,7 +674,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         )}
       </AnimatePresence>
 
-      {/* MODALE DE SUPPRESSION (inchangée) */}
+      {/* MODALE DE SUPPRESSION */}
       <AnimatePresence>
         {showDeleteModal && (
           <motion.div

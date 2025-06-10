@@ -40,13 +40,13 @@ export async function GET(
       dailyLikesReceived,
       dailyMatchesCount
     ] = await Promise.all([
-      // ✅ Matches effectifs (TOTAL) - Version simplifiée avec queryRaw
+      // ✅ Matches effectifs (TOTAL) - Version simplifiée avec queryRaw CORRIGÉE
       prisma.$queryRaw<[{count: bigint}]>`
         SELECT COUNT(*) as count
         FROM (
           SELECT DISTINCT l1."senderId", l1."receiverId"
-          FROM "Like" l1
-          INNER JOIN "Like" l2 ON l1."senderId" = l2."receiverId" AND l1."receiverId" = l2."senderId"
+          FROM "likes" l1
+          INNER JOIN "likes" l2 ON l1."senderId" = l2."receiverId" AND l1."receiverId" = l2."senderId"
           WHERE l1."receiverId" = ${userId}
         ) as matches
       `,
@@ -85,13 +85,13 @@ export async function GET(
         }
       }),
       
-      // ✅ Matches du jour (AUJOURD'HUI) - Version simplifiée
+      // ✅ Matches du jour (AUJOURD'HUI) - Version simplifiée CORRIGÉE
       prisma.$queryRaw<[{count: bigint}]>`
         SELECT COUNT(*) as count
         FROM (
           SELECT DISTINCT l1."senderId", l1."receiverId"
-          FROM "Like" l1
-          INNER JOIN "Like" l2 ON l1."senderId" = l2."receiverId" AND l1."receiverId" = l2."senderId"
+          FROM "likes" l1
+          INNER JOIN "likes" l2 ON l1."senderId" = l2."receiverId" AND l1."receiverId" = l2."senderId"
           WHERE l1."receiverId" = ${userId}
             AND l1."createdAt" >= ${startOfDay}
         ) as matches

@@ -27,6 +27,19 @@ const villes = [
   'Clermont-Ferrand', 'Aix-en-Provence', 'Brest', 'Limoges', 'Tours', 'Amiens', 'Perpignan', 'Metz', 'Besançon', 'Orléans'
 ];
 
+const departments = [
+  'Ain', 'Aisne', 'Allier', 'Alpes-de-Haute-Provence', 'Hautes-Alpes', 'Alpes-Maritimes', 'Ardèche', 'Ardennes',
+  'Ariège', 'Aube', 'Aude', 'Aveyron', 'Bouches-du-Rhône', 'Calvados', 'Cantal', 'Charente', 'Charente-Maritime',
+  'Cher', 'Corrèze', 'Corse-du-Sud', 'Haute-Corse', 'Côte-d\'Or', 'Côtes-d\'Armor', 'Creuse', 'Dordogne', 'Doubs',
+  'Drôme', 'Eure', 'Eure-et-Loir', 'Finistère', 'Gard', 'Haute-Garonne', 'Gers', 'Gironde', 'Hérault', 'Ille-et-Vilaine'
+];
+
+const regions = [
+  'Auvergne-Rhône-Alpes', 'Bourgogne-Franche-Comté', 'Bretagne', 'Centre-Val de Loire', 'Corse', 'Grand Est',
+  'Hauts-de-France', 'Île-de-France', 'Normandie', 'Nouvelle-Aquitaine', 'Occitanie', 'Pays de la Loire',
+  'Provence-Alpes-Côte d\'Azur'
+];
+
 const professions = [
   'Ingénieur logiciel', 'Designer UX/UI', 'Chef cuisinier', 'Médecin', 'Professeur', 'Avocat', 'Architecte',
   'Journaliste', 'Photographe', 'Marketing', 'Consultant', 'Infirmier', 'Comptable', 'Artiste', 'Musicien',
@@ -40,9 +53,28 @@ const centresInteret = [
   'natation', 'ski', 'surf', 'escalade', 'méditation', 'astronomie', 'histoire', 'science', 'littérature', 'bénévolat'
 ];
 
-const genderValues = [Gender.MALE, Gender.FEMALE, Gender.OTHER, Gender.NON_BINARY];
-const maritalStatusValues = [MaritalStatus.SINGLE, MaritalStatus.IN_RELATIONSHIP, MaritalStatus.DIVORCED, MaritalStatus.WIDOWED];
-const genres = ['Homme', 'Femme', 'Non-binaire', 'Autre'];
+const zodiacSigns = [
+  'Bélier', 'Taureau', 'Gémeaux', 'Cancer', 'Lion', 'Vierge', 
+  'Balance', 'Scorpion', 'Sagittaire', 'Capricorne', 'Verseau', 'Poissons'
+];
+
+const dietTypes = [
+  'Omnivore', 'Végétarien', 'Végétalien', 'Pescatarien', 'Flexitarien', 'Sans gluten', 'Cétogène', 'Paléo'
+];
+
+const religions = [
+  'Catholique', 'Protestant', 'Musulman', 'Juif', 'Bouddhiste', 'Hindou', 'Athée', 'Agnostique', 'Spirituel', 'Autre'
+];
+
+const ethnicities = [
+  'Européenne', 'Africaine', 'Asiatique', 'Latino-américaine', 'Moyen-orientale', 'Mixte', 'Autre', 'Non spécifié'
+];
+
+// Valeurs des enums du schéma
+const genderValues = [Gender.MALE, Gender.FEMALE, Gender.NON_BINARY, Gender.OTHER];
+const maritalStatusValues = [MaritalStatus.SINGLE, MaritalStatus.DIVORCED, MaritalStatus.WIDOWED, MaritalStatus.SEPARATED];
+const accountStatusValues = [AccountStatus.ACTIVE, AccountStatus.PENDING_VERIFICATION];
+const authMethodValues = [AuthMethod.EMAIL_PASSWORD, AuthMethod.GOOGLE, AuthMethod.FACEBOOK, AuthMethod.APPLE];
 
 const bios = [
   'Passionné(e) de découvertes et d\'aventures',
@@ -94,6 +126,11 @@ function generateRandomPairs(userIds: string[], count: number): Array<[string, s
   return pairs;
 }
 
+// Fonction pour générer un code postal français aléatoire
+function generatePostcode(): string {
+  return String(randomInt(1000, 95999)).padStart(5, '0');
+}
+
 async function main() {
   console.log('🌱 Seed de la base de données PostgreSQL avec 100 utilisateurs...');
 
@@ -107,14 +144,17 @@ async function main() {
     console.log('🧹 Nettoyage complet de la base de données...');
     
     // Supprimer dans l'ordre pour respecter les contraintes de clés étrangères
+    await prisma.profileView.deleteMany();
+    console.log('  ✓ Vues de profil supprimées');
+    
+    await prisma.block.deleteMany();
+    console.log('  ✓ Blocages supprimés');
+    
     await prisma.dislike.deleteMany();
     console.log('  ✓ Dislikes supprimés');
     
     await prisma.like.deleteMany();
     console.log('  ✓ Likes supprimés');
-    
-    await prisma.profileView.deleteMany();
-    console.log('  ✓ Vues de profil supprimées');
     
     await prisma.photo.deleteMany();
     console.log('  ✓ Photos supprimées');
@@ -125,15 +165,15 @@ async function main() {
     await prisma.notificationSettings.deleteMany();
     console.log('  ✓ Paramètres de notification supprimés');
     
-    await prisma.block.deleteMany();
-    console.log('  ✓ Blocages supprimés');
-    
     // Supprimer les sessions et comptes NextAuth
     await prisma.session.deleteMany();
     console.log('  ✓ Sessions supprimées');
     
     await prisma.account.deleteMany();
     console.log('  ✓ Comptes supprimés');
+    
+    await prisma.verificationToken.deleteMany();
+    console.log('  ✓ Tokens de vérification supprimés');
     
     // Maintenant on peut supprimer tous les utilisateurs
     await prisma.user.deleteMany();
@@ -154,12 +194,24 @@ async function main() {
       const name = `${prenom} ${nom}`;
       const age = randomInt(18, 50);
       const profession = randomChoice(professions);
-      const location = `${randomChoice(villes)}, France`;
-      const gender = randomChoice(genres);
+      const ville = randomChoice(villes);
+      const department = randomChoice(departments);
+      const region = randomChoice(regions);
+      const location = `${ville}, France`;
+      const gender = randomChoice(genderValues);
+      const maritalStatus = Math.random() > 0.3 ? randomChoice(maritalStatusValues) : null;
       const interests = randomChoices(centresInteret, randomInt(3, 8));
       const bio = randomChoice(bios);
+      const zodiacSign = Math.random() > 0.4 ? randomChoice(zodiacSigns) : null;
+      const dietType = Math.random() > 0.6 ? randomChoice(dietTypes) : null;
+      const religion = Math.random() > 0.5 ? randomChoice(religions) : null;
+      const ethnicity = Math.random() > 0.7 ? randomChoice(ethnicities) : null;
+      const postcode = generatePostcode();
+      const accountStatus = Math.random() > 0.95 ? randomChoice(accountStatusValues) : AccountStatus.ACTIVE;
+      const primaryAuthMethod = Math.random() > 0.8 ? randomChoice(authMethodValues) : AuthMethod.EMAIL_PASSWORD;
+      const isOnline = Math.random() > 0.7;
+      const lastSeen = isOnline ? new Date() : new Date(Date.now() - randomInt(1, 72) * 60 * 60 * 1000);
       
-      // Utiliser create au lieu de upsert car on a supprimé tous les utilisateurs
       const user = await prisma.user.create({
         data: {
           email,
@@ -169,14 +221,68 @@ async function main() {
           location,
           profession,
           gender,
+          maritalStatus,
+          zodiacSign,
+          dietType,
+          religion,
+          ethnicity,
+          department,
+          postcode,
+          region,
           interests,
           hashedPassword,
-          emailVerified: new Date(), // ✅ EMAIL VÉRIFIÉ AUTOMATIQUEMENT
-          primaryAuthMethod: 'EMAIL_PASSWORD'
+          emailVerified: new Date(),
+          accountStatus,
+          primaryAuthMethod,
+          isOnline,
+          lastSeen,
+          createdAt: new Date(Date.now() - randomInt(1, 30) * 24 * 60 * 60 * 1000), // Créé dans les 30 derniers jours
+          updatedAt: new Date()
         }
       });
       
       users.push(user);
+      
+      // Créer des préférences pour chaque utilisateur
+      await prisma.userPreferences.create({
+        data: {
+          userId: user.id,
+          minAge: randomInt(18, Math.max(18, age - 10)),
+          maxAge: randomInt(Math.min(age + 5, 60), 60),
+          maxDistance: randomChoice([10, 25, 50, 100, 200]),
+          gender: Math.random() > 0.3 ? randomChoice(genderValues) : null,
+          lookingFor: Math.random() > 0.5 ? randomChoice(['Relation sérieuse', 'Relation décontractée', 'Amitié', 'Je ne sais pas encore']) : null
+        }
+      });
+      
+      // Créer des paramètres de notification pour chaque utilisateur
+      await prisma.notificationSettings.create({
+        data: {
+          userId: user.id,
+          messageNotifications: Math.random() > 0.1,
+          likeNotifications: Math.random() > 0.2,
+          matchNotifications: Math.random() > 0.05,
+          soundEnabled: Math.random() > 0.3,
+          vibrationEnabled: Math.random() > 0.4,
+          quietHoursStart: Math.random() > 0.6 ? "22:00" : null,
+          quietHoursEnd: Math.random() > 0.6 ? "08:00" : null
+        }
+      });
+      
+      // Créer 1-4 photos pour certains utilisateurs
+      if (Math.random() > 0.2) {
+        const photoCount = randomInt(1, 4);
+        for (let j = 0; j < photoCount; j++) {
+          await prisma.photo.create({
+            data: {
+              userId: user.id,
+              url: `https://images.unsplash.com/photo-${randomInt(1500000000, 1700000000)}-${randomInt(100000, 999999)}?w=400&h=600&fit=crop&crop=faces`,
+              isPrimary: j === 0,
+              createdAt: new Date(Date.now() - randomInt(1, 15) * 24 * 60 * 60 * 1000)
+            }
+          });
+        }
+      }
       
       // Afficher la progression
       if ((i + 1) % 10 === 0) {
@@ -200,7 +306,8 @@ async function main() {
       const like = await prisma.like.create({
         data: {
           senderId,
-          receiverId
+          receiverId,
+          createdAt: new Date(Date.now() - randomInt(1, 14) * 24 * 60 * 60 * 1000)
         }
       });
       likes.push(like);
@@ -236,7 +343,8 @@ async function main() {
       const dislike = await prisma.dislike.create({
         data: {
           senderId,
-          receiverId
+          receiverId,
+          createdAt: new Date(Date.now() - randomInt(1, 14) * 24 * 60 * 60 * 1000)
         }
       });
       dislikes.push(dislike);
@@ -244,7 +352,7 @@ async function main() {
     
     console.log(`✅ ${dislikes.length} dislikes créés`);
 
-    // 5. NOUVEAU : Créer des matchs à partir des likes existants
+    // 5. Créer des matchs à partir des likes existants
     console.log('\n💕 Création de matchs à partir des likes existants...');
     
     // Sélectionner aléatoirement 30-50% des likes pour créer des matchs
@@ -273,7 +381,8 @@ async function main() {
         await prisma.like.create({
           data: {
             senderId: like.receiverId,
-            receiverId: like.senderId
+            receiverId: like.senderId,
+            createdAt: new Date(like.createdAt.getTime() + randomInt(1, 24) * 60 * 60 * 1000)
           }
         });
         matchesCreated++;
@@ -306,18 +415,22 @@ async function main() {
       
       let additionalMatchesCreated = 0;
       for (const [user1, user2] of filteredMatchPairs) {
+        const baseTime = Date.now() - randomInt(1, 7) * 24 * 60 * 60 * 1000;
+        
         // Créer les deux likes réciproques pour former un match
         await prisma.like.create({
           data: {
             senderId: user1,
-            receiverId: user2
+            receiverId: user2,
+            createdAt: new Date(baseTime)
           }
         });
         
         await prisma.like.create({
           data: {
             senderId: user2,
-            receiverId: user1
+            receiverId: user1,
+            createdAt: new Date(baseTime + randomInt(1, 24) * 60 * 60 * 1000)
           }
         });
         
@@ -331,66 +444,7 @@ async function main() {
     
     console.log(`✅ TOTAL: ${matchesCreated} matchs (likes réciproques) dans la base`);
 
-    // 7. Créer quelques messages entre les utilisateurs qui ont des matchs
-    console.log('\n💬 Création des messages entre les matchs...');
-    
-    // Récupérer tous les matchs (likes réciproques)
-    const allMatches = await prisma.$queryRaw<Array<{senderId: string, receiverId: string}>>`
-      SELECT DISTINCT l1."senderId", l1."receiverId"
-      FROM "Like" l1
-      INNER JOIN "Like" l2 ON l1."senderId" = l2."receiverId" AND l1."receiverId" = l2."senderId"
-      WHERE l1."senderId" < l1."receiverId"
-    `;
-    
-    console.log(`   📊 ${allMatches.length} matchs trouvés pour créer des conversations`);
-    
-    const messages = [];
-    const messageTemplates = [
-      'Salut ! Comment ça va ? 😊',
-      'Hey ! Sympa ton profil !',
-      'Bonjour ! Ça va bien et toi ?',
-      'Coucou ! Tu fais quoi de beau ?',
-      'Hello ! On a des goûts similaires on dirait 😄',
-      'Salut ! Tu habites dans quelle partie de la ville ?',
-      'Hey ! Fan de cuisine aussi à ce que je vois !',
-      'Bonjour ! Tu as l\'air intéressant(e) 😊',
-      'Coucou ! Envie de discuter ?',
-      'Hello ! Beau sourire sur tes photos ! 😍',
-      'Salut ! J\'ai vu qu\'on avait matché 🎉',
-      'Hey ! Content(e) qu\'on ait matché !',
-      'Bonjour ! Qu\'est-ce qui t\'a plu dans mon profil ? 😊',
-      'Coucou ! Tu préfères les restos ou les soirées Netflix ? 🍿',
-      'Hello ! Tu as des plans pour le weekend ?'
-    ];
-    
-    // Créer des messages pour 60-80% des matchs
-    const messagePercentage = randomInt(60, 80) / 100;
-    const matchesWithMessages = randomChoices(allMatches, Math.floor(allMatches.length * messagePercentage));
-    
-    for (const match of matchesWithMessages) {
-      // 2-5 messages par conversation pour les matchs
-      const messageCount = randomInt(2, 5);
-      let currentSender = match.senderId;
-      let currentReceiver = match.receiverId;
-      
-      for (let i = 0; i < messageCount; i++) {
-        const message = await prisma.message.create({
-          data: {
-            content: randomChoice(messageTemplates),
-            senderId: currentSender,
-            receiverId: currentReceiver
-          }
-        });
-        messages.push(message);
-        
-        // Alterner l'expéditeur pour simuler une conversation
-        [currentSender, currentReceiver] = [currentReceiver, currentSender];
-      }
-    }
-    
-    console.log(`✅ ${messages.length} messages créés pour ${matchesWithMessages.length} conversations`);
-
-    // 8. Créer des vues de profil aléatoires
+    // 7. Créer des vues de profil aléatoires
     console.log('\n👀 Création des vues de profil...');
     
     const targetProfileViewCount = randomInt(300, 500);
@@ -401,7 +455,8 @@ async function main() {
       const profileView = await prisma.profileView.create({
         data: {
           viewerId,
-          viewedId
+          viewedId,
+          createdAt: new Date(Date.now() - randomInt(1, 21) * 24 * 60 * 60 * 1000)
         }
       });
       profileViews.push(profileView);
@@ -409,20 +464,47 @@ async function main() {
     
     console.log(`✅ ${profileViews.length} vues de profil créées`);
 
+    // 8. Créer quelques blocages (5-15 blocages)
+    console.log('\n🚫 Création des blocages...');
+    
+    const targetBlockCount = randomInt(5, 15);
+    const blockPairs = generateRandomPairs(userIds, targetBlockCount);
+    
+    const blocks = [];
+    const blockReasons = [
+      'Comportement inapproprié',
+      'Spam',
+      'Faux profil',
+      'Harcèlement',
+      'Contenu offensant',
+      null // Parfois sans raison spécifiée
+    ];
+    
+    for (const [blockerId, blockedId] of blockPairs) {
+      const block = await prisma.block.create({
+        data: {
+          blockerId,
+          blockedId,
+          reason: Math.random() > 0.3 ? randomChoice(blockReasons) : null,
+          createdAt: new Date(Date.now() - randomInt(1, 30) * 24 * 60 * 60 * 1000)
+        }
+      });
+      blocks.push(block);
+    }
+    
+    console.log(`✅ ${blocks.length} blocages créés`);
+
     console.log('\n🎉 Seed terminé avec succès !');
     
     // 9. Afficher un résumé complet
     const finalUserCount = await prisma.user.count();
     const finalLikeCount = await prisma.like.count();
     const finalDislikeCount = await prisma.dislike.count();
-<<<<<<< HEAD
     const finalProfileViewCount = await prisma.profileView.count();
     const finalBlockCount = await prisma.block.count();
     const finalPhotoCount = await prisma.photo.count();
-=======
-    const finalMessageCount = await prisma.message.count();
-    const finalProfileViewCount = await prisma.profileView.count();
->>>>>>> 25ab2c001a6ea94fb8c2f59022ee5f7c1b3a9c34
+    const finalPreferencesCount = await prisma.userPreferences.count();
+    const finalNotificationSettingsCount = await prisma.notificationSettings.count();
     const verifiedEmailCount = await prisma.user.count({
       where: { emailVerified: { not: null } }
     });
@@ -432,8 +514,8 @@ async function main() {
       SELECT COUNT(*) as count
       FROM (
         SELECT DISTINCT l1."senderId", l1."receiverId"
-        FROM "Like" l1
-        INNER JOIN "Like" l2 ON l1."senderId" = l2."receiverId" AND l1."receiverId" = l2."senderId"
+        FROM "likes" l1
+        INNER JOIN "likes" l2 ON l1."senderId" = l2."receiverId" AND l1."receiverId" = l2."senderId"
         WHERE l1."senderId" < l1."receiverId"
       ) as matches
     `;
@@ -446,8 +528,11 @@ async function main() {
     console.log(`   ❤️ Likes: ${finalLikeCount}`);
     console.log(`   👎 Dislikes: ${finalDislikeCount}`);
     console.log(`   💕 Matchs (likes réciproques): ${matchCount}`);
-    console.log(`   💬 Messages: ${finalMessageCount}`);
     console.log(`   👀 Vues de profil: ${finalProfileViewCount}`);
+    console.log(`   🚫 Blocages: ${finalBlockCount}`);
+    console.log(`   📸 Photos: ${finalPhotoCount}`);
+    console.log(`   ⚙️ Préférences utilisateur: ${finalPreferencesCount}`);
+    console.log(`   🔔 Paramètres de notification: ${finalNotificationSettingsCount}`);
     
     // Afficher quelques utilisateurs exemples
     const exampleUsers = await prisma.user.findMany({

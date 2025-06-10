@@ -52,7 +52,6 @@ export async function POST(request: NextRequest) {
       data: {
         userId: user.id,
         url: imageUrl,
-        alt: '',
         isPrimary: existingPhotos === 0
       }
     });

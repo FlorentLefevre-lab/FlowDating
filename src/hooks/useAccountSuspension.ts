@@ -1,4 +1,5 @@
-// src/hooks/useAccountSuspension.ts - Hook côté client
+// src/hooks/useAccountSuspension.ts - Version corrigée complète
+
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -23,12 +24,13 @@ export const useAccountSuspension = () => {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  // 🔧 FONCTION DE SUSPENSION MODIFIÉE - Sans redirection automatique
   const suspendAccount = async (data: SuspendAccountData = {}) => {
     setIsLoading(true);
     setError(null);
     
     try {
-      console.log('🔄 Hook suspension - Envoi requête:', data);
+      console.log('🔄 Hook suspension (sans redirection) - Envoi requête:', data);
       
       const response = await fetch('/api/user/suspend-account', {
         method: 'POST',
@@ -57,10 +59,10 @@ export const useAccountSuspension = () => {
         throw new Error(result.message || result.error || 'Erreur lors de la suspension');
       }
 
-      console.log('✅ Hook suspension - Succès');
+      console.log('✅ Hook suspension - Succès (pas de redirection automatique)');
       
-      // Rediriger vers une page de confirmation
-      router.push('/account-suspended');
+      // 🔧 PLUS DE REDIRECTION AUTOMATIQUE 
+      // Le composant appelant gère maintenant la déconnexion et redirection
       
       return result;
     } catch (err) {
@@ -69,10 +71,13 @@ export const useAccountSuspension = () => {
       setError(errorMessage);
       throw err;
     } finally {
+      // 🔧 TOUJOURS REMETTRE isLoading À FALSE - CORRECTION PRINCIPALE
       setIsLoading(false);
+      console.log('🔄 Hook suspension - isLoading remis à false');
     }
   };
 
+  // ✅ FONCTION DE RÉACTIVATION - Garde la redirection pour cette action
   const reactivateAccount = async () => {
     setIsLoading(true);
     setError(null);
@@ -111,7 +116,8 @@ export const useAccountSuspension = () => {
 
       console.log('✅ Hook réactivation - Succès');
       
-      // Rediriger vers le dashboard ou home après réactivation
+      // 🔧 GARDE LA REDIRECTION POUR LA RÉACTIVATION (comportement normal)
+      // Car la réactivation est une action "positive" qui doit ramener l'utilisateur dans l'app
       router.push('/home');
       
       return result;
@@ -121,10 +127,13 @@ export const useAccountSuspension = () => {
       setError(errorMessage);
       throw err;
     } finally {
+      // 🔧 CORRECTION: Toujours remettre isLoading à false
       setIsLoading(false);
+      console.log('🔄 Hook réactivation - isLoading remis à false');
     }
   };
 
+  // ✅ FONCTION DE VÉRIFICATION DU STATUT - Inchangée
   const checkAccountStatus = async (): Promise<AccountStatus | null> => {
     try {
       console.log('🔄 Hook vérification statut - Envoi requête');
@@ -154,34 +163,93 @@ export const useAccountSuspension = () => {
     }
   };
 
+  // 🔧 FONCTION DE REFRESH MODIFIÉE - Gère seulement la navigation d'état conditionnelle
   const refreshAccountStatus = async () => {
     const status = await checkAccountStatus();
     
     if (status) {
+      // 🔧 LOGIQUE DE NAVIGATION CONDITIONNELLE
+      // Seulement si l'utilisateur est sur une page "incorrecte" pour son statut
+      
+      const currentPath = window.location.pathname;
+      
       // Si le compte est maintenant actif et qu'on était sur la page de suspension
-      if (status.accountStatus === 'ACTIVE' && window.location.pathname === '/account-suspended') {
+      if (status.accountStatus === 'ACTIVE' && currentPath === '/account-suspended') {
+        console.log('🔄 Redirection vers home - compte réactivé');
         router.push('/home');
       }
       
-      // Si le compte est suspendu et qu'on n'est pas sur la page de suspension
-      if (status.accountStatus === 'SUSPENDED' && window.location.pathname !== '/account-suspended') {
-        router.push('/account-suspended');
-      }
+      // Note: On ne redirige PAS vers account-suspended si le compte est suspendu
+      // Car l'utilisateur sera déconnecté par le composant
     }
     
     return status;
   };
 
+  // 🔧 FONCTION UTILITAIRE POUR VÉRIFIER SI LE COMPTE EST SUSPENDU
+  const isAccountSuspended = async (): Promise<boolean> => {
+    try {
+      const status = await checkAccountStatus();
+      return status?.accountStatus === 'SUSPENDED';
+    } catch (error) {
+      console.error('❌ Erreur vérification suspension:', error);
+      return false;
+    }
+  };
+
+  // 🔧 FONCTION POUR OBTENIR LES DÉTAILS DE LA SUSPENSION
+  const getSuspensionDetails = async () => {
+    try {
+      const status = await checkAccountStatus();
+      if (status?.accountStatus === 'SUSPENDED') {
+        return {
+          suspendedAt: status.suspendedAt,
+          suspendedUntil: status.suspendedUntil,
+          suspensionReason: status.suspensionReason,
+          canReactivate: status.canReactivate
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('❌ Erreur récupération détails suspension:', error);
+      return null;
+    }
+  };
+
+  // 🔧 FONCTION DE NETTOYAGE DES ERREURS
   const clearError = () => {
     setError(null);
+    console.log('🧹 Erreur du hook effacée');
+  };
+
+  // 🔧 FONCTION DE RESET COMPLET DU HOOK
+  const resetHook = () => {
+    setIsLoading(false);
+    setError(null);
+    console.log('🔄 Hook suspension réinitialisé');
+  };
+
+  // 🔧 FONCTION POUR FORCER L'ARRÊT DU LOADING (debug)
+  const forceStopLoading = () => {
+    setIsLoading(false);
+    console.log('🛑 Loading forcé à false (debug)');
   };
 
   return {
-    suspendAccount,
-    reactivateAccount,
-    checkAccountStatus,
-    refreshAccountStatus,
-    clearError,
+    // Actions principales
+    suspendAccount,        // 🔧 Modifié : plus de redirection automatique
+    reactivateAccount,     // ✅ Inchangé : garde la redirection vers /home
+    checkAccountStatus,    // ✅ Inchangé
+    refreshAccountStatus,  // 🔧 Modifié : navigation conditionnelle seulement
+    
+    // Fonctions utilitaires
+    isAccountSuspended,    // 🔧 Nouveau : vérifie rapidement si suspendu
+    getSuspensionDetails,  // 🔧 Nouveau : obtient les détails de suspension
+    clearError,           // ✅ Inchangé
+    resetHook,            // 🔧 Nouveau : reset complet
+    forceStopLoading,     // 🔧 Nouveau : debug loading bloqué
+    
+    // État
     isLoading,
     error
   };

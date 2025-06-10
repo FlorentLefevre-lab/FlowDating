@@ -1,7 +1,7 @@
 // src/app/api/matches/route.ts - API pour récupérer les matchs
 import { auth } from '../../../auth'
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '../../../lib/prisma' // Ajustez le chemin
+import { prisma } from '@/lib/db' // ✅ Import corrigé
 
 // Interfaces pour les matchs
 interface MatchUser {
@@ -113,14 +113,14 @@ export async function GET(request: NextRequest): Promise<NextResponse<MatchesRes
 
     const currentUserId = currentUser.id;
 
-    // 1. Récupérer tous les likes réciproques (matchs)
+    // 1. Récupérer tous les likes réciproques (matchs) - VERSION CORRIGÉE ✅
     const reciprocalLikes = await prisma.$queryRaw`
       SELECT 
         l1."receiverId" as matched_user_id,
         l1."createdAt" as match_date,
         l2."createdAt" as their_like_date
-      FROM "Like" l1
-      INNER JOIN "Like" l2 
+      FROM "likes" l1
+      INNER JOIN "likes" l2 
         ON l1."senderId" = l2."receiverId" 
         AND l1."receiverId" = l2."senderId"
       WHERE l1."senderId" = ${currentUserId}
@@ -171,6 +171,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<MatchesRes
         profession: true,
         interests: true,
         gender: true,
+        lastSeen: true, // ✅ Ajouté pour le statut en ligne
         photos: {
           select: {
             id: true,
@@ -185,51 +186,19 @@ export async function GET(request: NextRequest): Promise<NextResponse<MatchesRes
       }
     });
 
-    // 3. Récupérer les statistiques de messages pour chaque match
-    const messageStats = await Promise.all(
-      matchedUserIds.map(async (userId) => {
-        // Compter les messages entre les deux utilisateurs
-        const messageCount = await prisma.message.count({
-          where: {
-            OR: [
-              { senderId: currentUserId, receiverId: userId },
-              { senderId: userId, receiverId: currentUserId }
-            ]
-          }
-        });
+    // 3. ⚠️ Messages désactivés - Le modèle Message n'existe pas dans le schéma
+    // Simulation des statistiques de messages pour l'instant
+    const messageStats = matchedUserIds.map(userId => ({
+      userId,
+      messageCount: 0, // ⚠️ Temporaire - messages non implémentés
+      lastMessage: null
+    }));
 
-        // Récupérer le dernier message
-        const lastMessage = await prisma.message.findFirst({
-          where: {
-            OR: [
-              { senderId: currentUserId, receiverId: userId },
-              { senderId: userId, receiverId: currentUserId }
-            ]
-          },
-          orderBy: { createdAt: 'desc' },
-          select: {
-            content: true,
-            senderId: true,
-            createdAt: true
-          }
-        });
-
-        return {
-          userId,
-          messageCount,
-          lastMessage: lastMessage ? {
-            content: lastMessage.content,
-            senderId: lastMessage.senderId,
-            createdAt: lastMessage.createdAt
-          } : null
-        };
-      })
-    );
+    console.log('⚠️ Messages désactivés - modèle Message non disponible dans le schéma');
 
     // 4. Fonction de calcul de compatibilité (similaire à discover)
     const calculateCompatibility = (user: any): number => {
-      let score = 0;
-      let factors = 0;
+      let score = 40; // Score de base plus élevé pour les matchs
 
       // Centres d'intérêt communs (40% du score)
       if (user.interests?.length && currentUser.interests?.length) {
@@ -238,12 +207,19 @@ export async function GET(request: NextRequest): Promise<NextResponse<MatchesRes
         );
         const interestScore = (commonInterests.length / Math.max(user.interests.length, currentUser.interests.length)) * 40;
         score += interestScore;
-        factors++;
+      }
+
+      // Bonus activité récente (jusqu'à 15 points)
+      if (user.lastSeen) {
+        const daysSinceLastSeen = (Date.now() - new Date(user.lastSeen).getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSinceLastSeen < 1) score += 15;
+        else if (daysSinceLastSeen < 7) score += 10;
+        else if (daysSinceLastSeen < 30) score += 5;
       }
 
       // Score minimum pour les matchs (ils se sont déjà likés !)
-      const finalScore = factors > 0 ? Math.round(score / factors * 2.5) : Math.floor(Math.random() * 30) + 60;
-      return Math.max(60, Math.min(99, finalScore)); // Score entre 60% et 99% pour les matchs
+      const finalScore = Math.max(65, Math.min(99, Math.round(score))); // Score entre 65% et 99% pour les matchs
+      return finalScore;
     };
 
     // 5. Construire les objets Match complets
@@ -277,13 +253,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<MatchesRes
         id: `match_${currentUserId}_${user.id}`, // ID unique pour le match
         user: matchUser,
         matchedAt: reciprocalLike.match_date.toISOString(),
-        lastMessageAt: stats?.lastMessage?.createdAt.toISOString(),
-        lastMessage: stats?.lastMessage ? {
-          content: stats.lastMessage.content,
-          senderId: stats.lastMessage.senderId
-        } : undefined,
+        lastMessageAt: undefined, // ⚠️ Messages non implémentés
+        lastMessage: undefined,   // ⚠️ Messages non implémentés
         messageCount: stats?.messageCount || 0,
-        isOnline: false, // TODO: implémenter le statut en ligne
+        isOnline: user.lastSeen ? (Date.now() - new Date(user.lastSeen).getTime()) < 15 * 60 * 1000 : false, // ✅ Statut en ligne basé sur lastSeen
         compatibility: calculateCompatibility(user)
       };
     }).filter(Boolean) as Match[];
@@ -297,13 +270,12 @@ export async function GET(request: NextRequest): Promise<NextResponse<MatchesRes
       newMatches: matches.filter(match => 
         new Date(match.matchedAt).getTime() > oneDayAgo.getTime()
       ).length,
-      activeConversations: matches.filter(match => match.messageCount > 0).length,
-      responseRate: matches.length > 0 
-        ? Math.round((matches.filter(match => match.messageCount > 0).length / matches.length) * 100)
-        : 0
+      activeConversations: 0, // ⚠️ Messages non implémentés - toujours 0
+      responseRate: 0 // ⚠️ Messages non implémentés - toujours 0
     };
 
     console.log('📊 Statistiques matchs:', stats);
+    console.log(`✅ ${matches.length} matchs formatés avec compatibilité calculée`);
 
     return NextResponse.json({
       success: true,

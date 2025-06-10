@@ -163,11 +163,11 @@ const getCachedExcludedUsers = async (prisma: any, userId: string): Promise<{
       where: { senderId: userId },
       select: { receiverId: true }
     }),
-    // Utilisateurs matchés (likes réciproques)
+    // Utilisateurs matchés (likes réciproques) - ✅ REQUÊTE CORRIGÉE
     prisma.$queryRaw`
       SELECT l2."senderId" as "receiverId"
-      FROM "Like" l1
-      INNER JOIN "Like" l2 
+      FROM "likes" l1
+      INNER JOIN "likes" l2 
         ON l1."senderId" = l2."receiverId" 
         AND l1."receiverId" = l2."senderId"
       WHERE l1."senderId" = ${userId}
