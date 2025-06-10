@@ -42,6 +42,7 @@ const centresInteret = [
 
 const genderValues = [Gender.MALE, Gender.FEMALE, Gender.OTHER, Gender.NON_BINARY];
 const maritalStatusValues = [MaritalStatus.SINGLE, MaritalStatus.IN_RELATIONSHIP, MaritalStatus.DIVORCED, MaritalStatus.WIDOWED];
+const genres = ['Homme', 'Femme', 'Non-binaire', 'Autre'];
 
 const bios = [
   'Passionné(e) de découvertes et d\'aventures',
@@ -154,13 +155,11 @@ async function main() {
       const age = randomInt(18, 50);
       const profession = randomChoice(professions);
       const location = `${randomChoice(villes)}, France`;
-      
-      const gender = randomChoice(genderValues);
-      const maritalStatus = Math.random() > 0.5 ? randomChoice(maritalStatusValues) : null;
-      
+      const gender = randomChoice(genres);
       const interests = randomChoices(centresInteret, randomInt(3, 8));
       const bio = randomChoice(bios);
       
+      // Utiliser create au lieu de upsert car on a supprimé tous les utilisateurs
       const user = await prisma.user.create({
         data: {
           email,
@@ -170,65 +169,22 @@ async function main() {
           location,
           profession,
           gender,
-          maritalStatus,
           interests,
           hashedPassword,
-          emailVerified: new Date(),
-          primaryAuthMethod: AuthMethod.EMAIL_PASSWORD,
-          accountStatus: AccountStatus.ACTIVE, // ✅ Tous les comptes sont ACTIFS
-          isOnline: Math.random() > 0.7, // 30% des utilisateurs en ligne
-          lastSeen: new Date(Date.now() - randomInt(0, 7 * 24 * 60 * 60 * 1000)) // Dernière vue dans les 7 derniers jours
+          emailVerified: new Date(), // ✅ EMAIL VÉRIFIÉ AUTOMATIQUEMENT
+          primaryAuthMethod: 'EMAIL_PASSWORD'
         }
       });
       
       users.push(user);
       
-      // Créer des préférences par défaut pour chaque utilisateur
-      await prisma.userPreferences.create({
-        data: {
-          userId: user.id,
-          minAge: Math.max(18, age - 10),
-          maxAge: Math.min(50, age + 10),
-          maxDistance: randomInt(20, 100),
-          gender: randomChoice(genderValues),
-          lookingFor: randomChoice(['relation sérieuse', 'amitié', 'rencontres décontractées', 'à voir'])
-        }
-      });
-
-      // Créer des paramètres de notification par défaut
-      await prisma.notificationSettings.create({
-        data: {
-          userId: user.id,
-          messageNotifications: Math.random() > 0.2,
-          likeNotifications: Math.random() > 0.1,
-          matchNotifications: true,
-          soundEnabled: Math.random() > 0.3,
-          vibrationEnabled: Math.random() > 0.4,
-          quietHoursStart: randomChoice(['22:00', '23:00', '00:00', null]),
-          quietHoursEnd: randomChoice(['07:00', '08:00', '09:00', null])
-        }
-      });
-
-      // Créer 1-3 photos pour chaque utilisateur
-      const photoCount = randomInt(1, 3);
-      for (let j = 0; j < photoCount; j++) {
-        await prisma.photo.create({
-          data: {
-            userId: user.id,
-            url: `/photos/${user.id}-${j + 1}.jpg`,
-            isPrimary: j === 0,
-            alt: `Photo ${j + 1} de ${user.name}`
-          }
-        });
-      }
-      
       // Afficher la progression
       if ((i + 1) % 10 === 0) {
-        console.log(`  ✓ ${i + 1} utilisateurs créés avec leurs données...`);
+        console.log(`  ✓ ${i + 1} utilisateurs créés...`);
       }
     }
 
-    console.log(`✅ ${users.length} utilisateurs créés avec emails vérifiés, préférences, notifications et photos`);
+    console.log(`✅ ${users.length} utilisateurs créés avec emails vérifiés`);
 
     // Récupérer tous les IDs des utilisateurs
     const userIds = users.map(user => user.id);
@@ -288,7 +244,7 @@ async function main() {
     
     console.log(`✅ ${dislikes.length} dislikes créés`);
 
-    // 5. Créer des matchs à partir des likes existants
+    // 5. NOUVEAU : Créer des matchs à partir des likes existants
     console.log('\n💕 Création de matchs à partir des likes existants...');
     
     // Sélectionner aléatoirement 30-50% des likes pour créer des matchs
@@ -375,7 +331,66 @@ async function main() {
     
     console.log(`✅ TOTAL: ${matchesCreated} matchs (likes réciproques) dans la base`);
 
-    // 7. Créer des vues de profil aléatoires
+    // 7. Créer quelques messages entre les utilisateurs qui ont des matchs
+    console.log('\n💬 Création des messages entre les matchs...');
+    
+    // Récupérer tous les matchs (likes réciproques)
+    const allMatches = await prisma.$queryRaw<Array<{senderId: string, receiverId: string}>>`
+      SELECT DISTINCT l1."senderId", l1."receiverId"
+      FROM "Like" l1
+      INNER JOIN "Like" l2 ON l1."senderId" = l2."receiverId" AND l1."receiverId" = l2."senderId"
+      WHERE l1."senderId" < l1."receiverId"
+    `;
+    
+    console.log(`   📊 ${allMatches.length} matchs trouvés pour créer des conversations`);
+    
+    const messages = [];
+    const messageTemplates = [
+      'Salut ! Comment ça va ? 😊',
+      'Hey ! Sympa ton profil !',
+      'Bonjour ! Ça va bien et toi ?',
+      'Coucou ! Tu fais quoi de beau ?',
+      'Hello ! On a des goûts similaires on dirait 😄',
+      'Salut ! Tu habites dans quelle partie de la ville ?',
+      'Hey ! Fan de cuisine aussi à ce que je vois !',
+      'Bonjour ! Tu as l\'air intéressant(e) 😊',
+      'Coucou ! Envie de discuter ?',
+      'Hello ! Beau sourire sur tes photos ! 😍',
+      'Salut ! J\'ai vu qu\'on avait matché 🎉',
+      'Hey ! Content(e) qu\'on ait matché !',
+      'Bonjour ! Qu\'est-ce qui t\'a plu dans mon profil ? 😊',
+      'Coucou ! Tu préfères les restos ou les soirées Netflix ? 🍿',
+      'Hello ! Tu as des plans pour le weekend ?'
+    ];
+    
+    // Créer des messages pour 60-80% des matchs
+    const messagePercentage = randomInt(60, 80) / 100;
+    const matchesWithMessages = randomChoices(allMatches, Math.floor(allMatches.length * messagePercentage));
+    
+    for (const match of matchesWithMessages) {
+      // 2-5 messages par conversation pour les matchs
+      const messageCount = randomInt(2, 5);
+      let currentSender = match.senderId;
+      let currentReceiver = match.receiverId;
+      
+      for (let i = 0; i < messageCount; i++) {
+        const message = await prisma.message.create({
+          data: {
+            content: randomChoice(messageTemplates),
+            senderId: currentSender,
+            receiverId: currentReceiver
+          }
+        });
+        messages.push(message);
+        
+        // Alterner l'expéditeur pour simuler une conversation
+        [currentSender, currentReceiver] = [currentReceiver, currentSender];
+      }
+    }
+    
+    console.log(`✅ ${messages.length} messages créés pour ${matchesWithMessages.length} conversations`);
+
+    // 8. Créer des vues de profil aléatoires
     console.log('\n👀 Création des vues de profil...');
     
     const targetProfileViewCount = randomInt(300, 500);
@@ -394,35 +409,20 @@ async function main() {
     
     console.log(`✅ ${profileViews.length} vues de profil créées`);
 
-    // 8. Créer quelques blocages aléatoires
-    console.log('\n🚫 Création des blocages...');
-    
-    const targetBlockCount = randomInt(20, 40);
-    const blockPairs = generateRandomPairs(userIds, targetBlockCount);
-    
-    const blocks = [];
-    for (const [blockerId, blockedId] of blockPairs) {
-      const block = await prisma.block.create({
-        data: {
-          blockerId,
-          blockedId,
-          reason: randomChoice(['Comportement inapproprié', 'Spam', 'Faux profil', 'Harcèlement', 'Autre'])
-        }
-      });
-      blocks.push(block);
-    }
-    
-    console.log(`✅ ${blocks.length} blocages créés`);
-
     console.log('\n🎉 Seed terminé avec succès !');
     
     // 9. Afficher un résumé complet
     const finalUserCount = await prisma.user.count();
     const finalLikeCount = await prisma.like.count();
     const finalDislikeCount = await prisma.dislike.count();
+<<<<<<< HEAD
     const finalProfileViewCount = await prisma.profileView.count();
     const finalBlockCount = await prisma.block.count();
     const finalPhotoCount = await prisma.photo.count();
+=======
+    const finalMessageCount = await prisma.message.count();
+    const finalProfileViewCount = await prisma.profileView.count();
+>>>>>>> 25ab2c001a6ea94fb8c2f59022ee5f7c1b3a9c34
     const verifiedEmailCount = await prisma.user.count({
       where: { emailVerified: { not: null } }
     });
@@ -443,12 +443,11 @@ async function main() {
     console.log('\n📊 Résumé de la base PostgreSQL :');
     console.log(`   👥 Utilisateurs: ${finalUserCount}`);
     console.log(`   ✉️ Emails vérifiés: ${verifiedEmailCount}/${finalUserCount}`);
-    console.log(`   📸 Photos: ${finalPhotoCount}`);
     console.log(`   ❤️ Likes: ${finalLikeCount}`);
     console.log(`   👎 Dislikes: ${finalDislikeCount}`);
     console.log(`   💕 Matchs (likes réciproques): ${matchCount}`);
+    console.log(`   💬 Messages: ${finalMessageCount}`);
     console.log(`   👀 Vues de profil: ${finalProfileViewCount}`);
-    console.log(`   🚫 Blocages: ${finalBlockCount}`);
     
     // Afficher quelques utilisateurs exemples
     const exampleUsers = await prisma.user.findMany({

@@ -1,0 +1,272 @@
+# ===== docker-compose.yml (développement) =====
+version: '3.8'
+
+services:
+  dating-app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.docker
+    depends_on:
+      - database
+      - redis
+    volumes:
+      # Hot reload en développement
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - dating-network
+    restart: unless-stopped
+
+  database:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: dating_app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: datingapp2024
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - dating-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass datingapp2024
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - dating-network
+    restart: unless-stopped
+
+  # Adminer pour gestion BDD en développement
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8080:8080"
+    depends_on:
+      - database
+    networks:
+      - dating-network
+    profiles:
+      - dev
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  dating-network:
+    driver: bridge
+
+# ===== docker-compose.staging.yml =====
+version: '3.8'
+
+services:
+  dating-app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.staging
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - database
+      - redis
+    networks:
+      - dating-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  database:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: dating_app_staging
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+    networks:
+      - dating-network
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_staging_data:/data
+    networks:
+      - dating-network
+    restart: always
+
+  # Monitoring avec Prometheus (optionnel)
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - dating-network
+    profiles:
+      - monitoring
+
+volumes:
+  postgres_staging_data:
+  redis_staging_data:
+
+networks:
+  dating-network:
+    driver: bridge
+
+# ===== docker-compose.production.yml =====
+version: '3.8'
+
+services:
+  dating-app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.production
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - database
+      - redis
+    networks:
+      - dating-network
+    restart: always
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  database:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: dating_app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    networks:
+      - dating-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_prod_data:/data
+    networks:
+      - dating-network
+    restart: always
+
+  # Load balancer Nginx
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - dating-app
+    networks:
+      - dating-network
+    restart: always
+
+  # Backup automatique
+  backup:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: dating_app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./backups:/backups
+      - postgres_prod_data:/var/lib/postgresql/data
+    command: |
+      sh -c "
+      while true; do
+        pg_dump -h database -U postgres -d dating_app > /backups/backup_$$(date +%Y%m%d_%H%M%S).sql
+        find /backups -name '*.sql' -mtime +7 -delete
+        sleep 86400
+      done"
+    depends_on:
+      - database
+    networks:
+      - dating-network
+    restart: always
+    profiles:
+      - backup
+
+  # Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - dating-network
+    restart: always
+    profiles:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - dating-network
+    restart: always
+    profiles:
+      - monitoring
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  dating-network:
+    driver: bridge

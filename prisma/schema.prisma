@@ -22,6 +22,21 @@ model User {
 
   profession    String?
   gender        Gender?
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  hashedPassword String?
+  image         String?
+  
+  // Informations de base
+  name          String?
+  age           Int?
+  bio           String?
+  location      String?
+  
+  // Nouveaux champs alignés avec le script de seed
+  profession    String?
+  gender        Gender?   // Utilisation de l'enum au lieu de String
   maritalStatus MaritalStatus?
   zodiacSign    String?
   dietType      String?
@@ -73,6 +88,46 @@ model User {
   profileViewsReceived ProfileView[] @relation("UserViewsReceived")
 
   // Messages supprimés pour simplifier
+  
+  // Champs géographiques manquants
+  department    String?
+  postcode      String?
+  region        String?
+  
+  // Statut en ligne
+  lastSeen      DateTime?
+  isOnline      Boolean   @default(false)
+  
+  // Données existantes
+  interests     String[]
+  primaryAuthMethod AuthMethod @default(EMAIL_PASSWORD)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  photos        Photo[]
+  preferences   UserPreferences?
+  notificationSettings NotificationSettings?
+  
+  // Relations de likes/matches
+  receivedLikes     Like[] @relation("LikeReceiver")
+  sentLikes         Like[] @relation("LikeSender")
+  receivedDislikes  Dislike[] @relation("DislikeReceiver")
+  sentDislikes      Dislike[] @relation("DislikeSender")
+  
+  // Relations de messages
+  receivedMessages Message[] @relation("MessageReceiver")
+  sentMessages     Message[] @relation("MessageSender")
+  
+  // Relations de blocage
+  blocksReceived   Block[] @relation("BlockReceiver")
+  blocksGiven      Block[] @relation("BlockSender")
+  
+  // Relations de vues de profil
+  viewsReceived    ProfileView[] @relation("ProfileViewReceiver")
+  viewsSent        ProfileView[] @relation("ProfileViewSender")
 
   @@map("User")
 }
@@ -88,6 +143,8 @@ model Block {
 
   blocked User @relation("UserBlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
   blocker User @relation("UserBlocksGiven", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("BlockReceiver", fields: [blockedId], references: [id], onDelete: Cascade)
+  blocker   User     @relation("BlockSender", fields: [blockerId], references: [id], onDelete: Cascade)
 
   @@unique([blockerId, blockedId])
   @@index([blockerId])
@@ -102,6 +159,8 @@ model Like {
 
   receiver User @relation("UserLikesReceived", fields: [receiverId], references: [id], onDelete: Cascade)
   sender   User @relation("UserLikesGiven", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User     @relation("LikeReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User     @relation("LikeSender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@unique([senderId, receiverId])
   @@index([senderId])
@@ -116,6 +175,8 @@ model Dislike {
 
   receiver User @relation("UserDislikesReceived", fields: [receiverId], references: [id], onDelete: Cascade)
   sender   User @relation("UserDislikesGiven", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User     @relation("DislikeReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User     @relation("DislikeSender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@unique([senderId, receiverId])
   @@index([senderId])
@@ -136,6 +197,30 @@ model ProfileView {
   @@index([viewerId])
   @@index([viewedId])
   @@map("profile_views")
+model Message {
+  id          String      @id @default(cuid())
+  content     String
+  senderId    String
+  receiverId  String
+  readAt      DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+  editedAt    DateTime?
+  clientId    String?
+  replyToId   String?
+  status      MessageStatus @default(SENT)
+  messageType MessageType   @default(TEXT)
+  receiver    User        @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  replyTo     Message?    @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies     Message[]   @relation("MessageReplies")
+  sender      User        @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([senderId, receiverId, createdAt])
+  @@index([receiverId, readAt])
+  @@index([createdAt])
+  @@index([clientId])
 }
 
 model Photo {
@@ -181,6 +266,51 @@ model NotificationSettings {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  id         String  @id @default(cuid())
+  minAge     Int     @default(18)
+  maxAge     Int     @default(35)
+  maxDistance Int    @default(50)
+  gender     Gender?
+  lookingFor String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  userId     String  @unique
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("UserPreferences")
+}
+
+model ProfileView {
+  id        String   @id @default(cuid())
+  viewerId  String
+  viewedId  String
+  createdAt DateTime @default(now())
+  viewed    User     @relation("ProfileViewReceiver", fields: [viewedId], references: [id], onDelete: Cascade)
+  viewer    User     @relation("ProfileViewSender", fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@unique([viewerId, viewedId])
+  @@index([viewerId])
+  @@index([viewedId])
+  @@map("profile_views")
+}
+
+// Nouveau modèle pour les paramètres de notification
+model NotificationSettings {
+  id                   String  @id @default(cuid())
+  userId               String  @unique
+  messageNotifications Boolean @default(true)
+  likeNotifications    Boolean @default(true)
+  matchNotifications   Boolean @default(true)
+  soundEnabled         Boolean @default(true)
+  vibrationEnabled     Boolean @default(true)
+  quietHoursStart      String? // Format "HH:mm"
+  quietHoursEnd        String? // Format "HH:mm"
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
   @@map("notification_settings")
 }
 
@@ -260,6 +390,19 @@ enum MaritalStatus {
 }
 
 // MessageStatus et MessageType supprimés (plus utilisés)
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  EMOJI
+  GIF
+}
 
 enum AuthMethod {
   EMAIL_PASSWORD
