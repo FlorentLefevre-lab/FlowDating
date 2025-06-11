@@ -26,6 +26,8 @@
     "@hookform/resolvers": "^5.0.1",
     "@prisma/client": "^6.9.0",
     "@stream-io/video-react-sdk": "^1.18.4",
+    "@tanstack/react-query": "^5.80.6",
+    "@tanstack/react-query-devtools": "^5.80.6",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.6.1",
     "date-fns": "^4.1.0",

@@ -1,9 +1,10 @@
 //src/app/layout.tsx
 
 import './globals.css'
+import { SessionProvider } from 'next-auth/react'
+import { QueryProvider } from '@/providers/QueryProvider'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
-import { Providers } from './providers'
 import Navbar from '@/components/layout/Navbar'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -21,15 +22,16 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className={inter.className}>
-        <Providers>
-          {/* Navbar conditionnelle basée sur la route et l'authentification */}
-          <Navbar />
-          
-          {/* Contenu principal */}
-          <main>
-            {children}
-          </main>
-        </Providers>
+          <SessionProvider>
+            {/* Contenu principal */}
+              <QueryProvider>
+                {/* Navbar conditionnelle basée sur la route et l'authentification */}
+                <Navbar />
+                <main>
+                  {children}
+                </main>
+              </QueryProvider>       
+          </SessionProvider>
       </body>
     </html>
   )

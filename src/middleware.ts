@@ -1,115 +1,131 @@
-// src/middleware.ts
+// src/middleware.ts - Version optimisée
 import { auth } from "./auth";
 import { NextResponse } from "next/server";
 
-export default auth((req) => {
-  const { pathname, searchParams } = req.nextUrl;
-  const isLoggedIn = !!req.auth;
-  
-  console.log(`🔍 Middleware: ${pathname}, Auth: ${isLoggedIn}`);
+// 🚀 CACHE POUR ÉVITER LES RECALCULS
+const routeCache = new Map<string, 'protected' | 'public' | 'api-protected' | 'static'>();
 
-  // Ignorer les fichiers statiques et les routes API spéciales
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/api/auth') ||
-    pathname.includes('.') ||
-    pathname.startsWith('/favicon')
-  ) {
-    return NextResponse.next();
+function getRouteType(pathname: string): 'protected' | 'public' | 'api-protected' | 'static' {
+  // Vérifier le cache d'abord
+  if (routeCache.has(pathname)) {
+    return routeCache.get(pathname)!;
   }
 
-  // ✅ ROUTES PROTÉGÉES - Nécessitent une authentification
-  const protectedRoutes = ['/home', '/profile', '/dashboard', '/matches', '/discover', '/chat', '/settings', '/messages', '/premium'];
-  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
+  let routeType: 'protected' | 'public' | 'api-protected' | 'static';
 
+  // Fichiers statiques
+  if (pathname.startsWith('/_next') || 
+      pathname.startsWith('/api/auth') ||
+      pathname.includes('.') ||
+      pathname.startsWith('/favicon')) {
+    routeType = 'static';
+  }
   // Routes API protégées
-  const protectedApiRoutes = ['/api/profile', '/api/matches', '/api/chat', '/api/user'];
-  const isProtectedApiRoute = protectedApiRoutes.some(route => pathname.startsWith(route));
-
-  // ✅ ROUTES PUBLIQUES - Accessibles sans authentification
-  const publicRoutes = ['/auth/login', '/auth/register', '/auth/error', '/auth/verify-email', '/'];
-  const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(route));
-
-  // Gestion des routes API protégées
-  if (isProtectedApiRoute && !isLoggedIn) {
-    console.log(`🚫 API non autorisée: ${pathname}`);
-    return NextResponse.json(
-      { error: 'Non autorisé', code: 'UNAUTHORIZED' },
-      { status: 401 }
-    );
+  else if (['/api/profile', '/api/matches', '/api/chat', '/api/user', '/api/discover'].some(route => pathname.startsWith(route))) {
+    routeType = 'api-protected';
+  }
+  // Routes protégées
+  else if (['/home', '/profile', '/dashboard', '/matches', '/discover', '/chat', '/settings', '/messages', '/premium'].some(route => pathname.startsWith(route))) {
+    routeType = 'protected';
+  }
+  // Routes publiques
+  else if (['/auth/login', '/auth/register', '/auth/error', '/auth/verify-email', '/'].some(route => pathname === route || pathname.startsWith(route))) {
+    routeType = 'public';
+  }
+  // Défaut
+  else {
+    routeType = 'protected'; // Par sécurité, toute nouvelle route est protégée par défaut
   }
 
-  // ✅ PROTECTION PRINCIPALE - Redirection si pas connecté sur route protégée
-  if (isProtectedRoute && !isLoggedIn) {
-    const loginUrl = new URL('/auth/login', req.nextUrl.origin);
-    loginUrl.searchParams.set('callbackUrl', pathname);
-    console.log(`🚫 Accès refusé à ${pathname} - redirection vers login`);
-    return NextResponse.redirect(loginUrl);
+  // Mettre en cache (limiter la taille du cache)
+  if (routeCache.size < 100) {
+    routeCache.set(pathname, routeType);
   }
 
-  // ✅ ÉVITER L'ACCÈS AUX PAGES D'AUTH SI DÉJÀ CONNECTÉ
-  if (isLoggedIn && pathname.startsWith('/auth/') && 
-      !['error', 'logout'].some(route => pathname.includes(route))) {
-    console.log(`🏠 Utilisateur connecté - redirection depuis ${pathname} vers /home`);
-    return NextResponse.redirect(new URL('/home', req.nextUrl.origin));
-  }
+  return routeType;
+}
 
-  // ✅ GESTION DE LA ROUTE RACINE
-  if (pathname === '/') {
-    if (isLoggedIn) {
-      // ✅ CHANGEMENT: Utilisateur connecté -> rediriger vers /home
-      console.log(`🏠 Utilisateur connecté - redirection racine vers /home`);
-      return NextResponse.redirect(new URL('/home', req.nextUrl.origin));
-    } else {
-      // Utilisateur non connecté -> permettre l'accès à la page publique
-      console.log(`🏠 Accès autorisé à la page publique`);
+export default auth((req) => {
+  const { pathname } = req.nextUrl;
+  const isLoggedIn = !!req.auth;
+  const routeType = getRouteType(pathname);
+
+  // Headers de sécurité communs
+  const securityHeaders = {
+    'X-Frame-Options': 'DENY',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'X-XSS-Protection': '1; mode=block',
+  };
+
+  // 🚀 GESTION OPTIMISÉE PAR TYPE DE ROUTE
+  switch (routeType) {
+    case 'static':
       return NextResponse.next();
-    }
-  }
 
-  // ✅ CORRECTION: Éviter la redirection en boucle pour /home
-  if (pathname === '/home' && isLoggedIn) {
-    console.log(`✅ Utilisateur connecté sur /home - accès autorisé`);
-    return NextResponse.next();
-  }
+    case 'api-protected':
+      if (!isLoggedIn) {
+        console.log(`🚫 API non autorisée: ${pathname}`);
+        return NextResponse.json(
+          { error: 'Non autorisé', code: 'UNAUTHORIZED', timestamp: Date.now() },
+          { status: 401, headers: securityHeaders }
+        );
+      }
+      // 🔐 Ajouter l'user ID dans les headers pour les APIs
+      const response = NextResponse.next();
+      Object.entries(securityHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+      response.headers.set('X-User-ID', req.auth?.user?.id || '');
+      return response;
 
-  // ✅ PAGES PUBLIQUES - Permettre l'accès
-  if (isPublicRoute) {
-    console.log(`✅ Accès autorisé à la page publique: ${pathname}`);
-    return NextResponse.next();
-  }
+    case 'protected':
+      if (!isLoggedIn) {
+        const loginUrl = new URL('/auth/login', req.nextUrl.origin);
+        loginUrl.searchParams.set('callbackUrl', pathname);
+        console.log(`🚫 Accès refusé à ${pathname}`);
+        return NextResponse.redirect(loginUrl);
+      }
+      
+      // 🏠 Gestion spéciale pour la route racine
+      if (pathname === '/') {
+        console.log(`🏠 Redirection racine vers /home`);
+        return NextResponse.redirect(new URL('/home', req.nextUrl.origin));
+      }
+      
+      const protectedResponse = NextResponse.next();
+      Object.entries(securityHeaders).forEach(([key, value]) => {
+        protectedResponse.headers.set(key, value);
+      });
+      return protectedResponse;
 
-  // ✅ AUTRES PAGES - Vérifier l'authentification
-  if (!isLoggedIn && !isPublicRoute) {
-    console.log(`🚫 Page non autorisée: ${pathname} - redirection vers login`);
-    const loginUrl = new URL('/auth/login', req.nextUrl.origin);
-    loginUrl.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
+    case 'public':
+      // 🔄 Éviter l'accès aux pages d'auth si déjà connecté
+      if (isLoggedIn && pathname.startsWith('/auth/') && 
+          !['error', 'logout', 'email-required'].some(route => pathname.includes(route))) {
+        console.log(`🏠 Redirection depuis ${pathname} vers /home`);
+        return NextResponse.redirect(new URL('/home', req.nextUrl.origin));
+      }
+      
+      // Gestion spéciale de la racine pour les non-connectés
+      if (pathname === '/' && !isLoggedIn) {
+        console.log(`🏠 Accès autorisé à la page publique`);
+        return NextResponse.next();
+      }
+      
+      return NextResponse.next();
 
-  // Ajouter des headers de sécurité
-  const response = NextResponse.next();
-  
-  // Headers de sécurité pour les routes protégées
-  if (isProtectedRoute || isProtectedApiRoute) {
-    response.headers.set('X-Frame-Options', 'DENY');
-    response.headers.set('X-Content-Type-Options', 'nosniff');
-    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    default:
+      // Route inconnue - protection par défaut
+      if (!isLoggedIn) {
+        const loginUrl = new URL('/auth/login', req.nextUrl.origin);
+        loginUrl.searchParams.set('callbackUrl', pathname);
+        return NextResponse.redirect(loginUrl);
+      }
+      return NextResponse.next();
   }
-
-  return response;
 });
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api/auth (NextAuth.js endpoints)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - Any file with an extension
-     */
-    '/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.).*))',
-  ],
+  matcher: ['/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.).*)'],
 };

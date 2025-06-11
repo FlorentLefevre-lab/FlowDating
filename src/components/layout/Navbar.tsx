@@ -157,24 +157,24 @@ export default function Navbar() {
               Découverte
             </Link>
             <Link 
-              href="/messages" 
+              href="/matches" 
               className={`text-gray-600 hover:text-gray-900 transition-colors font-medium relative ${
                 pathname === '/messages' ? 'text-pink-600 font-semibold' : ''
               }`}
             >
               
-              Messages
+              Matchs
               <span className="absolute -top-2 -right-2 bg-pink-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                 3
               </span>
             </Link>
             <Link 
-              href="/matches" 
+              href="/chat" 
               className={`text-gray-600 hover:text-gray-900 transition-colors font-medium ${
                 pathname === '/matches' ? 'text-pink-600 font-semibold' : ''
               }`}
             >
-              Matchs
+              Chat
             </Link>
           </div>
 
