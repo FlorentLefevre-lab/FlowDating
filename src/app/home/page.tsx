@@ -1,4 +1,5 @@
-// src/app/page.tsx - Version refactorisée avec useQuery
+// app/page.tsx - Version corrigée pour le chargement des données
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -12,7 +13,7 @@ import { useStats } from '@/hooks/useStats'
 import { useQuery } from '@/hooks/useQuery'
 
 // ================================
-// TYPES POUR L'API DISCOVER
+// 🔥 TYPES POUR L'API DISCOVER
 // ================================
 
 interface DiscoverUser {
@@ -57,10 +58,6 @@ interface DiscoverApiResponse {
   error?: string
 }
 
-// ================================
-// TYPE POUR LE STATUT DU COMPTE
-// ================================
-
 interface AccountStatus {
   accountStatus: string
   suspendedAt?: string
@@ -69,31 +66,91 @@ interface AccountStatus {
 }
 
 export default function HomePage() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
   
-  // 🚀 HOOKS REFACTORISÉS - Fini le fetch manuel !
+  // 🔥 CORRECTION: États pour forcer le re-render
+  const [mounted, setMounted] = useState(false)
+  const [dataLoaded, setDataLoaded] = useState(false)
   
-  // Stats temps réel avec useStats (remplace useRealTimeStats)
+  // 🔥 CORRECTION: Hooks avec options fixes
   const { 
     data: stats, 
     isLoading: statsLoading, 
     error: statsError,
-    refresh: refreshStats
-  } = useStats(true) // Polling automatique 30s
-  
-  // Account status avec useQuery (remplace loadAccountStatus)
+    refetch: refetchStats
+  } = useStats(false) // Pas de polling automatique pour éviter les conflits
+
   const { 
     data: rawAccountStatus, 
     isLoading: statusLoading, 
-    error: statusError 
+    error: statusError,
+    refetch: refetchStatus
   } = useQuery<any>('/api/profile', {
     cache: true,
-    cacheTtl: 2 * 60 * 1000, // 2 minutes
-    enabled: !!session?.user?.id
+    cacheTtl: 2 * 60 * 1000,
+    enabled: status === 'authenticated' && mounted // 🔥 Condition précise
   })
 
-  // Transformer les données du profil pour obtenir le statut
+  const { 
+    data: discoveryData, 
+    isLoading: discoverLoading, 
+    error: discoverError,
+    refetch: refetchProfiles 
+  } = useQuery<DiscoverApiResponse>('/api/discover?limit=10', {
+    cache: true,
+    cacheTtl: 30 * 1000,
+    enabled: status === 'authenticated' && mounted // 🔥 Condition précise
+  })
+
+  // 🔥 CORRECTION: Gestion du mounting et chargement forcé
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // 🔥 CORRECTION: Chargement forcé des données quand tout est prêt
+  useEffect(() => {
+    if (status === 'authenticated' && mounted && !dataLoaded) {
+      console.log('🔄 [HOME] Chargement forcé des données...')
+      
+      // Forcer le chargement de toutes les données
+      const loadAllData = async () => {
+        try {
+          await Promise.all([
+            refetchStats(),
+            refetchStatus(),
+            refetchProfiles()
+          ])
+          setDataLoaded(true)
+          console.log('✅ [HOME] Toutes les données chargées')
+        } catch (error) {
+          console.error('❌ [HOME] Erreur chargement:', error)
+        }
+      }
+      
+      loadAllData()
+    }
+  }, [status, mounted, dataLoaded, refetchStats, refetchStatus, refetchProfiles])
+
+  // 🔥 CORRECTION: Debugging amélioré
+  useEffect(() => {
+    console.log('🐛 [HOME] État complet:', {
+      status,
+      mounted,
+      dataLoaded,
+      statsLoading,
+      stats: stats ? 'Données présentes' : 'Aucune donnée',
+      statusLoading,
+      discoverLoading
+    })
+  }, [status, mounted, dataLoaded, statsLoading, stats, statusLoading, discoverLoading])
+
+  // États UI
+  const [currentUserIndex, setCurrentUserIndex] = useState(0)
+  const [isMatch, setIsMatch] = useState(false)
+  const [matchUser, setMatchUser] = useState<{ id: string; name: string } | null>(null)
+
+  // Données dérivées
   const accountStatus: AccountStatus | null = rawAccountStatus ? {
     accountStatus: rawAccountStatus.accountStatus || 'ACTIVE',
     suspendedAt: rawAccountStatus.suspendedAt,
@@ -101,71 +158,56 @@ export default function HomePage() {
     suspendedUntil: rawAccountStatus.suspendedUntil
   } : null
 
-  // Discover profiles avec useQuery (remplace loadDiscoverProfiles)
-  const { 
-    data: discoveryData, 
-    isLoading: discoverLoading, 
-    error: discoverError,
-    refresh: reloadProfiles 
-  } = useQuery<DiscoverApiResponse>('/api/discover?limit=10', {
-    cache: true,
-    cacheTtl: 30 * 1000, // 30 secondes
-    enabled: !!session?.user?.id
-  })
-
-  // Actions API avec useQuery (remplace tous les fetch manuels d'actions)
-  const { 
-    post: sendAction 
-  } = useQuery('/api/discover', { 
-    enabled: false // Utilisé seulement pour les actions manuelles
-  })
-
-  // ================================
-  // ÉTATS UI SEULEMENT (plus d'états de données !)
-  // ================================
-  
-  const [currentUserIndex, setCurrentUserIndex] = useState(0)
-  const [isMatch, setIsMatch] = useState(false)
-  const [matchUser, setMatchUser] = useState<{ id: string; name: string } | null>(null)
-
-  // Données dérivées (plus de useState pour les données)
   const discoveryUsers = discoveryData?.users || []
   const currentUser = discoveryUsers[currentUserIndex]
 
-  // ================================
-  // ACTIONS DISCOVER SIMPLIFIÉES
-  // ================================
+  // 🔥 CORRECTION: Fonction de rafraîchissement améliorée
+  const handleRefresh = async () => {
+    console.log('🔄 [HOME] Rafraîchissement manuel...')
+    setDataLoaded(false)
+    
+    try {
+      await Promise.all([
+        refetchStats(),
+        refetchStatus(),
+        refetchProfiles()
+      ])
+      setDataLoaded(true)
+      console.log('✅ [HOME] Rafraîchissement terminé')
+    } catch (error) {
+      console.error('❌ [HOME] Erreur rafraîchissement:', error)
+    }
+  }
 
+  // Actions discover (code inchangé mais amélioré)
   const handleLike = async (userId: string) => {
     try {
-      console.log('💖 Like user via API:', userId)
+      console.log('💖 Like user:', userId)
 
-      const result = await sendAction({
-        targetUserId: userId,
-        action: 'like'
+      const response = await fetch('/api/discover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: userId,
+          action: 'like'
+        })
       })
 
+      const result = await response.json()
       console.log('📡 Like result:', result)
 
       if (result.success) {
-        // Vérifier s'il y a un match
         if (result.isMatch) {
           console.log('🎉 MATCH détecté !')
           setMatchUser({ id: userId, name: currentUser.name })
           setIsMatch(true)
-          
-          // Refresh des stats après un match
-          refreshStats()
+          refetchStats() // Mettre à jour les stats
         }
-
-        // Passer au profil suivant
         nextUser()
-
       } else {
         console.error('❌ Erreur API like:', result.error)
         alert('Erreur lors du like: ' + result.error)
       }
-
     } catch (error) {
       console.error('❌ Erreur réseau like:', error)
       alert('Erreur de connexion lors du like')
@@ -174,54 +216,50 @@ export default function HomePage() {
 
   const handlePass = async (userId: string) => {
     try {
-      console.log('👎 Pass user via API:', userId)
+      console.log('👎 Pass user:', userId)
 
-      const result = await sendAction({
-        targetUserId: userId,
-        action: 'dislike'
+      const response = await fetch('/api/discover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: userId,
+          action: 'dislike'
+        })
       })
 
+      const result = await response.json()
       console.log('📡 Pass result:', result)
 
-      if (result.success) {
-        nextUser()
-      } else {
-        console.error('❌ Erreur API pass:', result.error)
-        // Continuer même en cas d'erreur côté serveur
-        nextUser()
-      }
-
+      nextUser() // Continuer même en cas d'erreur
     } catch (error) {
       console.error('❌ Erreur réseau pass:', error)
-      // Continuer même en cas d'erreur réseau
-      nextUser()
+      nextUser() // Continuer même en cas d'erreur réseau
     }
   }
 
   const handleSuperLike = async (userId: string) => {
     try {
-      console.log('⭐ Super Like user via API:', userId)
+      console.log('⭐ Super Like user:', userId)
 
-      const result = await sendAction({
-        targetUserId: userId,
-        action: 'super_like'
+      const response = await fetch('/api/discover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: userId,
+          action: 'super_like'
+        })
       })
 
+      const result = await response.json()
       console.log('📡 Super Like result:', result)
 
-      if (result.success) {
-        if (result.isMatch) {
-          console.log('🎉 SUPER MATCH détecté !')
-          setMatchUser({ id: userId, name: currentUser.name })
-          setIsMatch(true)
-          refreshStats()
-        }
-        nextUser()
-      } else {
-        console.error('❌ Erreur API super like:', result.error)
-        alert('Erreur lors du super like: ' + result.error)
+      if (result.success && result.isMatch) {
+        console.log('🎉 SUPER MATCH détecté !')
+        setMatchUser({ id: userId, name: currentUser.name })
+        setIsMatch(true)
+        refetchStats()
       }
-
+      nextUser()
     } catch (error) {
       console.error('❌ Erreur réseau super like:', error)
       alert('Erreur de connexion lors du super like')
@@ -232,18 +270,14 @@ export default function HomePage() {
     if (currentUserIndex < discoveryUsers.length - 1) {
       setCurrentUserIndex(currentUserIndex + 1)
     } else {
-      // Recharger de nouveaux profils quand on arrive à la fin
       console.log('🔄 Fin des profils, rechargement...')
-      reloadProfiles() // useQuery refresh au lieu de fonction custom
+      refetchProfiles()
+      setCurrentUserIndex(0)
     }
   }
 
-  // ================================
-  // GESTION DE L'AVATAR/PHOTO (inchangée)
-  // ================================
-
+  // Utilitaires (code inchangé)
   const getUserAvatar = (user: DiscoverUser) => {
-    // Priorité : photo principale > première photo > placeholder
     const primaryPhoto = user.photos?.find(photo => photo.isPrimary)
     const firstPhoto = user.photos?.[0]
     
@@ -252,25 +286,26 @@ export default function HomePage() {
     } else if (firstPhoto?.url) {
       return firstPhoto.url
     } else {
-      // Fallback vers un emoji basé sur le genre ou aléatoire
       const avatars = ['👩‍🦰', '👱‍♀️', '👩‍🦱', '👩', '🧑‍🦰', '👨‍🦱', '👨', '🧑']
       const index = user.name.length % avatars.length
       return avatars[index]
     }
   }
 
-  // Calculer la "distance" basée sur la compatibilité (simulation)
   const getDistance = (compatibility: number) => {
-    // Plus la compatibilité est haute, plus la "distance" est courte
     return Math.round((100 - compatibility) / 10 + 0.5)
   }
 
-  // ================================
-  // COMPOSANT D'AFFICHAGE DU STATUT (inchangé)
-  // ================================
+  // Redirection si non authentifié
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin')
+    }
+  }, [status, router])
 
+  // 🔥 Composant de statut de compte avec chargement amélioré
   const AccountStatusBanner = () => {
-    if (statusLoading) {
+    if (statusLoading || !mounted) {
       return (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
           <div className="flex items-center gap-2">
@@ -290,7 +325,7 @@ export default function HomePage() {
               <span className="text-sm text-yellow-700">Impossible de vérifier le statut du compte</span>
             </div>
             <button
-              onClick={() => window.location.reload()} // Simple reload au lieu de fonction custom
+              onClick={handleRefresh}
               className="text-xs bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
             >
               Réessayer
@@ -302,91 +337,8 @@ export default function HomePage() {
 
     if (!accountStatus) return null
 
-    // Affichage selon le statut (code inchangé)
+    // Affichage selon le statut
     switch (accountStatus.accountStatus) {
-      case 'SUSPENDED':
-        return (
-          <div className="bg-orange-50 border-l-4 border-orange-500 rounded-r-lg p-4 mb-6">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <span className="text-orange-500 text-xl">⏸️</span>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-semibold text-orange-800">
-                  Compte suspendu
-                </h3>
-                <p className="text-sm text-orange-700 mt-1">
-                  Votre compte est actuellement suspendu. Votre profil n'est pas visible et vous ne pouvez pas interagir avec d'autres utilisateurs.
-                </p>
-                {accountStatus.suspensionReason && (
-                  <p className="text-xs text-orange-600 mt-2">
-                    Raison: {accountStatus.suspensionReason}
-                  </p>
-                )}
-                {accountStatus.suspendedAt && (
-                  <p className="text-xs text-orange-600">
-                    Suspendu le: {new Date(accountStatus.suspendedAt).toLocaleDateString('fr-FR')}
-                  </p>
-                )}
-                <div className="mt-3">
-                  <Link
-                    href="/profile?tab=settings"
-                    className="inline-flex items-center gap-1 bg-orange-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-orange-600 transition-colors"
-                  >
-                    ⚙️ Gérer mon compte
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-
-      case 'BANNED':
-        return (
-          <div className="bg-red-50 border-l-4 border-red-500 rounded-r-lg p-4 mb-6">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <span className="text-red-500 text-xl">🚫</span>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-semibold text-red-800">
-                  Compte banni
-                </h3>
-                <p className="text-sm text-red-700 mt-1">
-                  Votre compte a été banni. Veuillez contacter le support pour plus d'informations.
-                </p>
-                <div className="mt-3">
-                  <a
-                    href="mailto:support@votre-site.com"
-                    className="inline-flex items-center gap-1 bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-red-600 transition-colors"
-                  >
-                    📧 Contacter le support
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-
-      case 'PENDING_VERIFICATION':
-        return (
-          <div className="bg-yellow-50 border-l-4 border-yellow-500 rounded-r-lg p-4 mb-6">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <span className="text-yellow-500 text-xl">⏳</span>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-semibold text-yellow-800">
-                  Vérification en cours
-                </h3>
-                <p className="text-sm text-yellow-700 mt-1">
-                  Votre compte est en cours de vérification. Certaines fonctionnalités peuvent être limitées.
-                </p>
-              </div>
-            </div>
-          </div>
-        )
-
       case 'ACTIVE':
         return (
           <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
@@ -396,6 +348,31 @@ export default function HomePage() {
               <div className="ml-auto flex items-center gap-1">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <span className="text-xs text-green-600">En ligne</span>
+              </div>
+            </div>
+          </div>
+        )
+      
+      case 'SUSPENDED':
+        return (
+          <div className="bg-orange-50 border-l-4 border-orange-500 rounded-r-lg p-4 mb-6">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <span className="text-orange-500 text-xl">⏸️</span>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-semibold text-orange-800">Compte suspendu</h3>
+                <p className="text-sm text-orange-700 mt-1">
+                  Votre compte est actuellement suspendu.
+                </p>
+                <div className="mt-3">
+                  <Link
+                    href="/profile?tab=settings"
+                    className="inline-flex items-center gap-1 bg-orange-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-orange-600 transition-colors"
+                  >
+                    ⚙️ Gérer mon compte
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
@@ -415,13 +392,13 @@ export default function HomePage() {
     }
   }
 
-  // 🎯 Actions rapides avec badges de notification (utilise maintenant stats depuis useStats)
+  // 🔥 Actions rapides avec données réelles
   const quickActions = [
     { 
       icon: '💬', 
       label: 'Messages', 
       href: '/messages',
-      count: stats?.dailyStats?.messagesReceived || 0,
+      count: 0, // TODO: Ajouter vraies données de messages
       color: 'from-blue-500 to-blue-600',
       description: 'Nouveaux messages'
     },
@@ -429,7 +406,7 @@ export default function HomePage() {
       icon: '💖', 
       label: 'Matchs', 
       href: '/matches',
-      count: stats?.matchesCount || 0,
+      count: stats?.totalStats?.matchesCount || stats?.matchesCount || 0,
       color: 'from-pink-500 to-pink-600',
       description: 'Matches actifs'
     },
@@ -450,15 +427,28 @@ export default function HomePage() {
     }
   ]
 
+  // Loading state global
+  if (status === 'loading' || !mounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-pink-200 border-t-pink-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-800">Chargement...</h2>
+          <p className="text-gray-600 mt-2">Préparation de votre tableau de bord</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <AuthGuard requireAuth={true}>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           
-          {/* 🔔 BANNIÈRE DE STATUT DU COMPTE */}
+          {/* Bannière de statut du compte */}
           <AccountStatusBanner />
           
-          {/* 🎯 EN-TÊTE DE BIENVENUE */}
+          {/* En-tête de bienvenue */}
           <div className="mb-6">
             <div className="flex items-center justify-between">
               <div>
@@ -468,7 +458,7 @@ export default function HomePage() {
                 <div className="text-gray-600 flex items-center gap-3">
                   <span>Voici votre activité et les dernières notifications</span>
                   
-                  {/* 🔍 INDICATEUR DE STATUT COMPACT DANS L'EN-TÊTE */}
+                  {/* Indicateur de statut dans l'en-tête */}
                   {!statusLoading && accountStatus && (
                     <div className="flex items-center gap-2">
                       <div className="text-xs text-gray-400">•</div>
@@ -476,18 +466,15 @@ export default function HomePage() {
                         <div className={`w-2 h-2 rounded-full ${
                           accountStatus.accountStatus === 'ACTIVE' ? 'bg-green-500' :
                           accountStatus.accountStatus === 'SUSPENDED' ? 'bg-orange-500' :
-                          accountStatus.accountStatus === 'BANNED' ? 'bg-red-500' :
                           'bg-gray-400'
                         }`}></div>
                         <span className={`text-xs font-medium ${
                           accountStatus.accountStatus === 'ACTIVE' ? 'text-green-600' :
                           accountStatus.accountStatus === 'SUSPENDED' ? 'text-orange-600' :
-                          accountStatus.accountStatus === 'BANNED' ? 'text-red-600' :
                           'text-gray-600'
                         }`}>
                           {accountStatus.accountStatus === 'ACTIVE' ? 'Actif' :
                            accountStatus.accountStatus === 'SUSPENDED' ? 'Suspendu' :
-                           accountStatus.accountStatus === 'BANNED' ? 'Banni' :
                            accountStatus.accountStatus}
                         </span>
                       </div>
@@ -496,17 +483,19 @@ export default function HomePage() {
                 </div>
               </div>
               
-              {/* Indicateur de statut temps réel */}
+              {/* Bouton de rafraîchissement avec indicateur */}
               <div className="text-right">
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+                <button
+                  onClick={handleRefresh}
+                  disabled={!dataLoaded}
+                  className="flex items-center gap-2 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors disabled:opacity-50"
+                >
                   <div className={`w-2 h-2 rounded-full ${
-                    statsLoading ? 'bg-yellow-400 animate-pulse' : 
-                    statsError ? 'bg-red-400' : 'bg-green-400'
+                    statsLoading ? 'bg-yellow-200 animate-pulse' : 
+                    statsError ? 'bg-red-200' : 'bg-green-200'
                   }`}></div>
-                  <span>
-                    Données temps réel
-                  </span>
-                </div>
+                  <span>Actualiser</span>
+                </button>
                 {statsError && (
                   <div className="text-xs text-red-500 mt-1">
                     Erreur de connexion
@@ -516,37 +505,59 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* 🔥 SECTION PRINCIPALE EN 3 COLONNES FLEX */}
+          {/* Section principale en 3 colonnes */}
           <div className="flex flex-col xl:flex-row gap-6 mb-8">
             
-            {/* Colonne 1: Stats rapides + Performance + Activité récente */}
+            {/* Colonne 1: Stats rapides */}
             <div className="xl:w-1/3 bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-              {/* Stats rapides en un coup d'œil */}
               <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                 ⚡ En un coup d&apos;œil
+                {statsLoading && (
+                  <div className="w-4 h-4 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+                )}
               </h3>
+              
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <div className="text-center p-3 bg-blue-50 rounded-lg">
                   <div className="text-2xl font-bold text-blue-600">
-                    {statsLoading ? '...' : stats?.dailyStats?.profileViews || 0}
+                    {statsLoading ? (
+                      <div className="animate-pulse">...</div>
+                    ) : (
+                      stats?.dailyStats?.profileViews || stats?.profileViews || 0
+                    )}
                   </div>
                   <div className="text-xs text-blue-700">Vues aujourd&apos;hui</div>
                 </div>
+                
                 <div className="text-center p-3 bg-pink-50 rounded-lg">
                   <div className="text-2xl font-bold text-pink-600">
-                    {statsLoading ? '...' : stats?.dailyStats?.likesReceived || 0}
+                    {statsLoading ? (
+                      <div className="animate-pulse">...</div>
+                    ) : (
+                      stats?.dailyStats?.likesReceived || stats?.likesReceived || 0
+                    )}
                   </div>
                   <div className="text-xs text-pink-700">Likes reçus</div>
                 </div>
+                
                 <div className="text-center p-3 bg-green-50 rounded-lg">
                   <div className="text-2xl font-bold text-green-600">
-                    {statsLoading ? '...' : stats?.dailyStats?.messagesReceived || 0}
+                    {statsLoading ? (
+                      <div className="animate-pulse">...</div>
+                    ) : (
+                      0 // TODO: Ajouter messages reçus
+                    )}
                   </div>
                   <div className="text-xs text-green-700">Messages reçus</div>
                 </div>
+                
                 <div className="text-center p-3 bg-orange-50 rounded-lg">
                   <div className="text-2xl font-bold text-orange-600">
-                    {statsLoading ? '...' : stats?.matchesCount || 0}
+                    {statsLoading ? (
+                      <div className="animate-pulse">...</div>
+                    ) : (
+                      stats?.totalStats?.matchesCount || stats?.matchesCount || 0
+                    )}
                   </div>
                   <div className="text-xs text-orange-700">Matches total</div>
                 </div>
@@ -557,29 +568,28 @@ export default function HomePage() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">Performance du jour</span>
                   <span className={`font-medium ${
-                    ((stats?.dailyStats?.profileViews || 0) + (stats?.dailyStats?.likesReceived || 0) + (stats?.dailyStats?.messagesReceived || 0)) > 5 
+                    ((stats?.dailyStats?.profileViews || 0) + (stats?.dailyStats?.likesReceived || 0)) > 5 
                       ? 'text-green-600' : 'text-yellow-600'
                   }`}>
-                    {((stats?.dailyStats?.profileViews || 0) + (stats?.dailyStats?.likesReceived || 0) + (stats?.dailyStats?.messagesReceived || 0)) > 5 
+                    {((stats?.dailyStats?.profileViews || 0) + (stats?.dailyStats?.likesReceived || 0)) > 5 
                       ? '🔥 Excellente' : '📈 Moyenne'}
                   </span>
                 </div>
               </div>
 
-              {/* Note: recentActivity supprimé car c'étaient des données factices dans useRealTimeStats */}
+              {/* Placeholder activité récente */}
               <div className="border-t border-gray-200 pt-6">
                 <div className="text-center text-gray-500 text-sm">
                   <div className="text-2xl mb-2">📈</div>
                   <p>Activité récente bientôt disponible</p>
-                  <p className="text-xs text-gray-400 mt-1">Les vraies données d'activité seront ajoutées prochainement</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {dataLoaded ? 'Données chargées' : 'Chargement en cours...'}
+                  </p>
                 </div>
               </div>
             </div>
 
-            {/* COLONNE 2 & 3 : Code inchangé - juste utilise discoveryUsers depuis useQuery */}
-            {/* ... Le reste du JSX reste identique ... */}
-            
-            {/* Colonne 2: Découverte API (au centre) - VERSION AGRANDIE */}
+            {/* Colonne 2: Découverte */}
             <div className="xl:w-1/3 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm flex flex-col min-h-[500px]">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -596,26 +606,8 @@ export default function HomePage() {
                 </Link>
               </div>
 
-              {/* Le reste du code discover reste identique car il utilise maintenant discoveryUsers depuis useQuery */}
-              {accountStatus?.accountStatus === 'SUSPENDED' || accountStatus?.accountStatus === 'BANNED' ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center p-6">
-                    <div className="text-4xl mb-4">⏸️</div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                      Fonctionnalité indisponible
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-4">
-                      La découverte n'est pas disponible pour les comptes {accountStatus.accountStatus === 'SUSPENDED' ? 'suspendus' : 'bannis'}.
-                    </p>
-                    <Link 
-                      href="/profile?tab=settings" 
-                      className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors"
-                    >
-                      Gérer mon compte
-                    </Link>
-                  </div>
-                </div>
-              ) : discoverLoading ? (
+              {/* Contenu découverte */}
+              {discoverLoading || !dataLoaded ? (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
                     <div className="w-8 h-8 border-2 border-pink-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
@@ -628,7 +620,7 @@ export default function HomePage() {
                     <div className="text-2xl mb-2">😞</div>
                     <p className="text-sm text-red-600 mb-2">Erreur de chargement</p>
                     <button 
-                      onClick={() => reloadProfiles()} // useQuery refresh
+                      onClick={handleRefresh}
                       className="text-xs bg-pink-500 text-white px-2 py-1 rounded hover:bg-pink-600"
                     >
                       Réessayer
@@ -637,7 +629,7 @@ export default function HomePage() {
                 </div>
               ) : currentUser ? (
                 <div className="flex-1 min-h-0">
-                  {/* CARTE PROFIL - Code identique, utilise currentUser depuis useQuery */}
+                  {/* Carte de profil discover (code inchangé mais avec currentUser) */}
                   <div 
                     className="rounded-xl relative overflow-hidden h-full flex flex-col shadow-xl"
                     style={{
@@ -649,7 +641,7 @@ export default function HomePage() {
                       minHeight: '400px'
                     }}
                   >
-                    {/* Overlay gradient pour lisibilité */}
+                    {/* Overlay gradient */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40"></div>
                     
                     {/* Badges en haut */}
@@ -665,9 +657,8 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    {/* Contenu principal en bas */}
+                    {/* Contenu principal */}
                     <div className="relative z-10 mt-auto p-4 text-white">
-                      {/* Nom et âge */}
                       <div className="mb-3">
                         <h3 className="text-2xl font-bold mb-1">
                           {currentUser.name}, {currentUser.age}
@@ -687,7 +678,7 @@ export default function HomePage() {
                         )}
                       </div>
 
-                      {/* Bio si disponible */}
+                      {/* Bio */}
                       {currentUser.bio && (
                         <div className="mb-3">
                           <p className="text-white/90 text-sm line-clamp-2">
@@ -716,13 +707,12 @@ export default function HomePage() {
                         </div>
                       </div>
 
-                      {/* Actions de swipe AGRANDIES */}
+                      {/* Actions de swipe */}
                       <div className="flex justify-center gap-4 mb-3">
                         <button 
                           onClick={() => handlePass(currentUser.id)}
                           className="w-14 h-14 bg-white/15 hover:bg-white/25 rounded-full flex items-center justify-center backdrop-blur-sm transition-all duration-200 hover:scale-110 border border-white/20"
                           title="Passer"
-                          type="button"
                         >
                           <span className="text-xl">👎</span>
                         </button>
@@ -731,7 +721,6 @@ export default function HomePage() {
                           onClick={() => handleSuperLike(currentUser.id)}
                           className="w-14 h-14 bg-blue-500/90 hover:bg-blue-600 rounded-full flex items-center justify-center backdrop-blur-sm transition-all duration-200 hover:scale-110 shadow-lg border border-white/30"
                           title="Super Like"
-                          type="button"
                         >
                           <span className="text-xl">⭐</span>
                         </button>
@@ -740,7 +729,6 @@ export default function HomePage() {
                           onClick={() => handleLike(currentUser.id)}
                           className="w-16 h-16 bg-pink-500 hover:bg-pink-600 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 shadow-xl border-2 border-white/40"
                           title="Liker"
-                          type="button"
                         >
                           <span className="text-2xl">💖</span>
                         </button>
@@ -765,20 +753,6 @@ export default function HomePage() {
                         </div>
                       </div>
                     </div>
-
-                    {/* Indicateur de multiple photos */}
-                    {currentUser.photos && currentUser.photos.length > 1 && (
-                      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
-                        <div className="flex gap-1">
-                          {currentUser.photos.slice(0, 5).map((_, index) => (
-                            <div key={index} className="w-8 h-1 bg-white/40 rounded-full"></div>
-                          ))}
-                          {currentUser.photos.length > 5 && (
-                            <div className="w-8 h-1 bg-white/20 rounded-full"></div>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               ) : (
@@ -788,7 +762,7 @@ export default function HomePage() {
                     Plus de profils !
                   </h3>
                   <div className="text-gray-600 text-xs mb-3">
-                    Aucun nouveau profil disponible pour le moment
+                    Aucun nouveau profil disponible
                   </div>
                   <Link 
                     href="/discover" 
@@ -800,12 +774,12 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* Colonne 3: Actions rapides + Objectifs + Conseil du jour */}
+            {/* Colonne 3: Actions rapides */}
             <div className="xl:w-1/3 bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-              {/* Actions rapides */}
               <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                 🚀 Actions rapides
               </h3>
+              
               <div className="grid grid-cols-2 gap-3 mb-6">
                 {quickActions.map((action, index) => (
                   <Link 
@@ -834,42 +808,6 @@ export default function HomePage() {
                 ))}
               </div>
 
-              {/* Objectifs de la semaine */}
-              <div className="border-t border-gray-200 pt-6 mb-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  🎯 Objectifs de la semaine
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Profils vus</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 bg-gray-200 rounded-full h-1.5">
-                        <div className="bg-blue-500 h-1.5 rounded-full" style={{width: '60%'}}></div>
-                      </div>
-                      <span className="text-xs text-gray-500">12/20</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Messages envoyés</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 bg-gray-200 rounded-full h-1.5">
-                        <div className="bg-green-500 h-1.5 rounded-full" style={{width: '80%'}}></div>
-                      </div>
-                      <span className="text-xs text-gray-500">8/10</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Nouveaux matchs</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 bg-gray-200 rounded-full h-1.5">
-                        <div className="bg-pink-500 h-1.5 rounded-full" style={{width: '40%'}}></div>
-                      </div>
-                      <span className="text-xs text-gray-500">2/5</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               {/* Conseil du jour */}
               <div className="border-t border-gray-200 pt-6">
                 <div className="bg-gradient-to-br from-orange-500 to-pink-500 rounded-xl p-4 text-white">
@@ -877,11 +815,13 @@ export default function HomePage() {
                     💡 Conseil du jour
                   </h3>
                   <div className="text-orange-100 text-xs leading-relaxed mb-3">
-                    {(stats?.dailyStats?.profileViews || 0) === 0 ? 
-                      'Votre profil n\'a pas encore été vu aujourd\'hui. Pensez à vous connecter plus souvent et à optimiser vos photos !' :
+                    {!dataLoaded ? 
+                      'Chargement de conseils personnalisés...' :
+                      (stats?.dailyStats?.profileViews || 0) === 0 ? 
+                      'Votre profil n\'a pas encore été vu aujourd\'hui. Pensez à vous connecter plus souvent !' :
                       (stats?.dailyStats?.profileViews || 0) > 20 ?
-                      'Excellent ! Votre profil attire beaucoup d\'attention. Continuez sur cette lancée !' :
-                      'Ajoutez plus de photos à votre profil pour augmenter vos chances de match de 40% !'
+                      'Excellent ! Votre profil attire beaucoup d\'attention.' :
+                      'Ajoutez plus de photos à votre profil pour augmenter vos chances de match !'
                     }
                   </div>
                   <Link 
@@ -895,7 +835,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* 📊 SECTION INFÉRIEURE - STATISTIQUES DÉTAILLÉES */}
+          {/* Section inférieure - Statistiques détaillées */}
           <div className="mb-8">
             <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
               <StatsDashboard 

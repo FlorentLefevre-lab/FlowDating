@@ -1,11 +1,15 @@
-// src/app/api/matches/route.ts - CORRIGÉ AVEC LIKES BIDIRECTIONNELS
+// ===============================
+// 📁 app/api/matches/route.ts - API Matches sans messages
+// ===============================
+
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth'; 
 import { prisma } from '@/lib/db'; 
+import { Match, MatchStats, MatchesResponse } from '@/types/matches';
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔄 [MATCHES] Début de la requête');
+    console.log('🔄 [MATCHES] Début de la requête API (sans messages)');
 
     // 1. Vérifier l'authentification
     const session = await auth();
@@ -18,47 +22,44 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('👤 [MATCHES] User ID:', session.user.id);
+    const currentUserId = session.user.id;
+    console.log('👤 [MATCHES] User ID:', currentUserId);
 
     try {
-      // 2. Récupérer les matches via likes bidirectionnels (comme dans vos logs)
+      // 2. Récupérer les matches via likes bidirectionnels
       console.log('🔄 [MATCHES] Recherche des likes bidirectionnels...');
       
-      const matchesData = await prisma.$queryRaw<Array<{senderId: string, receiverId: string}>>`
-        SELECT DISTINCT l1."senderId", l1."receiverId"
+      const matchesData = await prisma.$queryRaw<Array<{
+        senderId: string, 
+        receiverId: string,
+        matchedAt: Date
+      }>>`
+        SELECT DISTINCT 
+          l1."senderId", 
+          l1."receiverId",
+          LEAST(l1."createdAt", l2."createdAt") as "matchedAt"
         FROM "likes" l1
         INNER JOIN "likes" l2 ON l1."senderId" = l2."receiverId" AND l1."receiverId" = l2."senderId"
-        WHERE l1."receiverId" = ${session.user.id}
+        WHERE l1."receiverId" = ${currentUserId}
+        ORDER BY "matchedAt" DESC
       `;
 
-      console.log(`📋 [MATCHES] ${matchesData.length} matches trouvés via likes bidirectionnels`);
-      console.log('📋 [MATCHES] Données brutes:', matchesData);
+      console.log(`📋 [MATCHES] ${matchesData.length} matches trouvés`);
 
       if (matchesData.length === 0) {
-        console.log('ℹ️ [MATCHES] Aucun match trouvé pour user:', session.user.id);
-        
-        // Debug: vérifier s'il y a des likes du tout
-        const totalLikesReceived = await prisma.like.count({
-          where: { receiverId: session.user.id }
-        });
-        
-        const totalLikesSent = await prisma.like.count({
-          where: { senderId: session.user.id }
-        });
-        
-        console.log(`📊 [MATCHES] Debug - Likes reçus: ${totalLikesReceived}, Likes envoyés: ${totalLikesSent}`);
-        
+        const stats: MatchStats = {
+          totalMatches: 0,
+          newMatches: 0,
+          activeConversations: 0,
+          dormantMatches: 0,
+          averageResponseTime: '0h',
+          thisWeekMatches: 0
+        };
+
         return NextResponse.json({
-          success: true,
-          data: [],
-          count: 0,
-          debug: {
-            totalLikesReceived,
-            totalLikesSent,
-            userId: session.user.id
-          },
-          message: 'Aucun match trouvé'
-        });
+          matches: [],
+          stats
+        } as MatchesResponse);
       }
 
       // 3. Récupérer les détails des utilisateurs matchés
@@ -73,109 +74,124 @@ export async function GET(request: NextRequest) {
           id: true,
           name: true,
           email: true,
-          image: true,
           age: true,
           bio: true,
           location: true,
+          department: true,
+          region: true,
           profession: true,
-          gender: true,
+          interests: true,
           isOnline: true,
           lastSeen: true,
-          createdAt: true
+          createdAt: true,
+          photos: {
+            where: { isPrimary: true },
+            select: {
+              id: true,
+              url: true,
+              isPrimary: true
+            },
+            take: 1
+          }
         }
       });
 
-      console.log(`👥 [MATCHES] ${matchedUsers.length} utilisateurs matchés récupérés`);
+      console.log(`👥 [MATCHES] ${matchedUsers.length} utilisateurs récupérés`);
 
-      // 4. Récupérer la date du premier like pour chaque match
-      console.log('📅 [MATCHES] Récupération des dates de likes...');
-      
-      const likesData = await prisma.like.findMany({
-        where: {
-          OR: [
-            { senderId: session.user.id, receiverId: { in: matchedUserIds } },
-            { senderId: { in: matchedUserIds }, receiverId: session.user.id }
-          ]
-        },
-        select: {
-          senderId: true,
-          receiverId: true,
-          createdAt: true
-        },
-        orderBy: { createdAt: 'asc' }
-      });
-
-      console.log(`📅 [MATCHES] ${likesData.length} likes récupérés pour les dates`);
+      // 4. Calculer la compatibilité (exemple basique)
+      const calculateCompatibility = (user: any): number => {
+        if (!user.interests || user.interests.length === 0) return 75;
+        
+        // TODO: Implémenter un vrai calcul de compatibilité basé sur les intérêts de l'utilisateur actuel
+        const baseCompatibility = 70;
+        const interestBonus = Math.min(user.interests.length * 2, 20);
+        const ageBonus = user.age && user.age >= 18 && user.age <= 35 ? 10 : 5;
+        
+        return Math.min(baseCompatibility + interestBonus + ageBonus, 99);
+      };
 
       // 5. Formater les données pour le frontend
-      const formattedMatches = matchedUsers.map(user => {
-        // Trouver la date du premier like pour ce match
-        const userLikes = likesData.filter(like => 
-          (like.senderId === user.id && like.receiverId === session.user.id) ||
-          (like.senderId === session.user.id && like.receiverId === user.id)
-        );
+      const formattedMatches: Match[] = matchedUsers.map(user => {
+        const matchData = matchesData.find(m => m.senderId === user.id);
         
-        const firstLike = userLikes.sort((a, b) => 
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        )[0];
-
-        const matchData = {
-          id: `match-${session.user.id}-${user.id}`, // ID artificiel pour le match
-          userId: user.id,
-          userName: user.name || 'Utilisateur',
-          userImage: user.image,
-          userAge: user.age,
-          userBio: user.bio,
-          userLocation: user.location,
-          userProfession: user.profession,
-          userGender: user.gender,
-          isOnline: user.isOnline || false,
-          lastSeen: user.lastSeen,
-          matchedAt: firstLike?.createdAt || user.createdAt,
-          // Générer l'ID du channel Stream de manière cohérente
-          channelId: [session.user.id, user.id].sort().join('-')
+        return {
+          id: `match-${currentUserId}-${user.id}`,
+          createdAt: matchData?.matchedAt.toISOString() || user.createdAt.toISOString(),
+          user: {
+            id: user.id,
+            name: user.name || 'Utilisateur',
+            age: user.age || 0,
+            bio: user.bio || '',
+            location: user.location || '',
+            department: user.department || '',
+            region: user.region || '',
+            profession: user.profession || '',
+            interests: Array.isArray(user.interests) ? user.interests : [],
+            photo: user.photos[0] || null,
+            isOnline: user.isOnline || false,
+            lastSeen: user.lastSeen?.toISOString()
+          },
+          conversation: {
+            hasStarted: false, // Par défaut, pas de conversation démarrée
+            lastActivity: matchData?.matchedAt.toISOString()
+          },
+          compatibility: calculateCompatibility(user)
         };
-        
-        console.log(`👤 [MATCHES] Match formaté:`, {
-          userName: matchData.userName,
-          userId: matchData.userId,
-          channelId: matchData.channelId
-        });
-        
-        return matchData;
       });
 
-      // 6. Trier par date de match (plus récent en premier)
+      // 6. Calculer les statistiques détaillées
+      const now = new Date();
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      const stats: MatchStats = {
+        totalMatches: formattedMatches.length,
+        newMatches: formattedMatches.filter(match => 
+          new Date(match.createdAt) > oneDayAgo
+        ).length,
+        activeConversations: formattedMatches.filter(match => 
+          match.user.isOnline || 
+          (match.user.lastSeen && new Date(match.user.lastSeen) > oneWeekAgo)
+        ).length,
+        dormantMatches: formattedMatches.filter(match => 
+          !match.user.isOnline && 
+          (!match.user.lastSeen || new Date(match.user.lastSeen) < oneWeekAgo)
+        ).length,
+        averageResponseTime: calculateAverageResponseTime(formattedMatches),
+        thisWeekMatches: formattedMatches.filter(match => 
+          new Date(match.createdAt) > oneWeekAgo
+        ).length
+      };
+
+      // 7. Trier par date de match (plus récent en premier)
       formattedMatches.sort((a, b) => 
-        new Date(b.matchedAt).getTime() - new Date(a.matchedAt).getTime()
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
 
-      console.log('✅ [MATCHES] Données formatées:', formattedMatches.length, 'matches');
+      console.log('✅ [MATCHES] Données formatées:', {
+        matches: formattedMatches.length,
+        stats
+      });
 
       return NextResponse.json({
-        success: true,
-        data: formattedMatches,
-        count: formattedMatches.length,
-        method: 'likes_bidirectionnels',
-        debug: {
-          rawMatches: matchesData.length,
-          usersFound: matchedUsers.length,
-          likesFound: likesData.length,
-          currentUserId: session.user.id
-        }
-      });
+        matches: formattedMatches,
+        stats
+      } as MatchesResponse);
 
     } catch (prismaError) {
       console.error('❌ [MATCHES] Erreur Prisma:', prismaError);
       
-      // Si les tables likes n'existent pas non plus
       return NextResponse.json({
-        success: true,
-        data: [],
-        count: 0,
-        message: 'Système de matches non configuré',
-        error: prismaError instanceof Error ? prismaError.message : 'Erreur inconnue'
-      });
+        matches: [],
+        stats: {
+          totalMatches: 0,
+          newMatches: 0,
+          activeConversations: 0,
+          dormantMatches: 0,
+          averageResponseTime: '0h',
+          thisWeekMatches: 0
+        }
+      } as MatchesResponse);
     }
 
   } catch (error) {
@@ -191,7 +207,33 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Créer un nouveau "match" en ajoutant un like
+// Fonction utilitaire pour calculer le temps de réponse moyen (basé sur l'activité)
+function calculateAverageResponseTime(matches: Match[]): string {
+  const activeUsers = matches.filter(match => 
+    match.user.isOnline || 
+    (match.user.lastSeen && new Date(match.user.lastSeen).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000)
+  );
+  
+  if (activeUsers.length === 0) return '0h';
+  
+  // Calcul approximatif basé sur l'activité récente
+  const averageHours = activeUsers.reduce((acc, match) => {
+    if (match.user.isOnline) return acc + 1; // En ligne = réponse rapide
+    
+    if (match.user.lastSeen) {
+      const hoursSinceLastSeen = (Date.now() - new Date(match.user.lastSeen).getTime()) / (1000 * 60 * 60);
+      return acc + Math.min(hoursSinceLastSeen, 24);
+    }
+    
+    return acc + 24;
+  }, 0) / activeUsers.length;
+  
+  if (averageHours < 1) return '< 1h';
+  if (averageHours < 24) return `${Math.round(averageHours)}h`;
+  return `${Math.round(averageHours / 24)}j`;
+}
+
+// POST - Créer un nouveau match
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -219,9 +261,13 @@ export async function POST(request: NextRequest) {
         select: {
           id: true,
           name: true,
-          image: true,
           age: true,
-          location: true
+          location: true,
+          photos: {
+            where: { isPrimary: true },
+            select: { url: true },
+            take: 1
+          }
         }
       });
 
@@ -275,9 +321,9 @@ export async function POST(request: NextRequest) {
           targetUser: {
             id: targetUser.id,
             name: targetUser.name,
-            image: targetUser.image,
             age: targetUser.age,
-            location: targetUser.location
+            location: targetUser.location,
+            photo: targetUser.photos[0]?.url
           },
           channelId: isMatch ? [session.user.id, targetUser.id].sort().join('-') : null
         }

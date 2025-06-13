@@ -1,4 +1,7 @@
-// hooks/useQuery.ts - Version optimisée et corrigée
+// ===============================
+// 📁 hooks/useQuery.ts - Hook générique pour les appels API avec cache
+// ===============================
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 
@@ -6,248 +9,179 @@ export interface QueryOptions {
   cache?: boolean;
   cacheTtl?: number;
   polling?: number;
-  enabled?: boolean;
   retryOnError?: boolean;
   requireAuth?: boolean;
+  enabled?: boolean;
 }
 
 export interface QueryReturn<T> {
   data: T | null;
   isLoading: boolean;
+  isRefreshing: boolean;
   error: string | null;
-  refresh: () => Promise<void>;
-  post: (body?: any) => Promise<T>;
-  put: (body?: any) => Promise<T>;
-  delete: () => Promise<T>;
+  refetch: () => Promise<void>;
 }
 
-// Cache global simple avec gestion TTL améliorée
+// Cache simple en mémoire
 class SimpleCache {
   private cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
 
-  set(key: string, data: any, ttl: number): void {
-    this.cache.set(key, { data, timestamp: Date.now(), ttl });
+  set(key: string, data: any, ttl: number) {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl
+    });
   }
 
   get(key: string): any | null {
     const item = this.cache.get(key);
-    if (!item || Date.now() - item.timestamp > item.ttl) {
+    if (!item) return null;
+
+    const isExpired = Date.now() - item.timestamp > item.ttl;
+    if (isExpired) {
       this.cache.delete(key);
       return null;
     }
+
     return item.data;
   }
 
-  invalidate(key: string): void {
+  delete(key: string) {
     this.cache.delete(key);
   }
 
-  clear(): void {
+  clear() {
     this.cache.clear();
   }
 }
 
-const globalCache = new SimpleCache();
+const cache = new SimpleCache();
 
-export function useQuery<T = any>(
-  endpoint: string,
+export function useQuery<T>(
+  url: string,
   options: QueryOptions = {}
 ): QueryReturn<T> {
   const {
-    cache = false,
-    cacheTtl = 300000,
+    cache: useCache = true,
+    cacheTtl = 5 * 60 * 1000, // 5 minutes par défaut
     polling = 0,
-    enabled = true,
-    retryOnError = false,
-    requireAuth = true
+    retryOnError = true,
+    requireAuth = true,
+    enabled = true
   } = options;
 
   const { data: session, status } = useSession();
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Refs pour cleanup et contrôle
-  const abortController = useRef<AbortController | null>(null);
-  const pollingInterval = useRef<NodeJS.Timeout | null>(null);
-  const retryTimeout = useRef<NodeJS.Timeout | null>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(true);
 
-  // États dérivés stabilisés
-  const isAuthReady = !requireAuth || (status === 'authenticated' && session?.user?.id);
-  const shouldFetch = enabled && (!requireAuth || isAuthReady);
-
-  // Fonction fetch avec gestion d'erreur améliorée
-  const fetchData = useCallback(async (method: string = 'GET', body?: any): Promise<T> => {
-    // Vérification préalable
-    if (!mountedRef.current || !shouldFetch) {
-      throw new Error('Component unmounted or conditions not met');
-    }
-
-    // Vérifier cache d'abord (seulement pour GET)
-    if (method === 'GET' && cache) {
-      const cached = globalCache.get(endpoint);
-      if (cached && mountedRef.current) {
-        setData(cached);
-        setIsLoading(false);
-        return cached;
-      }
-    }
-
-    // Annuler requête précédente
-    if (abortController.current) {
-      abortController.current.abort();
-    }
-    abortController.current = new AbortController();
+  const fetchData = useCallback(async (isRefresh = false) => {
+    // Vérifications préliminaires
+    if (!enabled) return;
+    if (requireAuth && status !== 'authenticated') return;
+    if (!mountedRef.current) return;
 
     try {
-      if (mountedRef.current) {
+      if (isRefresh) {
+        setIsRefreshing(true);
+      } else {
         setIsLoading(true);
-        setError(null);
+      }
+      setError(null);
+
+      // Vérifier le cache d'abord
+      if (useCache && !isRefresh) {
+        const cachedData = cache.get(url);
+        if (cachedData) {
+          setData(cachedData);
+          setIsLoading(false);
+          return;
+        }
       }
 
-      const response = await fetch(endpoint, {
-        method,
+      // Effectuer la requête
+      const response = await fetch(url, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: body ? JSON.stringify(body) : undefined,
-        credentials: 'include',
-        signal: abortController.current.signal
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) {
-        let errorMessage = `Erreur ${response.status}`;
-        
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-        } catch {
-          // Ignore JSON parse errors
-        }
-
-        if (response.status === 401) {
-          errorMessage = 'Session expirée';
-        }
-        
-        throw new Error(errorMessage);
+        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
       }
 
-      const result = await response.json();
-      
-      if (!mountedRef.current) {
-        return result; // Component démonté, ne pas mettre à jour l'état
-      }
-      
-      // Mettre en cache (seulement pour GET)
-      if (method === 'GET' && cache) {
-        globalCache.set(endpoint, result, cacheTtl);
-      }
-      
-      setData(result);
-      setIsLoading(false);
-      
-      return result;
+      const responseData: T = await response.json();
 
-    } catch (err: any) {
-      if (!mountedRef.current) {
-        return data as T; // Component démonté
+      if (!mountedRef.current) return;
+
+      // Mettre en cache si activé
+      if (useCache) {
+        cache.set(url, responseData, cacheTtl);
       }
 
-      if (err.name === 'AbortError') {
-        return data as T; // Requête annulée
-      }
+      setData(responseData);
+      setError(null);
+
+    } catch (err) {
+      if (!mountedRef.current) return;
       
-      const errorMessage = err.message || 'Erreur inconnue';
+      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue';
       setError(errorMessage);
-      setIsLoading(false);
       
-      // Retry automatique avec backoff
-      if (retryOnError && method === 'GET' && mountedRef.current) {
-        retryTimeout.current = setTimeout(() => {
+      console.error(`❌ [useQuery] Erreur pour ${url}:`, err);
+      
+      // Retry si activé
+      if (retryOnError && !isRefresh) {
+        setTimeout(() => {
           if (mountedRef.current) {
-            fetchData(method, body).catch(() => {}); // Ignore retry errors
+            fetchData(true);
           }
         }, 2000);
       }
-      
-      throw err;
-    }
-  }, [endpoint, shouldFetch, cache, cacheTtl, retryOnError]); // Dépendances stables
-
-  // Actions avec gestion d'erreur
-  const refresh = useCallback(async (): Promise<void> => {
-    if (cache) globalCache.invalidate(endpoint);
-    try {
-      await fetchData('GET');
-    } catch (err) {
-      // Error already handled in fetchData
-    }
-  }, [fetchData, cache, endpoint]);
-
-  const post = useCallback(async (body?: any): Promise<T> => {
-    return fetchData('POST', body);
-  }, [fetchData]);
-
-  const put = useCallback(async (body?: any): Promise<T> => {
-    return fetchData('PUT', body);
-  }, [fetchData]);
-
-  const deleteMethod = useCallback(async (): Promise<T> => {
-    return fetchData('DELETE');
-  }, [fetchData]);
-
-  // Effet pour le fetch initial
-  useEffect(() => {
-    mountedRef.current = true;
-    
-    if (!shouldFetch) {
-      setIsLoading(false);
-      return;
-    }
-
-    fetchData('GET').catch(() => {
-      // Erreurs gérées dans fetchData
-    });
-  }, [shouldFetch]); // Retirer fetchData de la dépendance pour éviter les boucles
-
-  // Effet pour le polling
-  useEffect(() => {
-    if (!polling || !shouldFetch) {
-      return;
-    }
-
-    pollingInterval.current = setInterval(() => {
+    } finally {
       if (mountedRef.current) {
-        fetchData('GET').catch(() => {
-          // Erreurs gérées dans fetchData
-        });
+        setIsLoading(false);
+        setIsRefreshing(false);
       }
-    }, polling);
+    }
+  }, [url, enabled, requireAuth, status, useCache, cacheTtl, retryOnError]);
 
-    return () => {
-      if (pollingInterval.current) {
-        clearInterval(pollingInterval.current);
-        pollingInterval.current = null;
-      }
-    };
-  }, [polling, shouldFetch]); // Retirer fetchData de la dépendance
+  const refetch = useCallback(async () => {
+    await fetchData(true);
+  }, [fetchData]);
 
-  // Cleanup général
+  // Chargement initial
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Polling
+  useEffect(() => {
+    if (polling > 0 && enabled && status === 'authenticated') {
+      pollingRef.current = setInterval(() => {
+        fetchData(true);
+      }, polling);
+
+      return () => {
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+        }
+      };
+    }
+  }, [polling, enabled, status, fetchData]);
+
+  // Cleanup
   useEffect(() => {
     return () => {
       mountedRef.current = false;
-      
-      if (abortController.current) {
-        abortController.current.abort();
-      }
-      
-      if (pollingInterval.current) {
-        clearInterval(pollingInterval.current);
-      }
-      
-      if (retryTimeout.current) {
-        clearTimeout(retryTimeout.current);
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
       }
     };
   }, []);
@@ -255,24 +189,70 @@ export function useQuery<T = any>(
   return {
     data,
     isLoading,
+    isRefreshing,
     error,
-    refresh,
-    post,
-    put,
-    delete: deleteMethod
+    refetch
   };
 }
 
-// Hook utilitaire pour nettoyer le cache
-export function useCacheClear() {
-  return useCallback(() => {
-    globalCache.clear();
+// Hook utilitaire pour invalider le cache
+export function useInvalidateCache() {
+  return useCallback((urlPattern?: string) => {
+    if (urlPattern) {
+      // TODO: Implémenter une invalidation par pattern
+      cache.clear();
+    } else {
+      cache.clear();
+    }
   }, []);
 }
 
-// Hook pour invalider une clé spécifique du cache
-export function useCacheInvalidate() {
-  return useCallback((key: string) => {
-    globalCache.invalidate(key);
-  }, []);
+// Hook pour les mutations avec invalidation de cache
+export function useMutation<TData, TVariables = any>(
+  mutationFn: (variables: TVariables) => Promise<TData>,
+  options: {
+    onSuccess?: (data: TData) => void;
+    onError?: (error: Error) => void;
+    invalidateCache?: boolean;
+  } = {}
+) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const invalidateCache = useInvalidateCache();
+
+  const mutate = useCallback(async (variables: TVariables) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const result = await mutationFn(variables);
+
+      if (options.invalidateCache) {
+        invalidateCache();
+      }
+
+      if (options.onSuccess) {
+        options.onSuccess(result);
+      }
+
+      return result;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue';
+      setError(errorMessage);
+
+      if (options.onError && err instanceof Error) {
+        options.onError(err);
+      }
+
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [mutationFn, options, invalidateCache]);
+
+  return {
+    mutate,
+    isLoading,
+    error
+  };
 }

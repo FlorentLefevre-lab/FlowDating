@@ -1,221 +1,156 @@
-// src/app/api/matches/create-channels/route.ts
+// src/app/api/matches/create-channels/route.ts - VERSION DÉFINITIVEMENT CORRIGÉE
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { createStreamClient } from '@/lib/streamConfig';
+import { createChannelsForMatches } from '@/lib/streamConfig';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔄 [CREATE-CHANNELS] Début de la requête');
+    console.log('🔄 [CHANNELS] === DÉBUT CRÉATION CHANNELS ===');
 
-    // 1. Vérifier l'authentification
+    // 1. Vérifier la session
     const session = await auth();
-    
     if (!session?.user?.id) {
-      console.log('❌ [CREATE-CHANNELS] Non authentifié');
+      console.error('❌ [CHANNELS] Session manquante');
       return NextResponse.json(
-        { error: 'Non authentifié' },
+        { error: 'Session utilisateur requise' },
         { status: 401 }
       );
     }
 
-    console.log('👤 [CREATE-CHANNELS] User:', session.user.name);
+    console.log('✅ [CHANNELS] Session validée:', session.user.name);
+    console.log('👤 [CHANNELS] User ID:', session.user.id);
 
-    // 2. Récupérer les matches depuis la DB
-    const { prisma } = await import('@/lib/db');
-    
-    console.log('🔄 [CREATE-CHANNELS] Récupération des matches...');
-    const matchesData = await prisma.$queryRaw<Array<{senderId: string, receiverId: string}>>`
-      SELECT DISTINCT l1."senderId", l1."receiverId"
-      FROM "likes" l1
-      INNER JOIN "likes" l2 ON l1."senderId" = l2."receiverId" AND l1."receiverId" = l2."senderId"
-      WHERE l1."receiverId" = ${session.user.id}
-    `;
-
-    console.log(`📊 [CREATE-CHANNELS] ${matchesData.length} matches trouvés`);
-
-    if (matchesData.length === 0) {
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Aucun match trouvé',
-        channelsCreated: 0,
-        totalMatches: 0,
-        results: []
-      });
+    // 2. Créer les channels pour les matches en utilisant la fonction définitivement corrigée
+    let result;
+    try {
+      result = await createChannelsForMatches(session.user.id);
+      console.log('✅ [CHANNELS] Channels matches créés:', result.channelsCreated);
+      if (result.errors.length > 0) {
+        console.log('⚠️ [CHANNELS] Erreurs channels:', result.errors);
+      }
+    } catch (channelError) {
+      console.error('❌ [CHANNELS] Erreur création channels:', channelError);
+      return NextResponse.json(
+        {
+          error: 'Impossible de créer les channels',
+          details: channelError instanceof Error ? channelError.message : 'Erreur inconnue'
+        },
+        { status: 500 }
+      );
     }
 
-    // 3. Récupérer les détails des utilisateurs matchés
-    const matchedUserIds = matchesData.map(match => match.senderId);
-    
-    const matchedUsers = await prisma.user.findMany({
-      where: {
-        id: { in: matchedUserIds }
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        image: true
-      }
-    });
-
-    console.log(`👥 [CREATE-CHANNELS] ${matchedUsers.length} utilisateurs à traiter`);
-
-    // 4. Créer le client Stream côté serveur (avec privilèges admin)
-    const client = await createStreamClient();
-
-    let channelsCreated = 0;
-    let channelsExisted = 0;
-    const results = [];
-
-    // 5. Traiter chaque utilisateur
-    for (const user of matchedUsers) {
-      try {
-        console.log(`🔄 [CREATE-CHANNELS] Traitement: ${user.name}`);
-
-        // 5a. Créer/Upsert l'utilisateur dans Stream
-        await client.upsertUser({
-          id: user.id,
-          name: user.name || 'Utilisateur',
-          image: user.image || '/default-avatar.png',
-          email: user.email,
-          role: 'user'
-        });
-
-        console.log(`✅ [CREATE-CHANNELS] Utilisateur upsert: ${user.name}`);
-
-        // 5b. Créer le channel avec un ID prévisible
-        const channelId = `match_${[session.user.id, user.id].sort().join('_')}`;
-        
-        console.log(`📺 [CREATE-CHANNELS] Channel ID: ${channelId}`);
-
-        // Vérifier si le channel existe déjà
-        try {
-          const existingChannel = client.channel('messaging', channelId);
-          const channelState = await existingChannel.query();
-          
-          if (channelState.channel) {
-            console.log(`✅ [CREATE-CHANNELS] Channel existe déjà: ${user.name}`);
-            channelsExisted++;
-            results.push({ 
-              userId: user.id, 
-              userName: user.name, 
-              channelId, 
-              status: 'existed' 
-            });
-            continue;
-          }
-        } catch (existsError) {
-          // Channel n'existe pas, on va le créer
-          console.log(`🔄 [CREATE-CHANNELS] Channel inexistant, création: ${user.name}`);
-        }
-
-        // 5c. Créer le channel côté serveur
-        const channel = client.channel('messaging', channelId, {
-          name: user.name || 'Conversation',
-          image: user.image,
-          members: [session.user.id, user.id],
-          // Métadonnées utiles
-          match_user_id: user.id,
-          match_user_name: user.name,
-          created_by_server: true
-        });
-
-        // Créer le channel avec l'utilisateur actuel comme créateur
-        await channel.create(session.user.id);
-        
-        channelsCreated++;
-        results.push({ 
-          userId: user.id, 
-          userName: user.name, 
-          channelId, 
-          status: 'created' 
-        });
-
-        console.log(`✅ [CREATE-CHANNELS] Channel créé: ${user.name}`);
-
-      } catch (error) {
-        console.error(`❌ [CREATE-CHANNELS] Erreur ${user.name}:`, error);
-        
-        results.push({ 
-          userId: user.id, 
-          userName: user.name, 
-          status: 'failed',
-          error: error instanceof Error ? error.message : 'Erreur inconnue'
-        });
-      }
-
-      // Petite pause pour éviter de surcharger Stream
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    console.log(`🎯 [CREATE-CHANNELS] Résumé: ${channelsCreated} créés, ${channelsExisted} existaient`);
-
+    // 3. Retourner le résultat
+    console.log('🎉 [CHANNELS] === SUCCÈS ===');
     return NextResponse.json({
       success: true,
-      channelsCreated,
-      channelsExisted,
-      totalMatches: matchedUsers.length,
-      results,
-      summary: {
-        created: channelsCreated,
-        existed: channelsExisted,
-        failed: results.filter(r => r.status === 'failed').length
-      }
+      channelsCreated: result.channelsCreated,
+      errors: result.errors,
+      userId: session.user.id,
+      timestamp: new Date().toISOString()
     });
 
   } catch (error) {
-    console.error('❌ [CREATE-CHANNELS] Erreur générale:', error);
-    
+    console.error('❌ [CHANNELS] === ERREUR GÉNÉRALE ===');
+    console.error('❌ Erreur:', error);
     return NextResponse.json(
-      { 
-        error: 'Erreur lors de la création des channels',
-        details: error instanceof Error ? error.message : 'Erreur inconnue'
+      {
+        error: 'Erreur interne du serveur',
+        details: error instanceof Error ? error.message : 'Erreur inconnue',
+        timestamp: new Date().toISOString()
       },
       { status: 500 }
     );
   }
 }
 
-// GET pour vérifier l'état
-export async function GET(request: NextRequest) {
+// ===============================
+// ROUTE GET POUR DEBUG - VERSION DÉFINITIVEMENT CORRIGÉE
+// ===============================
+export async function GET() {
   try {
     const session = await auth();
     
     if (!session?.user?.id) {
       return NextResponse.json(
-        { error: 'Non authentifié' },
+        { error: 'Session requise' },
         { status: 401 }
       );
     }
 
-    // Vérifier les channels existants côté Stream
-    const client = await createStreamClient();
+    // Import des fonctions de debug avec la nouvelle configuration
+    const { 
+      debugStreamConnection, 
+      testStreamConfiguration,
+      createPrismaInstance
+    } = await import('@/lib/streamConfig');
     
-    const channels = await client.queryChannels(
-      {
-        type: 'messaging',
-        members: { $in: [session.user.id] }
-      },
-      { last_message_at: -1 },
-      { limit: 50 }
-    );
+    let matchCount = 0;
+    let databaseTest = { success: false, error: 'Non testé' };
+    
+    // Test de la base de données avec l'instance Prisma robuste
+    try {
+      // Utiliser la fonction utilitaire pour créer une instance Prisma
+      const prisma = await createPrismaInstance();
+      
+      try {
+        // Compter les matches
+        const matches = await prisma.$queryRaw<Array<{ count: bigint }>>`
+          SELECT COUNT(*) as count
+          FROM (
+            SELECT DISTINCT l1."senderId", l1."receiverId"
+            FROM "likes" l1
+            INNER JOIN "likes" l2
+              ON l1."senderId" = l2."receiverId"
+              AND l1."receiverId" = l2."senderId"
+            WHERE l1."receiverId" = ${session.user.id}
+               OR l1."senderId" = ${session.user.id}
+          ) as matches
+        `;
+
+        matchCount = Number(matches[0]?.count || 0);
+        databaseTest = { success: true, error: undefined };
+        
+      } finally {
+        await prisma.$disconnect();
+      }
+    } catch (dbError) {
+      databaseTest = {
+        success: false,
+        error: dbError instanceof Error ? dbError.message : 'Erreur DB inconnue'
+      };
+    }
+
+    // Test de la configuration Stream
+    const streamTest = await testStreamConfiguration();
+    
+    // Debug de la connexion Stream
+    const debugInfo = await debugStreamConnection();
 
     return NextResponse.json({
-      success: true,
-      channelsCount: channels.length,
-      channels: channels.map(channel => ({
-        id: channel.id,
-        name: channel.data?.name,
-        members: Object.keys(channel.state?.members || {}),
-        messageCount: channel.state?.messages?.length || 0
-      }))
+      message: 'Debug Create Channels API - Version Définitivement Corrigée',
+      userId: session.user.id,
+      userName: session.user.name,
+      matchesCount: matchCount,
+      databaseTest,
+      streamConfiguration: {
+        isValid: streamTest.success,
+        issues: streamTest.issues,
+        recommendations: streamTest.recommendations,
+        debugInfo
+      },
+      timestamp: new Date().toISOString(),
+      instructions: {
+        post: 'POST vers cette route pour créer les channels',
+        manual: 'POST vers /api/chat/create-channel avec { targetUserId } pour un channel spécifique'
+      }
     });
 
   } catch (error) {
-    console.error('❌ [CREATE-CHANNELS] Erreur GET:', error);
-    
     return NextResponse.json(
-      { error: 'Erreur de vérification' },
+      {
+        error: 'Erreur debug',
+        details: error instanceof Error ? error.message : 'Erreur inconnue'
+      },
       { status: 500 }
     );
   }

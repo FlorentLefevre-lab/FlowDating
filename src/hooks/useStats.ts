@@ -1,4 +1,7 @@
-// hooks/useStats.ts - Version optimisée pour éviter les appels répétés
+// ===============================
+// 📁 hooks/useStats.ts - Version optimisée pour éviter les appels répétés
+// ===============================
+
 import { useQuery, type QueryReturn } from '@/hooks/useQuery';
 
 // Types pour vos stats (SANS messages)

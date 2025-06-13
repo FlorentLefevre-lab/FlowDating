@@ -1,0 +1,24 @@
+- page des Matchs : afficher les matchs en cours et anciens,
+et améliorer les filtres de tri.
+
+- Controler le type d'image soumis dans le photo manager (image de nu, ou porno refusée) avec message d'avertissement.
+Au bout de 3 tentatives le compte est suspendu pour controle par moderateur. Avec impossibilité de se reconnecter
+
+- Tableau de bord des stats : enlever le tableau de la page home et créer une page dédiée 
+accessible depuis lemenu hamburger. Mettre en cache redis les valeurs des calculs ...
+
+=> A la place du tableau de bord de stats, mettre un appel aux dons pour le financement de la plateforme.
+
+page des des decouvertes : vérifiez que les profils sont bien présents,
+selon les critères de recherche de l'utilisateur
+
+page des visites : afficher les visiteurs du profil de l'utilisateur connecté
+avec le nb de vues cumulées pour un autre profil type.
+
+Bonus : affiner l'algo de matching et du scoring, mettre des  vars
+d'environnements pertinents en fichier .env.*
+
+Faire la page des FAQ plus robot IA de conciergerie
+
+Faire la page Premium, d'abonnement avec Stripe : lister les avantages de 
+la formulre PREMIUM, et modifier le schema USER pour ajouter L'ENUM (Freemium, ou Premium)
