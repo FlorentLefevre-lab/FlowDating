@@ -4,6 +4,9 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { useState } from 'react'
+import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline'
+import { ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconSolid } from '@heroicons/react/24/solid'
+import { ChatNavItem } from './ChatNavItem'
 
 export default function Navbar() {
   const { data: session, status } = useSession()
@@ -76,14 +79,14 @@ export default function Navbar() {
       } catch (apiError) {
         console.warn('⚠️ Erreur nettoyage API (continuer quand même):', apiError)
       }
-
+  
       // 2. Déconnexion NextAuth avec redirection vers page publique
       await signOut({ 
         callbackUrl: '/',
         redirect: false  // On gère la redirection manuellement
       })
       console.log('✅ NextAuth signOut effectué')
-
+  
       // 3. Nettoyage manuel des cookies du navigateur
       const cookieNames = [
         'next-auth.session-token',
@@ -97,7 +100,7 @@ export default function Navbar() {
         'user-preferences',
         'auth-token'
       ]
-
+  
       cookieNames.forEach(cookieName => {
         document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname}`
         document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname}`
@@ -105,7 +108,7 @@ export default function Navbar() {
         document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; secure; samesite=strict`
       })
       console.log('✅ Cookies navigateur nettoyés')
-
+  
       // 4. Nettoyage du stockage local et session
       try {
         localStorage.clear()
@@ -114,10 +117,10 @@ export default function Navbar() {
       } catch (storageError) {
         console.warn('⚠️ Erreur nettoyage stockage:', storageError)
       }
-
+  
       // 5. Redirection forcée vers la page publique
       window.location.replace('/')
-
+  
     } catch (error) {
       console.error('❌ Erreur lors de la déconnexion:', error)
       window.location.href = '/'
@@ -159,23 +162,15 @@ export default function Navbar() {
             <Link 
               href="/matches" 
               className={`text-gray-600 hover:text-gray-900 transition-colors font-medium relative ${
-                pathname === '/messages' ? 'text-pink-600 font-semibold' : ''
+                pathname === '/matches' ? 'text-pink-600 font-semibold' : ''
               }`}
             >
-              
               Matchs
               <span className="absolute -top-2 -right-2 bg-pink-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                 3
               </span>
             </Link>
-            <Link 
-              href="/chat" 
-              className={`text-gray-600 hover:text-gray-900 transition-colors font-medium ${
-                pathname === '/matches' ? 'text-pink-600 font-semibold' : ''
-              }`}
-            >
-              Chat
-            </Link>
+            <ChatNavItem />
           </div>
 
           {/* Profil utilisateur */}

@@ -547,9 +547,7 @@ export default function MatchesPage() {
         const preCreateResponse = await fetch('/api/chat/create-channel', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            targetUserId: match.user.id 
-          })
+         body: JSON.stringify({ userId: match.user.id, matchId: match.id })
         });
 
         if (preCreateResponse.ok) {
