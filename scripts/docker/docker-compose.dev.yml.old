@@ -1,0 +1,289 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: docker.io/library/traefik:v3.0
+    container_name: traefik-dev
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=INFO"
+      # Configuration améliorée pour load balancing
+      - "--accesslog=true"
+      - "--accesslog.filepath=/var/log/traefik/access.log"
+      - "--metrics.prometheus=true"
+      - "--ping=true"
+      # Health checks activés
+      - "--serversTransport.insecureSkipVerify=true"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /run/user/${UID}/podman/podman.sock:/var/run/docker.sock:ro
+      - traefik-logs:/var/log/traefik
+    networks:
+      - dev-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+
+  postgres:
+    image: docker.io/library/postgres:15-alpine
+    container_name: postgres-dev
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Optimisations pour multi-instances
+      POSTGRES_MAX_CONNECTIONS: 200
+      POSTGRES_SHARED_BUFFERS: 256MB
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+      # Configuration PostgreSQL optimisée
+      - ./scripts/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    networks:
+      - dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: docker.io/library/redis:7-alpine
+    container_name: redis-dev
+    command: >
+      redis-server 
+      --appendonly yes 
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1000
+      --tcp-keepalive 300
+      --timeout 0
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis-dev-data:/data
+      - ./scripts/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - dev-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  app-1:
+    build:
+      context: ../..
+      dockerfile: scripts/docker/Dockerfile.dev
+    container_name: nextjs-app-1
+    env_file:
+      - ../../.env.development
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      INSTANCE_ID: APP-1
+      INSTANCE_COLOR: "#FF6B6B"
+      PORT: 3001
+      NEXTAUTH_URL: http://localhost
+      # Variables spécifiques pour l'instance
+      NODE_OPTIONS: "--max-old-space-size=1024"
+      # Préfixe Redis pour éviter les collisions
+      REDIS_KEY_PREFIX: "app1:"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../../:/app
+      - /app/node_modules
+      - /app/.next
+      # Cache partagé pour le build
+      - nextjs-cache:/app/.next/cache
+    networks:
+      - dev-network
+    ports:
+      - "3001:3001"
+    labels:
+      - "traefik.enable=true"
+      # Configuration de load balancing améliorée
+      - "traefik.http.routers.app1.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.app1.service=nextjs-app"
+      - "traefik.http.services.nextjs-app.loadbalancer.server.port=3001"
+      
+      # Configuration de session sticky OPTIONNELLE (peut être désactivée pour tester le load balancing pur)
+      # - "traefik.http.services.nextjs-app.loadbalancer.sticky.cookie=true"
+      # - "traefik.http.services.nextjs-app.loadbalancer.sticky.cookie.name=server_id"
+      # - "traefik.http.services.nextjs-app.loadbalancer.sticky.cookie.httpOnly=true"
+      
+      # Health check pour cette instance
+      - "traefik.http.services.nextjs-app.loadbalancer.healthcheck.path=/api/health"
+      - "traefik.http.services.nextjs-app.loadbalancer.healthcheck.interval=30s"
+      - "traefik.http.services.nextjs-app.loadbalancer.healthcheck.timeout=5s"
+      
+      # Configuration de load balancing
+      - "traefik.http.services.nextjs-app.loadbalancer.server.weight=1"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  app-2:
+    build:
+      context: ../..
+      dockerfile: scripts/docker/Dockerfile.dev
+    container_name: nextjs-app-2
+    env_file:
+      - ../../.env.development
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      INSTANCE_ID: APP-2
+      INSTANCE_COLOR: "#4ECDC4"
+      PORT: 3002
+      NEXTAUTH_URL: http://localhost
+      NODE_OPTIONS: "--max-old-space-size=1024"
+      REDIS_KEY_PREFIX: "app2:"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../../:/app
+      - /app/node_modules
+      - /app/.next
+      - nextjs-cache:/app/.next/cache
+    networks:
+      - dev-network
+    ports:
+      - "3002:3002"
+    labels:
+      - "traefik.enable=true"
+      # IMPORTANT: Même service que app-1 pour le load balancing
+      - "traefik.http.routers.app2.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.app2.service=nextjs-app"
+      - "traefik.http.services.nextjs-app.loadbalancer.server.port=3002"
+      
+      # Health check
+      - "traefik.http.services.nextjs-app.loadbalancer.healthcheck.path=/api/health"
+      - "traefik.http.services.nextjs-app.loadbalancer.server.weight=1"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  # Service optionnel pour ajouter une 3ème instance facilement
+  app-3:
+    build:
+      context: ../..
+      dockerfile: scripts/docker/Dockerfile.dev
+    container_name: nextjs-app-3
+    env_file:
+      - ../../.env.development
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      INSTANCE_ID: APP-3
+      INSTANCE_COLOR: "#95E1D3"
+      PORT: 3003
+      NEXTAUTH_URL: http://localhost
+      NODE_OPTIONS: "--max-old-space-size=1024"
+      REDIS_KEY_PREFIX: "app3:"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../../:/app
+      - /app/node_modules
+      - /app/.next
+      - nextjs-cache:/app/.next/cache
+    networks:
+      - dev-network
+    ports:
+      - "3003:3003"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app3.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.app3.service=nextjs-app"
+      - "traefik.http.services.nextjs-app.loadbalancer.server.port=3003"
+      - "traefik.http.services.nextjs-app.loadbalancer.healthcheck.path=/api/health"
+      - "traefik.http.services.nextjs-app.loadbalancer.server.weight=1"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    # Décommenter pour activer la 3ème instance
+    deploy:
+      replicas: 0
+    profiles:
+      - scaling
+
+  # Service de monitoring (optionnel)
+  redis-insights:
+    image: redislabs/redisinsight:latest
+    container_name: redis-insights
+    ports:
+      - "8001:8001"
+    volumes:
+      - redis-insights-data:/db
+    networks:
+      - dev-network
+    depends_on:
+      - redis
+    profiles:
+      - monitoring
+
+  # Service de monitoring PostgreSQL (optionnel)
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    ports:
+      - "8082:8080"
+    networks:
+      - dev-network
+    depends_on:
+      - postgres
+    profiles:
+      - monitoring
+
+networks:
+  dev-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres-dev-data:
+  redis-dev-data:
+  redis-insights-data:
+  traefik-logs:
+  nextjs-cache:  # Cache partagé pour Next.js

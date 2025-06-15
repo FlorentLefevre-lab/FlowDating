@@ -18,6 +18,8 @@ enum Gender {
   FEMALE
   NON_BINARY
   OTHER
+  PREFER_NOT_TO_SAY
+  ALL
 }
 
 enum MaritalStatus {
@@ -25,6 +27,15 @@ enum MaritalStatus {
   DIVORCED
   WIDOWED
   SEPARATED
+}
+
+enum LookingFor {
+  SERIOUS_RELATIONSHIP
+  CASUAL
+  FRIENDSHIP
+  ADVENTURE
+  MARRIAGE
+  UNSURE
 }
 
 enum AccountStatus {

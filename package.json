@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3000",
+    "dev:app1": "INSTANCE_ID=APP-1 INSTANCE_COLOR='#FF6B6B' next dev --port 3000",
+    "dev:app2": "INSTANCE_ID=APP-2 INSTANCE_COLOR='#4ECDC4' next dev --port 3001",
+    "dev:app3": "INSTANCE_ID=APP-3 INSTANCE_COLOR='#95E1D3' next dev --port 3002",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

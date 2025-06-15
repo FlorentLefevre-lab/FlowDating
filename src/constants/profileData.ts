@@ -4,8 +4,8 @@ export const GENDERS = [
   { value: 'homme', label: 'Homme' },
   { value: 'femme', label: 'Femme' },
   { value: 'non-binaire', label: 'Non-binaire' },
-  { value: 'autre', label: 'Autre' },
-  { value: 'prefer-not-to-say', label: 'Préfère ne pas dire' }
+ // { value: 'autre', label: 'Autre' },
+ // { value: 'prefer-not-to-say', label: 'Préfère ne pas dire' }
 ];
 
 export const PROFESSIONS = [
@@ -144,34 +144,35 @@ export const INTEREST_OPTIONS = [
   'Immobilier', 'Networking', 'Leadership'
 ];
 
+// ✅ VALEURS CORRIGÉES pour correspondre parfaitement aux mappings de l'API
 export const LOOKING_FOR_OPTIONS = [
   {
-    value: 'relation-serieuse',
+    value: 'relation-serieuse', // ✅ Correspond à SERIOUS_RELATIONSHIP
     label: 'Relation sérieuse',
     description: 'Je cherche une relation durable et engagée'
   },
   {
-    value: 'relation-decontractee',
+    value: 'relation-occasionnelle', // ✅ Corrigé : était 'relation-decontractee'
     label: 'Relation décontractée',
     description: 'Je veux prendre le temps de me connaître'
   },
   {
-    value: 'amitie',
+    value: 'amitie', // ✅ Correspond à FRIENDSHIP
     label: 'Amitié',
     description: 'Je recherche de nouveaux amis'
   },
   {
-    value: 'aventure',
+    value: 'aventure', // ✅ Correspond à ADVENTURE
     label: 'Aventure',
     description: 'Je suis ouvert(e) à toutes les possibilités'
   },
   {
-    value: 'pas-sur',
+    value: 'pas-sur', // ✅ Corrigé : correspondra à UNSURE
     label: 'Je ne sais pas encore',
     description: 'Je verrai bien où ça me mène'
   },
   {
-    value: 'mariage',
+    value: 'mariage', // ✅ Correspond à MARRIAGE
     label: 'Mariage',
     description: 'Je cherche la personne avec qui fonder une famille'
   }

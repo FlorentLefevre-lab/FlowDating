@@ -1,4 +1,4 @@
-// src/app/api/user-preferences/route.ts - Version corrigée avec mapping
+// src/app/api/user-preferences/route.ts - Version finale avec mappings complets
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
@@ -17,7 +17,9 @@ const genderMapping = {
   'homme': 'MALE',
   'femme': 'FEMALE',
   'autre': 'OTHER',
-  'non-binaire': 'NON_BINARY'
+  'non-binaire': 'NON_BINARY',
+  'préfère ne pas dire': 'PREFER_NOT_TO_SAY',
+  'tous': 'ALL'
 } as const;
 
 const lookingForMapping = {
@@ -25,7 +27,8 @@ const lookingForMapping = {
   'relation-occasionnelle': 'CASUAL',
   'amitie': 'FRIENDSHIP',
   'aventure': 'ADVENTURE',
-  'mariage': 'MARRIAGE'
+  'mariage': 'MARRIAGE',
+  'pas-sur': 'UNSURE'
 } as const;
 
 // 🔄 MAPPING inverse pour le retour des données
@@ -33,7 +36,9 @@ const genderMappingReverse = {
   'MALE': 'homme',
   'FEMALE': 'femme',
   'OTHER': 'autre',
-  'NON_BINARY': 'non-binaire'
+  'NON_BINARY': 'non-binaire',
+  'PREFER_NOT_TO_SAY': 'préfère ne pas dire',
+  'ALL': 'tous'
 } as const;
 
 const lookingForMappingReverse = {
@@ -41,7 +46,8 @@ const lookingForMappingReverse = {
   'CASUAL': 'relation-occasionnelle',
   'FRIENDSHIP': 'amitie',
   'ADVENTURE': 'aventure',
-  'MARRIAGE': 'mariage'
+  'MARRIAGE': 'mariage',
+  'UNSURE': 'pas-sur'
 } as const;
 
 export async function PUT(request: NextRequest) {

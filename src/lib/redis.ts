@@ -19,7 +19,7 @@ class RedisClient {
       console.log(`🔄 [${this.instanceId}] Initialisation Redis...`)
       console.log(`📋 [${this.instanceId}] Configuration:`, {
         host: process.env.REDIS_HOST || 'localhost',
-        port: process.env.REDIS_PORT || '6379',
+        port: process.env.REDIS_PORT || '6380',
         hasPassword: !!process.env.REDIS_PASSWORD,
         db: process.env.REDIS_DB || '0',
         env: process.env.NODE_ENV
@@ -28,22 +28,22 @@ class RedisClient {
       // Configuration optimisée pour multi-instances
       const redisConfig = {
         host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379'),
+        port: parseInt(process.env.REDIS_PORT || '6380'), // Port par défaut 6380 pour Docker
         password: process.env.REDIS_PASSWORD || undefined,
         
         // Optimisations pour production multi-instances
         retryDelayOnFailover: 100,
         enableReadyCheck: true,
         maxRetriesPerRequest: 3,
-        lazyConnect: false, // Connexion immédiate pour détecter les erreurs
-        connectTimeout: 10000,
-        commandTimeout: 5000,
+        lazyConnect: true, // Connexion lazy pour éviter les erreurs au démarrage
+        connectTimeout: 15000, // Timeout augmenté
+        commandTimeout: 8000,  // Timeout augmenté
         keepAlive: 30000,
         family: 4,
         db: parseInt(process.env.REDIS_DB || '0'),
         
         // Pool de connexions pour les instances multiples
-        enableOfflineQueue: false,
+        enableOfflineQueue: true, // Changé à true pour éviter les erreurs de stream
         
         // Retry logic améliorée
         retryDelayOnClusterDown: 300,
@@ -135,6 +135,24 @@ class RedisClient {
     return this.subscriber
   }
 
+  // Méthode pour les opérations sécurisées avec fallback
+  private static async safeOperation<T>(
+    operation: () => Promise<T>,
+    fallbackValue: T,
+    operationName: string = 'Redis operation'
+  ): Promise<T> {
+    try {
+      if (!this.isHealthy()) {
+        console.log(`⚠️ [${this.instanceId}] ${operationName} ignorée - Redis non disponible`)
+        return fallbackValue
+      }
+      return await operation()
+    } catch (error) {
+      console.error(`❌ [${this.instanceId}] Erreur ${operationName}:`, error.message)
+      return fallbackValue
+    }
+  }
+
   private static async forceTestConnection() {
     if (!this.connectionPromise) {
       this.connectionPromise = this.testConnection()
@@ -177,75 +195,82 @@ class RedisClient {
     }
   }
 
-  // Enregistrer la présence de cette instance
+  // Enregistrer la présence de cette instance (version sécurisée)
   private static async registerInstancePresence() {
-    try {
-      const instanceKey = `instance:${this.instanceId}`
-      const instanceData = {
-        id: this.instanceId,
-        startTime: Date.now(),
-        lastSeen: Date.now(),
-        color: process.env.INSTANCE_COLOR || '#000000',
-        port: process.env.PORT || '3000',
-        version: process.env.npm_package_version || 'unknown'
-      }
-      
-      // Enregistrer avec TTL de 60 secondes
-      await this.instance?.setex(instanceKey, 60, JSON.stringify(instanceData))
-      
-      // Programmer le renouvellement automatique
-      setInterval(async () => {
-        try {
-          instanceData.lastSeen = Date.now()
-          await this.instance?.setex(instanceKey, 60, JSON.stringify(instanceData))
-        } catch (error) {
-          console.error(`❌ [${this.instanceId}] Erreur renouvellement présence:`, error)
+    await this.safeOperation(
+      async () => {
+        const instanceKey = `instance:${this.instanceId}`
+        const instanceData = {
+          id: this.instanceId,
+          startTime: Date.now(),
+          lastSeen: Date.now(),
+          color: process.env.INSTANCE_COLOR || '#000000',
+          port: process.env.PORT || '3000',
+          version: process.env.npm_package_version || 'unknown'
         }
-      }, 30000) // Renouveler toutes les 30 secondes
-      
-      console.log(`📍 [${this.instanceId}] Instance enregistrée dans Redis`)
-      
-    } catch (error) {
-      console.error(`❌ [${this.instanceId}] Erreur enregistrement instance:`, error)
-    }
+        
+        // Enregistrer avec TTL de 60 secondes
+        await this.instance?.setex(instanceKey, 60, JSON.stringify(instanceData))
+        
+        // Programmer le renouvellement automatique
+        setInterval(async () => {
+          await this.safeOperation(
+            async () => {
+              instanceData.lastSeen = Date.now()
+              await this.instance?.setex(instanceKey, 60, JSON.stringify(instanceData))
+              return true
+            },
+            false,
+            'renouvellement présence'
+          )
+        }, 30000) // Renouveler toutes les 30 secondes
+        
+        console.log(`📍 [${this.instanceId}] Instance enregistrée dans Redis`)
+        return true
+      },
+      false,
+      'enregistrement instance'
+    )
   }
 
-  // Désenregistrer la présence de cette instance
+  // Désenregistrer la présence de cette instance (version sécurisée)
   private static async deregisterInstancePresence() {
-    try {
-      const instanceKey = `instance:${this.instanceId}`
-      await this.instance?.del(instanceKey)
-      console.log(`🗑️ [${this.instanceId}] Instance désenregistrée de Redis`)
-    } catch (error) {
-      console.error(`❌ [${this.instanceId}] Erreur désenregistrement instance:`, error)
-    }
+    await this.safeOperation(
+      async () => {
+        const instanceKey = `instance:${this.instanceId}`
+        await this.instance?.del(instanceKey)
+        console.log(`🗑️ [${this.instanceId}] Instance désenregistrée de Redis`)
+        return true
+      },
+      false,
+      'désenregistrement instance'
+    )
   }
 
   // Obtenir la liste des instances actives
   static async getActiveInstances(): Promise<any[]> {
-    try {
-      if (!this.isHealthy()) return []
-      
-      const instanceKeys = await this.instance?.keys('instance:*') || []
-      const instances = []
-      
-      for (const key of instanceKeys) {
-        try {
-          const data = await this.instance?.get(key)
-          if (data) {
-            const instanceData = JSON.parse(data)
-            instances.push(instanceData)
+    return await this.safeOperation(
+      async () => {
+        const instanceKeys = await this.instance?.keys('instance:*') || []
+        const instances = []
+        
+        for (const key of instanceKeys) {
+          try {
+            const data = await this.instance?.get(key)
+            if (data) {
+              const instanceData = JSON.parse(data)
+              instances.push(instanceData)
+            }
+          } catch (error) {
+            console.error(`❌ Erreur lecture instance ${key}:`, error)
           }
-        } catch (error) {
-          console.error(`❌ Erreur lecture instance ${key}:`, error)
         }
-      }
-      
-      return instances.sort((a, b) => a.startTime - b.startTime)
-    } catch (error) {
-      console.error(`❌ [${this.instanceId}] Erreur liste instances:`, error)
-      return []
-    }
+        
+        return instances.sort((a, b) => a.startTime - b.startTime)
+      },
+      [],
+      'liste instances'
+    )
   }
 
   // Vérification de santé améliorée
@@ -254,7 +279,7 @@ class RedisClient {
       return false
     }
     
-    // Vérifier l'état de la connexion WebSocket
+    // Vérifier l'état de la connexion
     try {
       const connectionStatus = (this.instance as any).status
       const isConnectionGood = connectionStatus === 'ready' || connectionStatus === 'connecting'
@@ -298,29 +323,28 @@ class RedisClient {
 
   // Obtenir des statistiques de performance
   static async getStats() {
-    try {
-      if (!this.isHealthy()) return null
-      
-      const info = await this.instance?.info()
-      const activeInstances = await this.getActiveInstances()
-      
-      return {
-        instanceId: this.instanceId,
-        connected: this.isConnected,
-        reconnectAttempts: this.reconnectAttempts,
-        activeInstances: activeInstances.length,
-        instances: activeInstances,
-        redisInfo: {
-          memory: info?.match(/used_memory_human:(.+)/)?.[1]?.trim(),
-          connections: info?.match(/connected_clients:(\d+)/)?.[1],
-          commands: info?.match(/total_commands_processed:(\d+)/)?.[1],
-          uptime: info?.match(/uptime_in_seconds:(\d+)/)?.[1]
+    return await this.safeOperation(
+      async () => {
+        const info = await this.instance?.info()
+        const activeInstances = await this.getActiveInstances()
+        
+        return {
+          instanceId: this.instanceId,
+          connected: this.isConnected,
+          reconnectAttempts: this.reconnectAttempts,
+          activeInstances: activeInstances.length,
+          instances: activeInstances,
+          redisInfo: {
+            memory: info?.match(/used_memory_human:(.+)/)?.[1]?.trim(),
+            connections: info?.match(/connected_clients:(\d+)/)?.[1],
+            commands: info?.match(/total_commands_processed:(\d+)/)?.[1],
+            uptime: info?.match(/uptime_in_seconds:(\d+)/)?.[1]
+          }
         }
-      }
-    } catch (error) {
-      console.error(`❌ [${this.instanceId}] Erreur stats Redis:`, error)
-      return null
-    }
+      },
+      null,
+      'stats Redis'
+    )
   }
 
   static async disconnect(): Promise<void> {
@@ -363,11 +387,59 @@ class RedisClient {
       status: this.instance ? (this.instance as any).status : 'no-instance',
       config: {
         host: process.env.REDIS_HOST || 'localhost',
-        port: process.env.REDIS_PORT || '6379',
+        port: process.env.REDIS_PORT || '6380',
         hasPassword: !!process.env.REDIS_PASSWORD,
         db: process.env.REDIS_DB || '0'
       }
     }
+  }
+
+  // Méthodes utilitaires pour les opérations courantes avec fallback
+  static async safeSet(key: string, value: string, ttl?: number): Promise<boolean> {
+    return await this.safeOperation(
+      async () => {
+        if (ttl) {
+          await this.instance?.setex(key, ttl, value)
+        } else {
+          await this.instance?.set(key, value)
+        }
+        return true
+      },
+      false,
+      `set ${key}`
+    )
+  }
+
+  static async safeGet(key: string): Promise<string | null> {
+    return await this.safeOperation(
+      async () => {
+        return await this.instance?.get(key) || null
+      },
+      null,
+      `get ${key}`
+    )
+  }
+
+  static async safeDel(key: string): Promise<boolean> {
+    return await this.safeOperation(
+      async () => {
+        await this.instance?.del(key)
+        return true
+      },
+      false,
+      `del ${key}`
+    )
+  }
+
+  static async safeExists(key: string): Promise<boolean> {
+    return await this.safeOperation(
+      async () => {
+        const result = await this.instance?.exists(key)
+        return result === 1
+      },
+      false,
+      `exists ${key}`
+    )
   }
 }
 
@@ -380,5 +452,11 @@ export const getActiveInstances = () => RedisClient.getActiveInstances()
 export const getRedisStats = () => RedisClient.getStats()
 export const forceRedisReconnect = () => RedisClient.forceReconnect()
 export const getRedisDiagnostics = () => RedisClient.getDiagnostics()
+
+// Méthodes utilitaires sécurisées
+export const safeRedisSet = (key: string, value: string, ttl?: number) => RedisClient.safeSet(key, value, ttl)
+export const safeRedisGet = (key: string) => RedisClient.safeGet(key)
+export const safeRedisDel = (key: string) => RedisClient.safeDel(key)
+export const safeRedisExists = (key: string) => RedisClient.safeExists(key)
 
 export default redis
