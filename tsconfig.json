@@ -24,7 +24,8 @@
       "@/components/*": ["./src/app/components/*"],
       "@/lib/*": ["./src/lib/*"],
       "@/hooks/*": ["./src/hooks/*"],
-      "@/types/*": ["./src/types/*"]
+      "@/types/*": ["./src/types/*"],
+      "@/constants/*": ["./src/constants/*"]
     },
     "forceConsistentCasingInFileNames": true,
     "declaration": true,

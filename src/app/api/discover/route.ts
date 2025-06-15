@@ -1,5 +1,5 @@
 // src/app/api/discover/route.ts - VERSION COMPLÈTE DANS UNE SEULE ROUTE
-import { auth } from '../../../auth'
+import { auth } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server';
 import { apiCache } from '@/lib/cache';
 

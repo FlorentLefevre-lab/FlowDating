@@ -1,6 +1,6 @@
 // app/api/user-profile/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '../../../auth'
+import { auth } from '@/lib/auth'
 import { PrismaClient } from '@prisma/client';
 
 // Singleton pour Prisma (évite les multiples connexions)

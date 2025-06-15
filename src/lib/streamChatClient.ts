@@ -1,5 +1,6 @@
-// src/lib/streamChatClient.ts
+// src/lib/streamChatClient.ts - Stream Chat optimisé pour multi-instances
 import { StreamChat } from 'stream-chat'
+import { cache } from './cache'
 
 class StreamChatManager {
   private static instance: StreamChatManager
@@ -8,8 +9,14 @@ class StreamChatManager {
   private currentUserId: string | null = null
   private presenceInterval: NodeJS.Timeout | null = null
   private connectionCheckInterval: NodeJS.Timeout | null = null
+  private instanceId = process.env.INSTANCE_ID || 'unknown'
+  private isShuttingDown = false
 
-  private constructor() {}
+  private constructor() {
+    // Gérer la fermeture propre lors du shutdown
+    process.on('SIGTERM', () => this.gracefulShutdown())
+    process.on('SIGINT', () => this.gracefulShutdown())
+  }
 
   static getInstance(): StreamChatManager {
     if (!StreamChatManager.instance) {
@@ -20,15 +27,23 @@ class StreamChatManager {
 
   async getClient(userId: string, userData: any, token: string): Promise<StreamChat | null> {
     try {
+      // Vérifier si l'utilisateur est déjà connecté sur une autre instance
+      const existingConnection = await this.checkExistingConnection(userId)
+      if (existingConnection && existingConnection.instanceId !== this.instanceId) {
+        console.log(`🔄 [${this.instanceId}] Migration de session depuis ${existingConnection.instanceId}`)
+        await this.migrateFromInstance(userId, existingConnection.instanceId)
+      }
+
       // Si on a déjà un client pour cet utilisateur, le retourner
       if (this.client && this.currentUserId === userId) {
-        console.log('✅ Client existant pour:', userId)
+        console.log(`✅ [${this.instanceId}] Client existant pour:`, userId)
+        await this.updateUserPresence(userId)
         return this.client
       }
 
       // Si une connexion est en cours, attendre
       if (this.connectionPromise) {
-        console.log('⏳ Connexion en cours, attente...')
+        console.log(`⏳ [${this.instanceId}] Connexion en cours, attente...`)
         await this.connectionPromise
         return this.client
       }
@@ -40,9 +55,44 @@ class StreamChatManager {
 
       return this.client
     } catch (error) {
-      console.error('❌ Erreur getClient:', error)
+      console.error(`❌ [${this.instanceId}] Erreur getClient:`, error)
       this.connectionPromise = null
       return null
+    }
+  }
+
+  private async checkExistingConnection(userId: string): Promise<any> {
+    try {
+      return await cache.get(`stream_connection:${userId}`, { prefix: 'chat:' })
+    } catch (error) {
+      console.error(`❌ [${this.instanceId}] Erreur vérification connexion existante:`, error)
+      return null
+    }
+  }
+
+  private async migrateFromInstance(userId: string, fromInstanceId: string): Promise<void> {
+    try {
+      console.log(`🔄 [${this.instanceId}] Migration session Stream de ${fromInstanceId}`)
+      
+      // Invalider la connexion sur l'ancienne instance via Redis pub/sub
+      await cache.set(`stream_migration:${userId}`, {
+        fromInstance: fromInstanceId,
+        toInstance: this.instanceId,
+        timestamp: Date.now()
+      }, { prefix: 'chat:', ttl: 60 })
+      
+      // Publier l'événement de migration
+      const redis = (await import('./redis')).redisPublisher()
+      await redis.publish('stream:migration', JSON.stringify({
+        userId,
+        fromInstance: fromInstanceId,
+        toInstance: this.instanceId,
+        action: 'disconnect_user'
+      }))
+      
+      console.log(`📡 [${this.instanceId}] Signal de migration envoyé`)
+    } catch (error) {
+      console.error(`❌ [${this.instanceId}] Erreur migration:`, error)
     }
   }
 
@@ -50,46 +100,48 @@ class StreamChatManager {
     try {
       // Si on a un client avec un autre utilisateur, le déconnecter
       if (this.client && this.currentUserId && this.currentUserId !== userId) {
-        console.log('🔄 Déconnexion de l\'ancien utilisateur:', this.currentUserId)
+        console.log(`🔄 [${this.instanceId}] Déconnexion de l'ancien utilisateur:`, this.currentUserId)
         await this.disconnect()
       }
 
       // Créer ou réutiliser le client
       if (!this.client) {
         this.client = StreamChat.getInstance(process.env.NEXT_PUBLIC_STREAM_API_KEY!)
-        console.log('✅ Client Stream créé')
+        console.log(`✅ [${this.instanceId}] Client Stream créé`)
       }
 
-      console.log('🔄 Connexion Stream Chat pour:', userId)
+      console.log(`🔄 [${this.instanceId}] Connexion Stream Chat pour:`, userId)
       
-      // IMPORTANT: Connecter avec la présence activée
+      // Connecter avec optimisations pour multi-instances
       await this.client.connectUser(
         {
           id: userData.id,
           name: userData.name || 'Utilisateur',
           image: userData.image || undefined,
-          // Ne pas mettre invisible à true !
+          // Marquer l'instance pour le debugging
+          instance_id: this.instanceId,
+          last_seen: new Date().toISOString()
         },
         token
       )
 
       this.currentUserId = userId
-      console.log('✅ Utilisateur connecté:', userId)
+      console.log(`✅ [${this.instanceId}] Utilisateur connecté:`, userId)
+
+      // Enregistrer la connexion dans Redis pour coordination inter-instances
+      await this.registerConnection(userId)
 
       // Activer immédiatement la présence
       await this.setUserOnline()
 
-      // Configurer la mise à jour automatique de la présence
+      // Configurer la maintenance automatique
       this.setupPresenceUpdates()
-
-      // Écouter les événements de connexion/déconnexion
       this.setupConnectionHandlers()
-
-      // Configurer la vérification de connexion
       this.setupConnectionCheck()
+      this.setupMigrationListener()
 
     } catch (error) {
-      console.error('❌ Erreur connexion Stream:', error)
+      console.error(`❌ [${this.instanceId}] Erreur connexion Stream:`, error)
       // Nettoyer en cas d'erreur
       this.client = null
       this.currentUserId = null
@@ -97,12 +149,47 @@ class StreamChatManager {
     }
   }
 
+  private async registerConnection(userId: string): Promise<void> {
+    try {
+      const connectionData = {
+        userId,
+        instanceId: this.instanceId,
+        connectedAt: Date.now(),
+        lastSeen: Date.now()
+      }
+      
+      await cache.set(`stream_connection:${userId}`, connectionData, {
+        prefix: 'chat:',
+        ttl: 300 // 5 minutes
+      })
+      
+      console.log(`📍 [${this.instanceId}] Connexion Stream enregistrée pour:`, userId)
+    } catch (error) {
+      console.error(`❌ [${this.instanceId}] Erreur enregistrement connexion:`, error)
+    }
+  }
+
+  private async updateUserPresence(userId: string): Promise<void> {
+    try {
+      const connectionData = await cache.get(`stream_connection:${userId}`, { prefix: 'chat:' })
+      if (connectionData) {
+        connectionData.lastSeen = Date.now()
+        connectionData.instanceId = this.instanceId
+        await cache.set(`stream_connection:${userId}`, connectionData, {
+          prefix: 'chat:',
+          ttl: 300
+        })
+      }
+    } catch (error) {
+      console.error(`❌ [${this.instanceId}] Erreur mise à jour présence:`, error)
+    }
+  }
+
   private async setUserOnline() {
     if (!this.client || !this.currentUserId) return
 
     try {
-      // Marquer l'utilisateur comme en ligne en surveillant un channel
-      // C'est plus fiable que partialUpdateUser qui peut causer des erreurs 403
+      // Surveiller les channels pour maintenir la présence active
       const channels = await this.client.queryChannels(
         { 
           type: 'messaging',
@@ -117,9 +204,13 @@ class StreamChatManager {
         }
       )
       
-      console.log(`✅ Utilisateur marqué comme en ligne (${channels.length} channels surveillés)`)
+      console.log(`✅ [${this.instanceId}] Utilisateur marqué comme en ligne (${channels.length} channels surveillés)`)
+      
+      // Mettre à jour la présence dans Redis
+      await this.updateUserPresence(this.currentUserId)
+      
     } catch (error) {
-      console.error('❌ Erreur setUserOnline:', error)
+      console.error(`❌ [${this.instanceId}] Erreur setUserOnline:`, error)
     }
   }
 
@@ -134,10 +225,9 @@ class StreamChatManager {
 
     // Fonction pour maintenir la présence active
     const maintainPresence = async () => {
-      if (this.client && this.currentUserId) {
+      if (this.client && this.currentUserId && !this.isShuttingDown) {
         try {
-          // Utiliser queryChannels pour maintenir la présence
-          // C'est la méthode la plus fiable qui ne cause pas d'erreur 403
+          // Méthode optimisée pour maintenir la présence
           await this.client.queryChannels(
             { 
               type: 'messaging',
@@ -150,78 +240,36 @@ class StreamChatManager {
               limit: 1 
             }
           )
-          console.log('🟢 Présence maintenue active')
+          
+          // Mettre à jour dans Redis
+          await this.updateUserPresence(this.currentUserId)
+          console.log(`🟢 [${this.instanceId}] Présence maintenue active`)
         } catch (error) {
-          console.error('❌ Erreur maintien présence:', error)
+          console.error(`❌ [${this.instanceId}] Erreur maintien présence:`, error)
         }
       }
     }
 
-    // Maintenir la présence immédiatement
+    // Maintenir immédiatement puis toutes les 25 secondes
     maintainPresence()
-
-    // Puis toutes les 25 secondes (moins de 30s pour éviter le timeout)
     this.presenceInterval = setInterval(maintainPresence, 25000)
-    console.log('⏰ Maintenance automatique de présence activée (25s)')
+    console.log(`⏰ [${this.instanceId}] Maintenance automatique de présence activée (25s)`)
   }
 
   private setupConnectionHandlers() {
     if (!this.client) return
 
     try {
-      // Vérifier que le client a les méthodes nécessaires
-      if (typeof this.client.on !== 'function') {
-        console.warn('⚠️ Le client Stream n\'a pas de méthode "on", skip setup handlers')
-        return
-      }
-
-      // Écouter tous les événements de présence
-      const handlePresenceChange = (event: any) => {
-        console.log('👥 Événement de présence:', event.type, {
-          user: event.user?.id,
-          online: event.user?.online
-        })
-      }
-
-      // Quand la connexion change
-      const handleConnectionChange = async (event: any) => {
-        console.log('🔌 Connexion changée:', {
-          online: event.online,
-          userId: this.currentUserId
-        })
-        
-        if (event.online && this.currentUserId) {
-          // Se reconnecter et réactiver la présence
-          await this.setUserOnline()
-        }
-      }
-
-      // Quand la connexion est récupérée
-      const handleConnectionRecovered = async () => {
-        console.log('🔄 Connexion récupérée')
-        await this.setUserOnline()
-      }
-
-      // Pour le moment, on va utiliser une approche différente pour écouter les événements
-      // Stream Chat v5+ utilise une API différente pour les événements
-      
-      // Surveillance des changements via polling
-      console.log('📡 Configuration de la surveillance des événements')
-      
-      // Stocker les handlers pour le nettoyage
-      (this.client as any)._streamChatHandlers = {
-        presenceChanged: handlePresenceChange,
-        connectionChanged: handleConnectionChange,
-        connectionRecovered: handleConnectionRecovered
-      }
+      // Gestion simplifiée des événements de connexion
+      console.log(`📡 [${this.instanceId}] Configuration surveillance connexion`)
       
     } catch (error) {
-      console.error('❌ Erreur setup connection handlers:', error)
+      console.error(`❌ [${this.instanceId}] Erreur setup connection handlers:`, error)
     }
   }
 
   private setupConnectionCheck() {
-    // Nettoyer l'ancien interval s'il existe
+    // Nettoyer l'ancien interval
     if (this.connectionCheckInterval) {
       clearInterval(this.connectionCheckInterval)
       this.connectionCheckInterval = null
@@ -229,12 +277,12 @@ class StreamChatManager {
 
     // Vérifier la connexion toutes les 10 secondes
     this.connectionCheckInterval = setInterval(() => {
-      if (this.client && this.currentUserId) {
+      if (this.client && this.currentUserId && !this.isShuttingDown) {
         const wsConnection = (this.client as any).wsConnection
         const isHealthy = wsConnection?.isHealthy
         const connectionState = wsConnection?.connectionState
         
-        console.log('🔍 État connexion:', {
+        console.log(`🔍 [${this.instanceId}] État connexion:`, {
           healthy: isHealthy,
           state: connectionState,
           userId: this.currentUserId
@@ -242,51 +290,84 @@ class StreamChatManager {
         
         // Si la connexion n'est pas saine, essayer de la récupérer
         if (!isHealthy || connectionState !== 'connected') {
-          console.warn('⚠️ Connexion dégradée, tentative de récupération...')
+          console.warn(`⚠️ [${this.instanceId}] Connexion dégradée, tentative de récupération...`)
           this.setUserOnline().catch(console.error)
         }
       }
     }, 10000)
   }
 
+  private setupMigrationListener() {
+    try {
+      const setupListener = async () => {
+        const redis = (await import('./redis')).redisSubscriber()
+        
+        await redis.subscribe('stream:migration', (err) => {
+          if (err) {
+            console.error(`❌ [${this.instanceId}] Erreur souscription migration:`, err)
+            return
+          }
+          console.log(`📡 [${this.instanceId}] Écoute des migrations Stream`)
+        })
+
+        redis.on('message', async (channel, message) => {
+          if (channel === 'stream:migration') {
+            try {
+              const data = JSON.parse(message)
+              
+              // Si c'est pour cette instance et cet utilisateur
+              if (data.fromInstance === this.instanceId && 
+                  data.userId === this.currentUserId &&
+                  data.action === 'disconnect_user') {
+                
+                console.log(`🔄 [${this.instanceId}] Réception signal migration pour:`, data.userId)
+                await this.disconnect()
+              }
+            } catch (error) {
+              console.error(`❌ [${this.instanceId}] Erreur traitement migration:`, error)
+            }
+          }
+        })
+      }
+
+      setupListener().catch(console.error)
+    } catch (error) {
+      console.error(`❌ [${this.instanceId}] Erreur setup migration listener:`, error)
+    }
+  }
+
   async disconnect(): Promise<void> {
-    console.log('🔄 Début de la déconnexion...')
+    this.isShuttingDown = true
+    console.log(`🔄 [${this.instanceId}] Début de la déconnexion Stream...`)
 
     // Nettoyer les intervals
     if (this.presenceInterval) {
       clearInterval(this.presenceInterval)
       this.presenceInterval = null
-      console.log('⏰ Interval de présence nettoyé')
     }
 
     if (this.connectionCheckInterval) {
       clearInterval(this.connectionCheckInterval)
       this.connectionCheckInterval = null
-      console.log('⏰ Interval de vérification nettoyé')
+    }
+
+    // Déenregistrer la connexion
+    if (this.currentUserId) {
+      try {
+        await cache.delete(`stream_connection:${this.currentUserId}`, { prefix: 'chat:' })
+        console.log(`🗑️ [${this.instanceId}] Connexion Stream déenregistrée`)
+      } catch (error) {
+        console.error(`❌ [${this.instanceId}] Erreur déenregistrement:`, error)
+      }
     }
 
     // Déconnecter l'utilisateur
     if (this.client && this.currentUserId) {
       try {
-        // Ne pas essayer de retirer les listeners si la méthode off n'existe pas
-        const handlers = (this.client as any)._streamChatHandlers
-        if (handlers && typeof this.client.off === 'function') {
-          // Retirer les listeners seulement si la méthode existe
-          try {
-            this.client.off('user.presence.changed', handlers.presenceChanged)
-            this.client.off('connection.changed', handlers.connectionChanged)
-            this.client.off('connection.recovered', handlers.connectionRecovered)
-            this.client.off('ws.event', handlers.wsEvent)
-          } catch (e) {
-            console.warn('⚠️ Impossible de retirer les listeners:', e)
-          }
-          delete (this.client as any)._streamChatHandlers
-        }
-
         await this.client.disconnectUser()
-        console.log('✅ Utilisateur déconnecté:', this.currentUserId)
+        console.log(`✅ [${this.instanceId}] Utilisateur Stream déconnecté:`, this.currentUserId)
       } catch (error) {
-        console.error('❌ Erreur lors de la déconnexion:', error)
+        console.error(`❌ [${this.instanceId}] Erreur déconnexion Stream:`, error)
       }
     }
 
@@ -294,11 +375,17 @@ class StreamChatManager {
     this.client = null
     this.currentUserId = null
     this.connectionPromise = null
-    console.log('✅ Déconnexion complète')
+    this.isShuttingDown = false
+    console.log(`✅ [${this.instanceId}] Déconnexion Stream complète`)
+  }
+
+  private async gracefulShutdown(): Promise<void> {
+    console.log(`🔄 [${this.instanceId}] Arrêt graceful de Stream Chat...`)
+    await this.disconnect()
   }
 
   isConnected(): boolean {
-    return !!(this.client && this.currentUserId && this.client.user)
+    return !!(this.client && this.currentUserId && this.client.user && !this.isShuttingDown)
   }
 
   getCurrentUserId(): string | null {
@@ -309,72 +396,58 @@ class StreamChatManager {
     return this.client
   }
 
-  // Méthode pour forcer une synchronisation de présence
+  // Synchronisation de présence optimisée pour multi-instances
   async syncPresence(): Promise<void> {
     if (!this.client || !this.currentUserId) {
-      console.warn('⚠️ Impossible de synchroniser: client non connecté')
+      console.warn(`⚠️ [${this.instanceId}] Impossible de synchroniser: client non connecté`)
       return
     }
 
     try {
-      // Forcer une requête qui met à jour la présence
-      const channels = await this.client.queryChannels(
-        { 
-          type: 'messaging',
-          members: { $in: [this.currentUserId] } 
-        },
-        { last_message_at: -1 },
-        { 
-          watch: true,
-          presence: true,
-          state: true
-        }
-      )
-      
-      console.log(`✅ Présence synchronisée (${channels.length} channels)`)
-      
-      // Émettre un événement personnalisé pour forcer le rafraîchissement
-      if (this.client.activeChannels) {
-        Object.values(this.client.activeChannels).forEach((channel: any) => {
-          channel.state.clearOldMessages()
-        })
-      }
-      
+      await this.setUserOnline()
+      console.log(`✅ [${this.instanceId}] Présence synchronisée`)
     } catch (error) {
-      console.error('❌ Erreur synchronisation présence:', error)
+      console.error(`❌ [${this.instanceId}] Erreur synchronisation présence:`, error)
     }
   }
 
-  // Méthode pour obtenir l'état de présence des utilisateurs
+  // Obtenir l'état de présence avec cache distribué
   async getPresenceStatus(userIds: string[]): Promise<Record<string, boolean>> {
     if (!this.client) return {}
 
     try {
-      const response = await this.client.queryUsers({
-        id: { $in: userIds },
-        last_active: { $gt: new Date(Date.now() - 5 * 60 * 1000).toISOString() }
-      })
-
+      // Vérifier d'abord le cache distribué
+      const cachePromises = userIds.map(id => 
+        cache.get(`stream_connection:${id}`, { prefix: 'chat:' })
+      )
+      const cachedConnections = await Promise.all(cachePromises)
+      
       const presence: Record<string, boolean> = {}
-      response.users.forEach(user => {
-        presence[user.id] = user.online || false
+      const now = Date.now()
+      
+      userIds.forEach((userId, index) => {
+        const connection = cachedConnections[index]
+        // Considérer comme en ligne si vu dans les 2 dernières minutes
+        presence[userId] = connection && (now - connection.lastSeen) < 120000
       })
 
       return presence
     } catch (error) {
-      console.error('❌ Erreur récupération présence:', error)
+      console.error(`❌ [${this.instanceId}] Erreur récupération présence:`, error)
       return {}
     }
   }
 
-  // Méthode pour débugger l'état
+  // Diagnostics étendus
   getDebugInfo() {
     const wsConnection = this.client ? (this.client as any).wsConnection : null
     
     return {
+      instanceId: this.instanceId,
       hasClient: !!this.client,
       currentUserId: this.currentUserId,
       isConnected: this.isConnected(),
+      isShuttingDown: this.isShuttingDown,
       connectionId: this.client?.connectionID || null,
       userStatus: this.client?.user || null,
       presenceIntervalActive: !!this.presenceInterval,

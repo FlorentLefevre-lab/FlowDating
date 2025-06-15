@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckIcon, TagIcon, Bars3Icon } from '@heroicons/react/24/outline';
-import { UserProfile, ProfileFormProps } from '../../types/profiles';
+import { UserProfile, ProfileFormProps } from '@/types/profiles';
 import { 
   GENDERS, 
   PROFESSIONS, 
@@ -12,7 +12,7 @@ import {
   RELIGIONS, 
   ETHNICITIES,
   INTEREST_OPTIONS 
-} from '../../constants/profileData';
+} from '@/constants/profileData';
 
 const PersonalInfoForm: React.FC<ProfileFormProps> = ({ 
   profile, 

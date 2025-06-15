@@ -8,8 +8,8 @@ import {
   UserIcon
 } from '@heroicons/react/24/outline';
 
-import { UserProfile, UserPreferences, MessageType } from '../../types/profiles';
-import { LOOKING_FOR_OPTIONS, DISTANCE_OPTIONS } from '../../constants/profileData';
+import { UserProfile, UserPreferences, MessageType } from '@/types/profiles';
+import { LOOKING_FOR_OPTIONS, DISTANCE_OPTIONS } from '@/constants/profileData';
 
 interface PreferencesFormProps {
   profile: UserProfile | null;

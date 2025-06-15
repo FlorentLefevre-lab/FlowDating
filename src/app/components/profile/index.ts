@@ -18,7 +18,7 @@ export type {
   SettingsPanelProps,
   MessageType,
   TabType
-} from '../../types/profiles';
+} from '@/types/profiles';
 
 // Réexport des constantes
 export {
@@ -32,4 +32,4 @@ export {
   INTEREST_OPTIONS,
   LOOKING_FOR_OPTIONS,
   DISTANCE_OPTIONS
-} from '../../constants/profileData';
+} from '@/constants/profileData';

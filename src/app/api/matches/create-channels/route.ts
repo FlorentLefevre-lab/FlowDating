@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/auth'
+import { auth } from '@/lib/auth'
 import { createMatchChannel } from '@/lib/stream'
 import { prisma } from '@/lib/db'
 

@@ -1,7 +1,7 @@
 // src/app/api/user-preferences/route.ts - Version corrigée avec mapping
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '../../../auth';
+import { auth } from '@/lib/auth';
 import { PrismaClient } from '@prisma/client';
 
 const globalForPrisma = globalThis as unknown as {

@@ -1,5 +1,5 @@
 // src/app/api/users/list/route.ts - API pour lister tous les utilisateurs
-import { auth } from '../../../../auth'
+import { auth } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {

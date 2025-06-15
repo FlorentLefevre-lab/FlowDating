@@ -1,6 +1,6 @@
 // src/app/api/users/[userId]/activity/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/auth' // Si vous utilisez auth.js v5import { prisma } from '@/lib/db';
+import { auth } from '@/lib/auth' // Si vous utilisez auth.js v5import { prisma } from '@/lib/db';
 import { prisma } from '@/lib/db';
 
 export async function GET(

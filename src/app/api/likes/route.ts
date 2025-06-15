@@ -1,5 +1,5 @@
 // src/app/api/likes/route.ts
-import { auth } from '../../../auth'
+import { auth } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '../../../lib/prisma' // Ajustez le chemin
 

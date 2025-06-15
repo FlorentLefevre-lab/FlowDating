@@ -19,7 +19,7 @@ import { SimpleLoading } from '@/components/ui/SimpleLoading';
 import { SimpleError } from '@/components/ui/SimpleError';
 
 // ✅ GARDER : Tous vos imports et types exactement comme avant
-import type { UserProfile, TabType, MessageType } from '../../types/profiles';
+import type { UserProfile, TabType, MessageType } from '@/types/profiles';
 import dynamic from 'next/dynamic';
 
 // ✅ GARDER : Tous vos imports dynamiques exactement comme avant

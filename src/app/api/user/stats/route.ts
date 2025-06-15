@@ -1,6 +1,6 @@
 // src/app/api/user/stats/route.ts - Version avec cache Redis
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '../../../../auth';
+import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { redis } from '@/lib/redis'; // Votre client Redis existant
 

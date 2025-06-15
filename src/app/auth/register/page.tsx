@@ -1,6 +1,6 @@
 // src/app/auth/register/page.tsx
 import RegisterForm from '@/components/auth/RegisterForm'
-import { auth } from '../../../auth'  // ✅ Nouveau import v5
+import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 
 export default async function RegisterPage() {

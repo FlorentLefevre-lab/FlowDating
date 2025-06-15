@@ -2,7 +2,7 @@
 // src/app/api/chat/create-channel/route.ts
 // =====================================================
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/auth'
+import { auth } from '@/lib/auth'
 import { StreamChat } from 'stream-chat'
 import { prisma } from '@/lib/prisma'
 

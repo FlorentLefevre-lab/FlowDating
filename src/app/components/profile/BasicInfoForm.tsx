@@ -2,8 +2,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDownIcon, MapPinIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-import { UserProfile, ProfileFormProps } from '../../types/profiles';
-import { PROFESSIONS } from '../../constants/profileData';
+import { UserProfile, ProfileFormProps } from '@/types/profiles';
+import { PROFESSIONS } from '@/constants/profileData';
+
 
 // Type pour les données de l'API data.gouv.fr
 interface CommuneData {

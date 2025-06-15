@@ -1,7 +1,7 @@
 // src/app/api/user/current/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '../../../../auth'  // ✅ Nouveau import v5
-import { prisma } from '../../../../lib/db'
+import { auth } from '@/lib/auth'
+import { prisma } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   const session = await auth()  // ✅ Nouvelle syntaxe v5

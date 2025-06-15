@@ -2,7 +2,7 @@
 // src/app/api/chat/stream/token/route.ts
 // =====================================================
 import { NextResponse } from 'next/server'
-import { auth } from '@/auth'
+import { auth } from '@/lib/auth'
 import { StreamChat } from 'stream-chat'
 
 export async function GET() {

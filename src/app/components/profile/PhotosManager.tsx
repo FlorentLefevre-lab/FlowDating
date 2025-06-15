@@ -10,7 +10,7 @@ import {
   CameraIcon
 } from '@heroicons/react/24/outline';
 
-import { Photo, PhotosManagerProps } from '../../types/profiles';
+import { Photo, PhotosManagerProps } from '@/types/profiles';
 
 // Déclaration TypeScript pour Cloudinary
 declare global {
