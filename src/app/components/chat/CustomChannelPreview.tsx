@@ -1,7 +1,7 @@
 // =====================================================
-// src/app/components/chat/CustomChannelPreview.tsx
+// src/app/components/chat/CustomChannelPreview.tsx - VERSION SIMPLIFIÉE
 // =====================================================
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { Avatar, useChatContext } from 'stream-chat-react'
 import type { ChannelPreviewUIComponentProps } from 'stream-chat-react'
 
@@ -11,9 +11,24 @@ export function CustomChannelPreview(props: ChannelPreviewUIComponentProps) {
   const [otherUser, setOtherUser] = useState<any>(null)
   const [isOnline, setIsOnline] = useState(false)
   const [lastSeen, setLastSeen] = useState<Date | null>(null)
-  const [forceUpdate, setForceUpdate] = useState(0)
+  const mountedRef = useRef(true)
 
-  // Récupérer l'autre utilisateur
+  // Nettoyage à la destruction
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  // Fonction sécurisée pour mettre à jour l'état
+  const safeSetState = useCallback((updater: () => void) => {
+    if (mountedRef.current) {
+      updater()
+    }
+  }, [])
+
+  // Récupérer l'autre utilisateur - SIMPLIFIÉ
   useEffect(() => {
     if (!channel || !client.userID) return
 
@@ -21,52 +36,48 @@ export function CustomChannelPreview(props: ChannelPreviewUIComponentProps) {
     const other = members.find((member: any) => member.user_id !== client.userID)
     
     if (other?.user) {
-      setOtherUser(other.user)
-      
-      // Vérifier la présence initiale
-      const checkPresence = () => {
+      safeSetState(() => {
+        setOtherUser(other.user)
+        
+        // Vérifier la présence une seule fois au montage
         const isUserOnline = other.user.online && !other.user.invisible
         const lastActive = other.user.last_active ? new Date(other.user.last_active) : null
         const timeSinceActive = lastActive ? Date.now() - lastActive.getTime() : Infinity
-        
-        // Considérer en ligne si last_active < 1 minute
         const isRecentlyActive = timeSinceActive < 60000
         
         setIsOnline(isUserOnline || isRecentlyActive)
         setLastSeen(lastActive)
-      }
-      
-      checkPresence()
+      })
     }
-  }, [channel, client.userID, forceUpdate])
+  }, [channel, client.userID, safeSetState])
 
-  // Écouter les changements de présence en temps réel
+  // Écouter les changements de présence - SIMPLIFIÉ
   useEffect(() => {
-    if (!channel || !otherUser) return
+    if (!channel || !otherUser?.id || !client) return
 
-    // Fonction pour mettre à jour la présence
-    const updatePresence = (event?: any) => {
+    // Fonction de mise à jour optimisée
+    const updatePresence = useCallback((event?: any) => {
+      // Vérifier si l'événement concerne notre utilisateur
       if (event && event.user?.id !== otherUser.id) return
 
-      // Récupérer l'état le plus récent
       const members = Object.values(channel.state.members)
       const updatedMember = members.find((m: any) => m.user_id === otherUser.id) as any
       
       if (updatedMember?.user) {
-        const isUserOnline = updatedMember.user.online && !updatedMember.user.invisible
-        const lastActive = updatedMember.user.last_active ? new Date(updatedMember.user.last_active) : null
-        const timeSinceActive = lastActive ? Date.now() - lastActive.getTime() : Infinity
-        
-        // Considérer en ligne si last_active < 1 minute
-        const isRecentlyActive = timeSinceActive < 60000
-        
-        setIsOnline(isUserOnline || isRecentlyActive)
-        setLastSeen(lastActive)
-        setOtherUser(updatedMember.user)
+        safeSetState(() => {
+          const isUserOnline = updatedMember.user.online && !updatedMember.user.invisible
+          const lastActive = updatedMember.user.last_active ? new Date(updatedMember.user.last_active) : null
+          const timeSinceActive = lastActive ? Date.now() - lastActive.getTime() : Infinity
+          const isRecentlyActive = timeSinceActive < 60000
+          
+          setIsOnline(isUserOnline || isRecentlyActive)
+          setLastSeen(lastActive)
+          setOtherUser(updatedMember.user)
+        })
       }
-    }
+    }, [otherUser.id, channel, safeSetState])
 
-    // Écouter les événements globaux
+    // Écouter seulement les événements essentiels
     const handlePresenceChanged = (event: any) => {
       if (event.user?.id === otherUser.id) {
         console.log(`👁 Présence changée pour ${otherUser.name}:`, event.user.online)
@@ -74,65 +85,25 @@ export function CustomChannelPreview(props: ChannelPreviewUIComponentProps) {
       }
     }
 
-    const handleUserUpdated = (event: any) => {
-      if (event.user?.id === otherUser.id) {
-        updatePresence(event)
-      }
-    }
-
-    const handleMemberUpdated = (event: any) => {
-      if (event.member?.user_id === otherUser.id || event.user?.id === otherUser.id) {
-        updatePresence(event)
-      }
-    }
-
-    // Écouter les événements du channel
-    const handleChannelUpdated = () => {
-      updatePresence()
-    }
-
-    // Ajouter les listeners
-    channel.on('member.updated', handleMemberUpdated)
-    channel.on('channel.updated', handleChannelUpdated)
-    channel.on('user.presence.changed', handlePresenceChanged)
-    
-    // Listeners globaux
+    // Ajouter les listeners minimaux
     client.on('user.presence.changed', handlePresenceChanged)
-    client.on('user.updated', handleUserUpdated)
+    channel.on('member.updated', updatePresence)
 
-    // Vérifier la présence toutes les 10 secondes
-    const presenceInterval = setInterval(() => {
-      updatePresence()
-    }, 10000)
-
-    // Forcer une mise à jour initiale
-    updatePresence()
-
+    // Nettoyage automatique
     return () => {
-      channel.off('member.updated', handleMemberUpdated)
-      channel.off('channel.updated', handleChannelUpdated)
-      channel.off('user.presence.changed', handlePresenceChanged)
       client.off('user.presence.changed', handlePresenceChanged)
-      client.off('user.updated', handleUserUpdated)
-      clearInterval(presenceInterval)
+      channel.off('member.updated', updatePresence)
     }
-  }, [channel, client, otherUser?.id])
+  }, [channel, client, otherUser?.id, safeSetState])
 
-  // Forcer la mise à jour quand le channel devient actif
-  useEffect(() => {
-    if (active) {
-      setForceUpdate(prev => prev + 1)
-    }
-  }, [active])
-
-  const handleClick = () => {
+  const handleClick = useCallback(() => {
     if (setActiveChannel) {
       setActiveChannel(channel)
     }
-  }
+  }, [setActiveChannel, channel])
 
   // Formater le dernier message
-  const getLastMessagePreview = () => {
+  const getLastMessagePreview = useCallback(() => {
     if (!lastMessage) return 'Commencez la conversation'
     
     const isMyMessage = lastMessage.user?.id === client.userID
@@ -140,10 +111,10 @@ export function CustomChannelPreview(props: ChannelPreviewUIComponentProps) {
     const text = lastMessage.text || 'Photo'
     
     return prefix + text
-  }
+  }, [lastMessage, client.userID])
 
   // Formater la date
-  const formatTime = (date: Date) => {
+  const formatTime = useCallback((date: Date) => {
     const now = new Date()
     const diff = now.getTime() - date.getTime()
     const minutes = Math.floor(diff / 60000)
@@ -159,7 +130,7 @@ export function CustomChannelPreview(props: ChannelPreviewUIComponentProps) {
       day: 'numeric', 
       month: 'short' 
     })
-  }
+  }, [])
 
   if (!otherUser) return null
 

@@ -204,3 +204,60 @@ npx prisma migrate dev --name description-of-changes
 # 4. Le client est automatiquement généré, sinon:
 
 npx prisma generate
+
+# ==================================
+
+DOCKER CMD
+
+# ==================================
+
+docker-compose -f docker-compose.dev.yml up --build -d
+
+# 1. Arrêter tous les conteneurs
+
+docker-compose -f docker-compose.dev.yml down
+
+# 2. Démarrer avec rebuild
+
+docker-compose -f docker-compose.dev.yml up --build -d
+
+# 3. Vérifier le statut
+
+docker-compose -f docker-compose.dev.yml ps
+
+# 4. Surveiller les logs Redis
+
+docker-compose -f docker-compose.dev.yml logs -f app1 app2 app3
+
+# Voir tous les logs
+
+docker-compose -f docker-compose.dev.yml logs
+
+# Logs d'un service spécifique
+
+docker-compose -f docker-compose.dev.yml logs -f redis
+docker-compose -f docker-compose.dev.yml logs -f app3
+
+# Redémarrer un service spécifique
+
+docker-compose -f docker-compose.dev.yml restart app3
+
+# Arrêter complètement
+
+docker-compose -f docker-compose.dev.yml down
+
+# Arrêter et supprimer les volumes (attention!)
+
+docker-compose -f docker-compose.dev.yml down -v
+
+# 1. Vérifier que tous les conteneurs tournent
+
+docker-compose -f docker-compose.dev.yml ps
+
+# 2. Tester Redis depuis l'host
+
+redis-cli -h localhost -p 6380 -a redis123 ping
+
+# 3. Surveiller les connexions Redis dans les logs
+
+docker-compose -f docker-compose.dev.yml logs -f | grep -i redis

@@ -1,25 +1,27 @@
 FROM node:20-alpine
 
+# Installer wget et curl pour health checks
+RUN apk add --no-cache wget curl
+
 WORKDIR /app
 
-# Installer les dépendances système nécessaires
-RUN apk add --no-cache libc6-compat
-
-# Copier les fichiers de dépendances
-COPY package.json yarn.lock* ./
-COPY prisma ./prisma/
+# Copier package.json et package-lock.json
+COPY package*.json ./
 
 # Installer les dépendances
-RUN yarn install --frozen-lockfile
+# Utiliser npm install si package-lock.json n'existe pas
+RUN if [ -f "package-lock.json" ]; then npm ci; else npm install; fi
 
-# Générer le client Prisma
-RUN yarn db:generate
-
-# Copier le reste de l'application
+# Copier le code source
 COPY . .
 
 # Exposer le port
 EXPOSE 3000
 
-# Commande de développement - utiliser next dev directement
-CMD ["yarn", "next", "dev", "-p", "3000"]
+# Variables d'environnement
+ENV NODE_ENV=development
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+# Démarrage
+CMD ["npm", "run", "dev"]

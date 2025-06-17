@@ -1,21 +1,61 @@
-import { NextResponse } from 'next/server';
+// src/app/api/health/route.ts
+import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { redis } from '@/lib/redis'
 
-// Endpoint public pour le health check - pas d'authentification requise
 export async function GET() {
-  const instanceId = process.env.INSTANCE_ID || 'UNKNOWN';
-  const instanceColor = process.env.INSTANCE_COLOR || '#000000';
+  const instanceId = process.env.INSTANCE_ID || 'UNKNOWN'
+  const instanceColor = process.env.INSTANCE_COLOR || '#000000'
   
-  return NextResponse.json({
-    status: 'healthy',
-    instance: {
-      id: instanceId,
-      color: instanceColor
-    },
-    timestamp: new Date().toISOString()
-  }, {
-    status: 200,
-    headers: {
-      'Cache-Control': 'no-store'
-    }
-  });
+  try {
+    // Vérifier la connexion à la base de données
+    const dbCheck = await prisma.$queryRaw`SELECT 1`
+    
+    // Vérifier la connexion Redis
+    await redis.ping()
+    
+    // Retourner le statut de santé
+    return NextResponse.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      instance: {
+        id: instanceId,
+        color: instanceColor,
+        hostname: process.env.HOSTNAME || 'unknown'
+      },
+      checks: {
+        database: 'connected',
+        redis: 'connected',
+        memory: {
+          used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+          total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+          unit: 'MB'
+        },
+        uptime: Math.round(process.uptime())
+      }
+    }, {
+      headers: {
+        'X-Instance-ID': instanceId,
+        'X-Instance-Color': instanceColor
+      }
+    })
+  } catch (error) {
+    console.error('Health check failed:', error)
+    
+    return NextResponse.json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      instance: {
+        id: instanceId,
+        color: instanceColor
+      },
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, { 
+      status: 503,
+      headers: {
+        'X-Instance-ID': instanceId,
+        'X-Instance-Color': instanceColor
+      }
+    })
+  }
 }

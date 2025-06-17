@@ -1,4 +1,4 @@
-// src/lib/redis.ts - Redis optimisé pour environnement multi-instances
+// src/lib/redis.ts - Redis optimisé pour environnement Docker multi-instances
 import Redis from 'ioredis'
 
 class RedisClient {
@@ -18,17 +18,17 @@ class RedisClient {
       
       console.log(`🔄 [${this.instanceId}] Initialisation Redis...`)
       console.log(`📋 [${this.instanceId}] Configuration:`, {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: process.env.REDIS_PORT || '6380',
+        host: process.env.REDIS_HOST || 'redis',  // ✅ CORRIGÉ pour Docker
+        port: process.env.REDIS_PORT || '6379',   // ✅ CORRIGÉ pour Docker
         hasPassword: !!process.env.REDIS_PASSWORD,
         db: process.env.REDIS_DB || '0',
         env: process.env.NODE_ENV
       })
 
-      // Configuration optimisée pour multi-instances
+      // ✅ Configuration optimisée pour Docker multi-instances
       const redisConfig = {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6380'), // Port par défaut 6380 pour Docker
+        host: process.env.REDIS_HOST || 'redis',           // ✅ Nom du service Docker
+        port: parseInt(process.env.REDIS_PORT || '6379'),  // ✅ Port interne Docker
         password: process.env.REDIS_PASSWORD || undefined,
         
         // Optimisations pour production multi-instances
@@ -386,8 +386,8 @@ class RedisClient {
       hasSubscriber: !!this.subscriber,
       status: this.instance ? (this.instance as any).status : 'no-instance',
       config: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: process.env.REDIS_PORT || '6380',
+        host: process.env.REDIS_HOST || 'redis',   // ✅ Corrigé
+        port: process.env.REDIS_PORT || '6379',    // ✅ Corrigé
         hasPassword: !!process.env.REDIS_PASSWORD,
         db: process.env.REDIS_DB || '0'
       }

@@ -10,8 +10,7 @@ import {
   MessageInput, 
   ChannelHeader,
   Thread,
-  LoadingIndicator,
-  useChatContext 
+  LoadingIndicator 
 } from 'stream-chat-react'
 import { useSearchParams } from 'next/navigation'
 import { useStreamChat } from '@/hooks/useStreamChat'

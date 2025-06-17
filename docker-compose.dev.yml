@@ -8,28 +8,36 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
       - "--log.level=INFO"
+      # Configuration load balancer
+      - "--providers.docker.network=dev-network"
     ports:
       - "80:80"
-      - "8080:8080"
+      - "8080:8080"  # Dashboard Traefik
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - dev-network
 
-  # Application Instance 1 - Définit le router ET le service
+  # Application Instance 1 - Main router
   app1:
     build:
       context: .
       dockerfile: Dockerfile.dev
     container_name: dating-app-1
+    env_file:
+      - .env.development
     environment:
       INSTANCE_ID: APP-1
       INSTANCE_COLOR: '#FF6B6B'
-      DATABASE_URL: postgresql://dating_user:motdepasse123@postgres:5432/dating_db
-      REDIS_URL: redis://:redis123@redis:6379
+      PORT: 3000
       NODE_ENV: development
-      NEXTAUTH_URL: http://localhost
-      NEXTAUTH_SECRET: your-secret-key-here-change-in-production
+      NEXTAUTH_URL_INTERNAL: http://app1:3000
+      NODE_OPTIONS: '--max-old-space-size=8192 --max-semi-space-size=512'
+      UV_THREADPOOL_SIZE: 16
+      NEXT_TELEMETRY_DISABLED: 1
+      WATCHPACK_POLLING: 500
+    ports:
+      - "3001:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -39,33 +47,57 @@ services:
       - dev-network
     volumes:
       - ./:/app
-      - /app/node_modules
-      - /app/.next
+      - node_modules_app1:/app/node_modules
+      - next_cache_app1:/app/.next
+      - /tmp/next-cache-app1:/app/.next/cache
     labels:
       - "traefik.enable=true"
-      # Router (défini seulement sur app1)
-      - "traefik.http.routers.dating.rule=Host(`localhost`)"
-      - "traefik.http.routers.dating.service=dating-service"
-      - "traefik.http.routers.dating.entrypoints=web"
-      # Service (avec tous les paramètres)
-      - "traefik.http.services.dating-service.loadbalancer.server.port=3000"
-      - "traefik.http.services.dating-service.loadbalancer.sticky.cookie=true"
-      - "traefik.http.services.dating-service.loadbalancer.sticky.cookie.name=server_id"
+      - "traefik.docker.network=dev-network"
+      # Router principal pour localhost
+      - "traefik.http.routers.dating-main.rule=Host(`localhost`)"
+      - "traefik.http.routers.dating-main.entrypoints=web"
+      - "traefik.http.routers.dating-main.service=dating-loadbalancer"
+      # Service load balancer
+      - "traefik.http.services.dating-loadbalancer.loadbalancer.server.port=3000"
+      # Configuration load balancer
+      - "traefik.http.services.dating-loadbalancer.loadbalancer.sticky.cookie=true"
+      - "traefik.http.services.dating-loadbalancer.loadbalancer.sticky.cookie.name=dating-server"
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+          cpus: '8'
+        reservations:
+          memory: 4G
+          cpus: '2'
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
-  # Application Instance 2 - Définit SEULEMENT le service avec les MÊMES paramètres
+  # Application Instance 2 - Load balanced
   app2:
     build:
       context: .
       dockerfile: Dockerfile.dev
     container_name: dating-app-2
+    env_file:
+      - .env.development
     environment:
       INSTANCE_ID: APP-2
       INSTANCE_COLOR: '#4ECDC4'
-      DATABASE_URL: postgresql://dating_user:motdepasse123@postgres:5432/dating_db
-      REDIS_URL: redis://:redis123@redis:6379
+      PORT: 3000
       NODE_ENV: development
-      NEXTAUTH_URL: http://localhost
-      NEXTAUTH_SECRET: your-secret-key-here-change-in-production
+      NEXTAUTH_URL_INTERNAL: http://app2:3000
+      NODE_OPTIONS: '--max-old-space-size=8192 --max-semi-space-size=512'
+      UV_THREADPOOL_SIZE: 16
+      NEXT_TELEMETRY_DISABLED: 1
+      WATCHPACK_POLLING: 500
+    ports:
+      - "3002:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,29 +107,50 @@ services:
       - dev-network
     volumes:
       - ./:/app
-      - /app/node_modules
-      - /app/.next
+      - node_modules_app2:/app/node_modules
+      - next_cache_app2:/app/.next
+      - /tmp/next-cache-app2:/app/.next/cache
     labels:
       - "traefik.enable=true"
-      # Service seulement (avec TOUS les mêmes paramètres que app1)
-      - "traefik.http.services.dating-service.loadbalancer.server.port=3000"
-      - "traefik.http.services.dating-service.loadbalancer.sticky.cookie=true"
-      - "traefik.http.services.dating-service.loadbalancer.sticky.cookie.name=server_id"
+      - "traefik.docker.network=dev-network"
+      # Ajout au même service load balancer
+      - "traefik.http.services.dating-loadbalancer.loadbalancer.server.port=3000"
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+          cpus: '8'
+        reservations:
+          memory: 4G
+          cpus: '2'
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
-  # Application Instance 3 - Définit SEULEMENT le service avec les MÊMES paramètres
+  # Application Instance 3 - Load balanced
   app3:
     build:
       context: .
       dockerfile: Dockerfile.dev
     container_name: dating-app-3
+    env_file:
+      - .env.development
     environment:
       INSTANCE_ID: APP-3
       INSTANCE_COLOR: '#95E1D3'
-      DATABASE_URL: postgresql://dating_user:motdepasse123@postgres:5432/dating_db
-      REDIS_URL: redis://:redis123@redis:6379
+      PORT: 3000
       NODE_ENV: development
-      NEXTAUTH_URL: http://localhost
-      NEXTAUTH_SECRET: your-secret-key-here-change-in-production
+      NEXTAUTH_URL_INTERNAL: http://app3:3000
+      NODE_OPTIONS: '--max-old-space-size=8192 --max-semi-space-size=512'
+      UV_THREADPOOL_SIZE: 16
+      NEXT_TELEMETRY_DISABLED: 1
+      WATCHPACK_POLLING: 500
+    ports:
+      - "3003:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -107,69 +160,220 @@ services:
       - dev-network
     volumes:
       - ./:/app
-      - /app/node_modules
-      - /app/.next
+      - node_modules_app3:/app/node_modules
+      - next_cache_app3:/app/.next
+      - /tmp/next-cache-app3:/app/.next/cache
     labels:
       - "traefik.enable=true"
-      # Service seulement (avec TOUS les mêmes paramètres que app1)
-      - "traefik.http.services.dating-service.loadbalancer.server.port=3000"
-      - "traefik.http.services.dating-service.loadbalancer.sticky.cookie=true"
-      - "traefik.http.services.dating-service.loadbalancer.sticky.cookie.name=server_id"
+      - "traefik.docker.network=dev-network"
+      # Ajout au même service load balancer
+      - "traefik.http.services.dating-loadbalancer.loadbalancer.server.port=3000"
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+          cpus: '8'
+        reservations:
+          memory: 4G
+          cpus: '2'
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
+  # PostgreSQL ULTRA-OPTIMISÉ pour machine puissante
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: postgres-dev
     environment:
       POSTGRES_DB: dating_db
       POSTGRES_USER: dating_user
       POSTGRES_PASSWORD: motdepasse123
+      POSTGRES_INITDB_ARGS: "--data-checksums --wal-segsize=32"
     ports:
       - "5432:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres_dev_data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c max_connections=300
+      -c shared_buffers=8GB
+      -c effective_cache_size=32GB
+      -c maintenance_work_mem=2GB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=32MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=64MB
+      -c min_wal_size=2GB
+      -c max_wal_size=8GB
+      -c max_worker_processes=16
+      -c max_parallel_workers_per_gather=8
+      -c max_parallel_workers=16
+      -c max_parallel_maintenance_workers=8
+      -c log_min_duration_statement=1000
+      -c log_checkpoints=on
+      -c log_connections=off
+      -c log_disconnections=off
+      -c log_lock_waits=on
+      -c checkpoint_timeout=15min
+      -c bgwriter_delay=50ms
+      -c bgwriter_lru_maxpages=1000
+      -c bgwriter_lru_multiplier=10.0
+      -c wal_compression=on
+      -c huge_pages=try
+      -c synchronous_commit=off
+      -c fsync=on
     networks:
       - dev-network
+    deploy:
+      resources:
+        limits:
+          memory: 32G
+          cpus: '8'
+        reservations:
+          memory: 8G
+          cpus: '2'
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dating_user -d dating_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "pg_isready -U dating_user -d dating_db -h localhost -p 5432"]
+      interval: 3s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
 
+  # Redis ULTRA-OPTIMISÉ pour machine puissante
   redis:
     image: redis:7-alpine
     container_name: redis-dev
-    command: redis-server --appendonly yes --requirepass redis123
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass redis123
+      --maxmemory 16gb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --tcp-keepalive 60
+      --tcp-backlog 511
+      --timeout 0
+      --databases 16
+      --maxclients 10000
+      --hz 100
+      --rdbcompression yes
+      --rdbchecksum yes
+      --stop-writes-on-bgsave-error no
+      --lazyfree-lazy-eviction yes
+      --lazyfree-lazy-expire yes
+      --lazyfree-lazy-server-del yes
+      --replica-lazy-flush yes
+      --lazyfree-lazy-user-del yes
+      --io-threads 8
+      --io-threads-do-reads yes
     ports:
       - "6380:6379"
     volumes:
-      - redis-data:/data
+      - redis_dev_data:/data
+      - /tmp/redis-temp:/tmp
     networks:
       - dev-network
+    deploy:
+      resources:
+        limits:
+          memory: 20G
+          cpus: '4'
+        reservations:
+          memory: 4G
+          cpus: '1'
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      interval: 3s
+      timeout: 2s
+      retries: 3
+      start_period: 5s
 
+  # PgAdmin optimisé
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: pgadmin4-dev
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@localhost.com
       PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_WTF_CSRF_ENABLED: 'False'
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: 'False'
     ports:
       - "5050:80"
     volumes:
-      - pgadmin-data:/var/lib/pgadmin
+      - pgadmin_dev_data:/var/lib/pgadmin
     networks:
       - dev-network
     depends_on:
       - postgres
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    restart: unless-stopped
+
+  # Redis Commander pour monitoring Redis
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander-dev
+    environment:
+      REDIS_HOSTS: "local:redis:6379:0:redis123"
+      HTTP_USER: admin
+      HTTP_PASSWORD: admin123
+    ports:
+      - "8081:8081"
+    networks:
+      - dev-network
+    depends_on:
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+    restart: unless-stopped
 
 networks:
   dev-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-dating-dev
+      com.docker.network.driver.mtu: 9000
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
 
 volumes:
-  postgres-data:
-  redis-data:
-  pgadmin-data:
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+  pgadmin_dev_data:
+    driver: local
+  node_modules_app1:
+    driver: local
+  node_modules_app2:
+    driver: local
+  node_modules_app3:
+    driver: local
+  next_cache_app1:
+    driver: local
+  next_cache_app2:
+    driver: local
+  next_cache_app3:
+    driver: local

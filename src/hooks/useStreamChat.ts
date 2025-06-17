@@ -1,7 +1,7 @@
 // =====================================================
-// src/hooks/useStreamChat.ts
+// src/hooks/useStreamChat.ts - VERSION CORRIGÉE
 // =====================================================
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { StreamChat } from 'stream-chat'
 import { useSession } from 'next-auth/react'
 import { streamChatManager } from '@/lib/streamChatClient'
@@ -33,7 +33,10 @@ export function useStreamChat() {
       }
 
       try {
-        setError(null)
+        // ✅ Vérifier mounted avant setState
+        if (mounted) {
+          setError(null)
+        }
         
         // Obtenir le token
         const response = await fetch('/api/chat/stream/token')
@@ -55,16 +58,18 @@ export function useStreamChat() {
           token
         )
 
+        // ✅ Vérifier mounted avant setState
         if (mounted && streamClient) {
           console.log('🟢 Client Stream connecté pour:', session.user.id)
           setClient(streamClient)
           setIsConnecting(false)
           
-          // Forcer une synchronisation initiale
-          await streamChatManager.syncPresence()
+          // ✅ Sync async sans bloquer
+          streamChatManager.syncPresence().catch(console.error)
         }
       } catch (error) {
         console.error('❌ Erreur initialisation Stream Chat:', error)
+        // ✅ Vérifier mounted avant setState
         if (mounted) {
           setIsConnecting(false)
           setError('Erreur de connexion au chat')
@@ -104,37 +109,63 @@ export function useStreamChat() {
     }
   }, [status])
 
-  // Gérer la visibilité de la page
+  // ✅ Gérer la visibilité de la page avec debouncing
   useEffect(() => {
     if (!client) return
 
+    let visibilityTimeout: NodeJS.Timeout | null = null
+
     const handleVisibilityChange = async () => {
       if (!document.hidden && client) {
-        console.log('👁 Page redevenue visible, synchronisation...')
-        await streamChatManager.syncPresence()
+        // ✅ Debounce pour éviter les appels répétés
+        if (visibilityTimeout) clearTimeout(visibilityTimeout)
+        visibilityTimeout = setTimeout(async () => {
+          try {
+            console.log('👁 Page redevenue visible, synchronisation...')
+            await streamChatManager.syncPresence()
+          } catch (error) {
+            console.error('❌ Erreur sync visibilité:', error)
+          }
+        }, 1000)
       }
     }
 
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    
-    // Gérer le focus de la fenêtre aussi
     const handleFocus = async () => {
-      console.log('🎯 Fenêtre focalisée, synchronisation...')
-      await streamChatManager.syncPresence()
+      if (client) {
+        // ✅ Debounce pour éviter les appels répétés
+        if (visibilityTimeout) clearTimeout(visibilityTimeout)
+        visibilityTimeout = setTimeout(async () => {
+          try {
+            console.log('🎯 Fenêtre focalisée, synchronisation...')
+            await streamChatManager.syncPresence()
+          } catch (error) {
+            console.error('❌ Erreur sync focus:', error)
+          }
+        }, 1000)
+      }
     }
     
+    document.addEventListener('visibilitychange', handleVisibilityChange)
     window.addEventListener('focus', handleFocus)
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('focus', handleFocus)
+      // ✅ Nettoyer le timeout
+      if (visibilityTimeout) {
+        clearTimeout(visibilityTimeout)
+      }
     }
   }, [client])
 
   // Exposer des méthodes utiles
   const refresh = async () => {
     if (client) {
-      await streamChatManager.syncPresence()
+      try {
+        await streamChatManager.syncPresence()
+      } catch (error) {
+        console.error('❌ Erreur refresh:', error)
+      }
     }
   }
 

@@ -1,0 +1,181 @@
+services:
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik-complete
+    command:
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --log.level=INFO
+      - --providers.docker.network=complete-network
+      - --providers.docker.watch=true
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - complete-network
+
+  # Application Instance 1
+  app1:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: dating-app-1
+    environment:
+      INSTANCE_ID: APP-1
+      INSTANCE_COLOR: '#FF6B6B'
+      PORT: 3000
+      NODE_ENV: development
+      NEXTAUTH_URL: http://localhost
+      DATABASE_URL: postgresql://dating_user:motdepasse123@postgres:5432/dating_db
+      REDIS_URL: redis://:redis123@redis:6379
+    ports:
+      - "3001:3000"
+    networks:
+      - complete-network
+    volumes:
+      - ./:/app
+      - node_modules_1:/app/node_modules
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=complete-network
+      - traefik.http.routers.dating-main.rule=Host(`localhost`)
+      - traefik.http.routers.dating-main.entrypoints=web
+      - traefik.http.routers.dating-main.service=dating-loadbalancer
+      - traefik.http.services.dating-loadbalancer.loadbalancer.server.port=3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Application Instance 2
+  app2:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: dating-app-2
+    environment:
+      INSTANCE_ID: APP-2
+      INSTANCE_COLOR: '#4ECDC4'
+      PORT: 3000
+      NODE_ENV: development
+      NEXTAUTH_URL: http://localhost
+      DATABASE_URL: postgresql://dating_user:motdepasse123@postgres:5432/dating_db
+      REDIS_URL: redis://:redis123@redis:6379
+    ports:
+      - "3002:3000"
+    networks:
+      - complete-network
+    volumes:
+      - ./:/app
+      - node_modules_2:/app/node_modules
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=complete-network
+      - traefik.http.services.dating-loadbalancer.loadbalancer.server.port=3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Application Instance 3
+  app3:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: dating-app-3
+    environment:
+      INSTANCE_ID: APP-3
+      INSTANCE_COLOR: '#95E1D3'
+      PORT: 3000
+      NODE_ENV: development
+      NEXTAUTH_URL: http://localhost
+      DATABASE_URL: postgresql://dating_user:motdepasse123@postgres:5432/dating_db
+      REDIS_URL: redis://:redis123@redis:6379
+    ports:
+      - "3003:3000"
+    networks:
+      - complete-network
+    volumes:
+      - ./:/app
+      - node_modules_3:/app/node_modules
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=complete-network
+      - traefik.http.services.dating-loadbalancer.loadbalancer.server.port=3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-complete
+    environment:
+      POSTGRES_DB: dating_db
+      POSTGRES_USER: dating_user
+      POSTGRES_PASSWORD: motdepasse123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_complete_data:/var/lib/postgresql/data
+    networks:
+      - complete-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dating_user -d dating_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: redis-complete
+    command: redis-server --requirepass redis123 --appendonly yes
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_complete_data:/data
+    networks:
+      - complete-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PgAdmin
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin-complete
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@localhost.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_complete_data:/var/lib/pgadmin
+    networks:
+      - complete-network
+    depends_on:
+      - postgres
+
+networks:
+  complete-network:
+    driver: bridge
+
+volumes:
+  postgres_complete_data:
+  redis_complete_data:
+  pgadmin_complete_data:
+  node_modules_1:
+  node_modules_2:
+  node_modules_3:
