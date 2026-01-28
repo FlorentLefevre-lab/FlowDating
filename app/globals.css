@@ -3,1677 +3,342 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Personnalisation pour site de rencontre */
+/* Variables de couleur Stream Chat */
 .str-chat {
   --str-chat__primary-color: #ec4899;
   --str-chat__active-primary-color: #be185d;
   --str-chat__surface-color: #fdf2f8;
   --str-chat__secondary-surface-color: #fce7f3;
-  --str-chat__border-radius-circle: 20px;
-  --str-chat__border-radius-md: 12px;
 }
 
-/* ============================================================================
-   FIX DÉFINITIF POUR LE CHAT - REMPLACE LA SECTION PRÉCÉDENTE
-   ============================================================================ */
+/* =============================================
+   FORCER LARGEUR MESSAGES
+   ============================================= */
 
-/* Reset des styles Stream par défaut qui causent des problèmes */
-.str-chat__container {
-  max-height: none !important;
+/* Container interne du message - C'EST LUI QUI LIMITE */
+.str-chat__message-inner {
+  max-width: 90% !important;
+  width: auto !important;
+  min-width: 70% !important;
 }
 
-/* Container principal - hauteur exacte moins la navbar */
-.chat-container {
-  height: calc(100vh - 64px);
-  /* Ajustez 64px selon votre navbar */
+/* Bulle de message */
+.str-chat__message-bubble {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* Conteneur texte */
+.str-chat__message-text {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* Texte intérieur */
+.str-chat__message-text-inner,
+.str-chat__message-simple-text-inner {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* Le paragraphe */
+.str-chat__message-text-inner p {
+  margin: 0 !important;
+}
+
+/* Empêcher le scroll du body quand le chat est ouvert */
+body.chat-open {
+  overflow: hidden;
+}
+
+/* Container du chat - hauteur fixe */
+.chat-page-container {
+  height: calc(100vh - 72px);
+  width: 100%;
+  max-width: 100%;
   display: flex;
   overflow: hidden;
-  position: relative;
 }
 
-/* Force Stream Chat à prendre toute la hauteur disponible */
-.str-chat {
-  height: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-}
-
+/* Panel principal des messages - prend tout l'espace restant */
+.str-chat__main-panel,
 .str-chat__channel {
-  height: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-}
-
-.str-chat__container {
-  height: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-}
-
-/* Le panneau principal doit être flex */
-.str-chat__main-panel {
-  flex: 1 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  min-height: 0 !important;
-  /* Critical pour Firefox */
-  overflow: hidden !important;
-}
-
-/* État des messages - conteneur principal */
-.str-chat__channel-state--messages {
-  height: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-}
-
-/* Header - hauteur fixe */
-.str-chat__header-livestream {
-  flex-shrink: 0 !important;
-  height: auto !important;
-}
-
-/* Liste des messages - prend l'espace restant */
-.str-chat__list {
   flex: 1 1 auto !important;
-  overflow: hidden !important;
-  display: flex !important;
-  flex-direction: column !important;
-  min-height: 0 !important;
+  min-width: 0 !important;
+  width: 100% !important;
 }
 
-/* Zone scrollable des messages */
-.str-chat__message-list {
-  flex: 1 1 auto !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  min-height: 0 !important;
+/* Messages alignés selon l'expéditeur */
+.str-chat__li--top,
+.str-chat__li--middle,
+.str-chat__li--bottom,
+.str-chat__li--single {
+  width: 100% !important;
 }
 
-.str-chat__message-list-scroll {
-  height: 100% !important;
-  overflow-y: auto !important;
-  padding: 1rem !important;
-  padding-bottom: 2rem !important;
+/* Mes messages à droite */
+.str-chat__message--me {
+  justify-content: flex-end !important;
 }
 
-/* CRITICAL: L'input DOIT rester en bas et visible */
-.str-chat__message-input {
-  flex-shrink: 0 !important;
-  position: relative !important;
-  z-index: 40 !important;
-  background: white !important;
-  border-top: 1px solid #e5e7eb !important;
-  /* Pas de margin/padding qui pourrait le pousser hors vue */
-  margin: 0 !important;
-  padding: 0 !important;
+.str-chat__message--me .str-chat__message-inner {
+  margin-left: auto !important;
+  margin-right: 0 !important;
 }
 
-/* Container de l'input */
+/* Messages des autres à gauche */
+.str-chat__message--other {
+  justify-content: flex-start !important;
+}
+
+.str-chat__message--other .str-chat__message-inner {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+
+/* Champ de saisie - compatible Chrome et Firefox */
+.str-chat__message-input,
 .str-chat__input-flat {
-  background: white !important;
-  border: none !important;
-  border-radius: 0 !important;
-  margin: 0 !important;
-  padding: 0.75rem 1rem !important;
+  padding-bottom: 12px !important;
+  margin-bottom: 0 !important;
+  min-height: 60px !important;
+}
+
+.str-chat__message-input-wrapper {
+  padding-bottom: 16px !important;
+  margin-bottom: env(safe-area-inset-bottom, 0) !important;
+}
+
+/* Assure que le conteneur ne coupe pas le champ */
+.str-chat__main-panel-inner {
+  padding-bottom: 0 !important;
+  overflow: visible !important;
 }
 
 .str-chat__input-flat-wrapper {
-  margin: 0 !important;
-  padding: 0 !important;
+  min-height: 50px !important;
+  padding: 8px 12px !important;
 }
 
-/* Textarea */
-.str-chat__textarea {
-  margin: 0 !important;
-  max-height: 100px !important;
-  min-height: 40px !important;
+/* Channel header title */
+.str-chat__header-livestream,
+.str-chat__channel-header {
+  padding-top: 16px !important;
 }
 
-/* S'assurer que rien ne déborde */
-.str-chat__input-flat--send-button-active {
-  padding-right: 4rem !important;
+.str-chat__header-livestream-left,
+.str-chat__channel-header-title {
+  padding-top: 8px !important;
 }
 
-/* Sidebar (liste des channels) */
-.channel-list-container {
-  width: 320px;
-  min-width: 320px;
-  background: white;
-  border-right: 1px solid #e5e7eb;
+/* Channel list preview descendu */
+.str-chat__channel-list {
+  padding-top: 20px !important;
+}
+
+.str-chat__channel-list-messenger {
+  padding-top: 16px !important;
+}
+
+.str-chat__channel-preview-messenger {
+  margin-top: 8px !important;
+}
+
+/* ============================================================================
+   STYLES PERSONNALISÉS (non-Stream)
+   ============================================================================ */
+
+/* Channel Preview personnalisé */
+.channel-preview {
   display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
+  align-items: center;
+  padding: 12px 16px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
-/* Zone principale */
-.chat-main-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
+.channel-preview:hover {
+  background-color: #f9fafb;
+}
+
+.channel-preview--active {
+  background-color: #fce7f3;
+}
+
+.channel-preview__avatar-wrapper {
   position: relative;
-  background: #f9fafb;
+  margin-right: 12px;
+  flex-shrink: 0;
 }
 
-/* État vide centré */
-.chat-empty-state {
+.channel-preview__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.channel-preview__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.channel-preview__name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.channel-preview__time {
+  font-size: 12px;
+  color: #9ca3af;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.channel-preview__message {
+  display: flex;
+  align-items: center;
+}
+
+.channel-preview__text {
+  font-size: 13px;
+  color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Indicateur de présence */
+.presence-indicator {
   position: absolute;
-  inset: 0;
+  bottom: -2px;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* Pour les petits écrans */
-@media (max-height: 700px) {
-  .str-chat__input-flat {
-    padding: 0.5rem 1rem !important;
-  }
-
-  .str-chat__textarea {
-    min-height: 36px !important;
-    max-height: 80px !important;
-  }
+.presence-indicator__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 }
 
-/* Mobile */
-@media (max-width: 768px) {
-  .channel-list-container {
-    width: 100%;
-    min-width: unset;
-  }
-
-  /* Cache la sidebar sur mobile pour plus d'espace */
-  @media (max-width: 640px) {
-    .channel-list-container {
-      display: none;
-    }
-
-    .chat-main-container {
-      width: 100%;
-    }
-  }
+.presence-indicator--online .presence-indicator__dot {
+  background-color: #10b981;
 }
 
-/* Fix pour s'assurer que l'input reste toujours visible */
-.str-chat__composer {
-  margin-bottom: 0 !important;
-  padding-bottom: 0 !important;
+.presence-indicator--offline .presence-indicator__dot {
+  background-color: #9ca3af;
 }
 
-/* Override de tout padding/margin qui pourrait pousser l'input */
-.str-chat__messaging-input {
-  margin: 0 !important;
-  padding: 0 !important;
+/* Messages - Zone PLEINE LARGEUR */
+.str-chat__list,
+.str-chat__main-panel,
+.str-chat__main-panel-inner,
+.str-chat__message-list,
+.str-chat__message-list-scroll,
+.str-chat__virtual-list {
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
-/* S'assurer que le thread ne casse pas le layout */
-.str-chat__thread {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 100%;
-  max-width: 400px;
-  background: white;
-  border-left: 1px solid #e5e7eb;
-  z-index: 50;
+.str-chat__ul,
+.str-chat__li {
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
-/* Forcer un padding en bas pour que l'input soit visible */
-.str-chat__message-input {
-  padding-bottom: 20px !important;
-  /* Ajustez cette valeur si nécessaire */
-  background: white !important;
+/* Style du texte des messages */
+.str-chat__message-text-inner,
+.str-chat__message-simple-text-inner {
+  padding: 14px 18px !important;
+  font-size: 15px !important;
+  line-height: 1.5 !important;
+  word-wrap: break-word !important;
 }
 
-/* Alternative : utiliser une marge négative pour remonter l'input */
-.str-chat__input-flat {
-  margin-bottom: 20px !important;
-  /* Remonte l'input de 20px */
+/* Messages reçus (autres) */
+.str-chat__message--other .str-chat__message-bubble {
+  background-color: #f3f4f6 !important;
+  color: #111827 !important;
+  border-radius: 18px 18px 18px 4px !important;
 }
 
-/* Si votre navbar fait exactement 64px, utilisez cette hauteur */
-.chat-container {
-  height: calc(100vh - 64px) !important;
-  /* Remplacez 64px par la hauteur réelle de votre navbar */
+/* Messages envoyés (moi) */
+.str-chat__message--me .str-chat__message-bubble {
+  background-color: #ec4899 !important;
+  color: white !important;
+  border-radius: 18px 18px 4px 18px !important;
 }
 
-/* Pour débugger - vérifiez la hauteur réelle */
-.str-chat__messaging-input {
-  border: 2px solid red !important;
-  /* Pour voir où est l'input */
+.str-chat__message--me .str-chat__message-text-inner,
+.str-chat__message--me .str-chat__message-simple-text-inner {
+  color: white !important;
 }
 
-/* Solution nucléaire si rien ne marche */
-.str-chat__composer {
-  position: fixed !important;
-  bottom: 20px !important;
-  left: 320px !important;
-  /* Largeur de la sidebar */
-  right: 0 !important;
-  background: white !important;
-  z-index: 100 !important;
-  padding: 0 1rem !important;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1) !important;
-}
-
-/* Ajuster la liste des messages pour ne pas être cachée derrière l'input fixe */
+/* Scroll fluide vers les nouveaux messages */
+.str-chat__list,
 .str-chat__message-list-scroll {
-  padding-bottom: 100px !important;
-  /* Espace pour l'input fixe */
+  scroll-behavior: smooth;
 }
 
 /* ============================================================================
-   ANIMATIONS POUR LE CHAT
+   AUTRES STYLES DE L'APPLICATION
    ============================================================================ */
 
-/* Animation d'entrée des messages */
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
+/* Bouton primaire */
+.btn-primary {
+  @apply bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600 transition-colors;
+}
 
+/* Card */
+.card {
+  @apply bg-white rounded-xl shadow-sm border border-gray-100;
+}
+
+/* Input */
+.input-field {
+  @apply w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-200 focus:border-pink-400 transition-all;
+}
+
+/* Animation de chargement */
+@keyframes spin {
   to {
-    transform: translateX(0);
-    opacity: 1;
+    transform: rotate(360deg);
   }
 }
 
-.message-slide-in {
-  animation: slideIn 0.3s ease-out;
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
 
-/* Animation de typing */
-.str-chat__typing-indicator {
-  padding: 0.5rem 1rem;
+/* Scrollbar personnalisée */
+::-webkit-scrollbar {
+  width: 6px;
 }
 
-/* ============================================================================
-   INDICATEURS DE PRÉSENCE
-   ============================================================================ */
-
-     body.chat-open {
-       overflow: hidden;
-     }
-  
-     /* Layout principal du chat */
-     .str-chat__theme-light {
-       height: 100%;
-       --str-chat__primary-color: #ec4899;
-       --str-chat__active-primary-color: #db2777;
-     }
-  
-     /* Channel Preview / Liste des conversations */
-     .channel-preview {
-       display: flex;
-       align-items: center;
-       padding: 12px 16px;
-       width: 100%;
-       text-align: left;
-       background: transparent;
-       border: none;
-       cursor: pointer;
-       transition: all 0.2s;
-       position: relative;
-     }
-  
-     .channel-preview:hover {
-       background-color: #f9fafb;
-     }
-  
-     .channel-preview--active {
-       background-color: #fce7f3;
-     }
-  
-     .channel-preview--active:hover {
-       background-color: #fbcfe8;
-     }
-  
-     .channel-preview__avatar-wrapper {
-       position: relative;
-       margin-right: 12px;
-       flex-shrink: 0;
-     }
-  
-     /* Indicateur de présence */
-     .presence-indicator {
-       position: absolute;
-       bottom: -2px;
-       right: -2px;
-       width: 14px;
-       height: 14px;
-       background: white;
-       border-radius: 50%;
-       display: flex;
-       align-items: center;
-       justify-content: center;
-       box-shadow: 0 0 0 2px white;
-     }
-  
-     .presence-indicator__dot {
-       width: 8px;
-       height: 8px;
-       border-radius: 50%;
-       transition: background-color 0.3s;
-     }
-  
-     .presence-indicator--online .presence-indicator__dot {
-       background-color: #10b981;
-       animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-     }
-  
-     @keyframes pulse {
-  
-       0%,
-       100% {
-         opacity: 1;
-       }
-  
-       50% {
-         opacity: .5;
-       }
-     }
-  
-     .presence-indicator--offline .presence-indicator__dot {
-       background-color: #9ca3af;
-     }
-  
-     .channel-preview__content {
-       flex: 1;
-       min-width: 0;
-     }
-  
-     .channel-preview__header {
-       display: flex;
-       justify-content: space-between;
-       align-items: center;
-       margin-bottom: 4px;
-     }
-  
-     .channel-preview__name {
-       font-weight: 600;
-       font-size: 14px;
-       color: #111827;
-       overflow: hidden;
-       text-overflow: ellipsis;
-       white-space: nowrap;
-     }
-  
-     .channel-preview__time {
-       font-size: 12px;
-       color: #6b7280;
-       flex-shrink: 0;
-       margin-left: 8px;
-     }
-  
-     .channel-preview__message {
-       display: flex;
-       align-items: center;
-       gap: 8px;
-     }
-  
-     .channel-preview__text {
-       font-size: 13px;
-       color: #6b7280;
-       overflow: hidden;
-       text-overflow: ellipsis;
-       white-space: nowrap;
-       flex: 1;
-     }
-  
-     .channel-preview--unread .channel-preview__text {
-       color: #111827;
-       font-weight: 500;
-     }
-  
-     .channel-preview__unread-badge {
-       background-color: #ec4899;
-       color: white;
-       font-size: 11px;
-       font-weight: 600;
-       padding: 2px 6px;
-       border-radius: 10px;
-       min-width: 20px;
-       text-align: center;
-     }
-  
-     .channel-preview__status {
-       margin-top: 2px;
-       font-size: 11px;
-     }
-  
-     /* Messages personnalisés */
-     .custom-message {
-       display: flex;
-       align-items: flex-end;
-       margin-bottom: 12px;
-       padding: 0 20px;
-       animation: messageSlideIn 0.3s ease-out;
-     }
-  
-     @keyframes messageSlideIn {
-       from {
-         opacity: 0;
-         transform: translateY(10px);
-       }
-  
-       to {
-         opacity: 1;
-         transform: translateY(0);
-       }
-     }
-  
-     .custom-message--mine {
-       flex-direction: row-reverse;
-     }
-  
-     .custom-message__avatar {
-       margin-right: 8px;
-       flex-shrink: 0;
-     }
-  
-     .custom-message--mine .custom-message__avatar {
-       margin-right: 0;
-       margin-left: 8px;
-     }
-  
-     .custom-message__content {
-       max-width: 70%;
-       display: flex;
-       flex-direction: column;
-     }
-  
-     .custom-message--mine .custom-message__content {
-       align-items: flex-end;
-     }
-  
-     .custom-message__name {
-       font-size: 12px;
-       color: #6b7280;
-       margin-bottom: 4px;
-       margin-left: 12px;
-     }
-  
-     .custom-message__bubble {
-       position: relative;
-     }
-  
-     /* Bulles de messages */
-     .custom-message--other .str-chat__message-simple-text-inner {
-       background-color: #f3f4f6;
-       color: #111827;
-       border-radius: 18px 18px 18px 4px;
-       padding: 8px 16px;
-     }
-  
-     .custom-message--mine .str-chat__message-simple-text-inner {
-       background-color: #ec4899;
-       color: white;
-       border-radius: 18px 18px 4px 18px;
-       padding: 8px 16px;
-     }
-  
-     .custom-message__timestamp {
-       font-size: 11px;
-       color: #9ca3af;
-       margin-top: 4px;
-       padding: 0 12px;
-     }
-  
-     /* Input de message */
-     .str-chat__message-input {
-       border-top: 1px solid #e5e7eb;
-       padding: 16px;
-     }
-  
-     .str-chat__textarea textarea {
-       border: 1px solid #e5e7eb;
-       border-radius: 24px;
-       padding: 10px 16px;
-       font-size: 14px;
-       resize: none;
-       transition: border-color 0.2s;
-     }
-  
-     .str-chat__textarea textarea:focus {
-       outline: none;
-       border-color: #ec4899;
-     }
-  
-     /* Bouton d'envoi */
-     .str-chat__send-button {
-       background-color: #ec4899;
-       color: white;
-       border: none;
-       border-radius: 50%;
-       width: 36px;
-       height: 36px;
-       display: flex;
-       align-items: center;
-       justify-content: center;
-       cursor: pointer;
-       transition: all 0.2s;
-     }
-  
-     .str-chat__send-button:hover {
-       background-color: #db2777;
-       transform: scale(1.05);
-     }
-  
-     .str-chat__send-button:disabled {
-       background-color: #e5e7eb;
-       cursor: not-allowed;
-       transform: scale(1);
-     }
-  
-     /* Header du channel */
-     .str-chat__header-livestream {
-       border-bottom: 1px solid #e5e7eb;
-       padding: 16px 20px;
-       background-color: white;
-     }
-  
-     .str-chat__header-livestream-left {
-       display: flex;
-       align-items: center;
-       gap: 12px;
-     }
-  
-     .str-chat__avatar {
-       position: relative;
-     }
-  
-     /* États de chargement */
-     .str-chat__loading-indicator {
-       color: #ec4899;
-     }
-  
-     /* Liste des messages */
-     .str-chat__list {
-       padding: 20px 0;
-     }
-  
-     /* Indicateur de frappe */
-     .str-chat__typing-indicator {
-       padding: 12px 20px;
-       font-size: 14px;
-       color: #6b7280;
-       font-style: italic;
-     }
-  
-     /* Thread / Réponses */
-     .str-chat__thread {
-       border-left: 1px solid #e5e7eb;
-     }
-  
-     /* Réactions */
-     .str-chat__reaction-list {
-       margin-top: 4px;
-       gap: 4px;
-     }
-  
-     .str-chat__reaction-list-item {
-       background-color: #f3f4f6;
-       border: 1px solid #e5e7eb;
-       border-radius: 16px;
-       padding: 4px 8px;
-       font-size: 12px;
-       transition: all 0.2s;
-     }
-  
-     .str-chat__reaction-list-item:hover {
-       background-color: #e5e7eb;
-     }
-  
-     .str-chat__reaction-list-item--reverse {
-       background-color: #fce7f3;
-       border-color: #fbcfe8;
-     }
-  
-     /* Notification de nouveau message */
-     .str-chat__unread-messages-notification {
-       background-color: #ec4899;
-       color: white;
-       padding: 8px 16px;
-       border-radius: 20px;
-       font-size: 14px;
-       font-weight: 500;
-       cursor: pointer;
-       transition: all 0.2s;
-     }
-  
-     .str-chat__unread-messages-notification:hover {
-       background-color: #db2777;
-       transform: translateY(-2px);
-     }
-  
-     /* États vides */
-     .str-chat__empty-state-indicator {
-       padding: 40px 20px;
-       text-align: center;
-       color: #6b7280;
-     }
-  
-     /* Scrollbar personnalisée */
-     .str-chat__list::-webkit-scrollbar,
-     .str-chat__channel-list::-webkit-scrollbar {
-       width: 6px;
-     }
-  
-     .str-chat__list::-webkit-scrollbar-track,
-     .str-chat__channel-list::-webkit-scrollbar-track {
-       background: #f3f4f6;
-     }
-  
-     .str-chat__list::-webkit-scrollbar-thumb,
-     .str-chat__channel-list::-webkit-scrollbar-thumb {
-       background: #d1d5db;
-       border-radius: 3px;
-     }
-  
-     .str-chat__list::-webkit-scrollbar-thumb:hover,
-     .str-chat__channel-list::-webkit-scrollbar-thumb:hover {
-       background: #9ca3af;
-     }
-  
-     /* Responsive */
-     @media (max-width: 768px) {
-       .custom-message__content {
-         max-width: 85%;
-       }
-  
-       .channel-preview {
-         padding: 10px 12px;
-       }
-  
-       .str-chat__header-livestream {
-         padding: 12px 16px;
-       } }
-
-/* ============================================================================
-   Styles pour les composants de profil
-   ============================================================================ */
-
-@layer components {
-
-  /* Dashboard styles (existants) */
-  .dashboard-container {
-    @apply min-h-screen bg-gradient-to-br from-gray-50 to-gray-100;
-  }
-
-  .dashboard-navbar {
-    @apply bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-50 shadow-sm;
-  }
-
-  .dashboard-nav-content {
-    @apply max-w-7xl mx-auto flex items-center justify-between;
-  }
-
-  .dashboard-logo {
-    @apply flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity;
-  }
-
-  .dashboard-logo-icon {
-    @apply text-2xl;
-  }
-
-  .dashboard-logo-text {
-    @apply text-xl font-bold text-gray-800;
-  }
-
-  .dashboard-user-info {
-    @apply flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-all duration-200;
-  }
-
-  .dashboard-user-name {
-    @apply font-medium text-gray-700;
-  }
-
-  .dashboard-content {
-    @apply max-w-7xl mx-auto px-6 py-8;
-  }
-
-  .dashboard-header {
-    @apply mb-8;
-  }
-
-  .dashboard-title {
-    @apply text-3xl font-bold text-gray-800 mb-2 flex items-center gap-3;
-  }
-
-  .dashboard-sparkle {
-    @apply text-2xl;
-  }
-
-  .dashboard-subtitle {
-    @apply text-gray-600 text-lg;
-  }
-
-  .dashboard-highlight {
-    @apply font-semibold text-pink-600;
-  }
-
-  .dashboard-heart {
-    @apply text-pink-500;
-  }
-
-  .dashboard-stats-grid {
-    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8;
-  }
-
-  .dashboard-stat-card {
-    @apply bg-white rounded-2xl p-6 text-center border border-gray-200 shadow-sm;
-    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
-  }
-
-  .dashboard-stat-icon {
-    @apply text-3xl mb-3;
-  }
-
-  .dashboard-stat-number {
-    @apply text-3xl font-bold mb-2;
-  }
-
-  .dashboard-stat-number.likes {
-    @apply text-pink-600;
-  }
-
-  .dashboard-stat-number.matches {
-    @apply text-blue-600;
-  }
-
-  .dashboard-stat-number.messages {
-    @apply text-green-600;
-  }
-
-  .dashboard-stat-number.visits {
-    @apply text-purple-600;
-  }
-
-  .dashboard-stat-label {
-    @apply text-gray-600 font-medium mb-1;
-  }
-
-  .dashboard-stat-trend {
-    @apply text-sm text-gray-500;
-  }
-
-  .dashboard-actions-grid {
-    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8;
-  }
-
-  .dashboard-action-card {
-    @apply bg-white rounded-2xl p-6 border border-gray-200 shadow-sm;
-    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1 block;
-    text-decoration: none;
-  }
-
-  .dashboard-action-header {
-    @apply flex items-center gap-4 mb-4;
-  }
-
-  .dashboard-action-icon {
-    @apply text-2xl flex-shrink-0;
-  }
-
-  .dashboard-action-title {
-    @apply text-lg font-semibold text-gray-800 mb-1;
-  }
-
-  .dashboard-action-subtitle {
-    @apply text-gray-600 text-sm;
-  }
-
-  .dashboard-progress-section {
-    @apply mb-4;
-  }
-
-  .dashboard-progress-label {
-    @apply flex justify-between items-center mb-2;
-  }
-
-  .dashboard-progress-percent {
-    @apply text-sm font-medium text-pink-600;
-  }
-
-  .dashboard-progress-bar {
-    @apply w-full bg-gray-200 rounded-full h-2;
-  }
-
-  .dashboard-progress-fill {
-    @apply bg-gradient-to-r from-pink-500 to-pink-600 h-2 rounded-full;
-    width: 85%;
-  }
-
-  .dashboard-badge {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 mb-4;
-  }
-
-  .dashboard-action-link {
-    @apply text-pink-600 font-medium text-sm hover:text-pink-700 transition-colors;
-  }
-
-  .dashboard-action-link.warm {
-    @apply text-orange-600 hover:text-orange-700;
-  }
-
-  .dashboard-avatar-group {
-    @apply flex items-center gap-2 mb-4;
-  }
-
-  .dashboard-small-avatar {
-    @apply w-8 h-8 bg-gradient-to-br from-pink-400 to-blue-500 rounded-full;
-    @apply flex items-center justify-center text-xs font-bold text-white;
-  }
-
-  .dashboard-avatar-count {
-    @apply text-sm text-gray-500 ml-2;
-  }
-
-  .dashboard-activity-section {
-    @apply grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8;
-  }
-
-  .dashboard-card {
-    @apply bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300;
-  }
-
-  .dashboard-card-header {
-    @apply flex items-center justify-between mb-6;
-  }
-
-  .dashboard-card-title {
-    @apply text-lg font-semibold text-gray-800 flex items-center gap-2;
-  }
-
-  .dashboard-live-badge {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200;
-  }
-
-  .dashboard-new-badge {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200;
-  }
-
-  .dashboard-activity-list {
-    @apply space-y-3;
-  }
-
-  .dashboard-activity-item {
-    @apply flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-all duration-200 border border-transparent hover:border-gray-200;
-  }
-
-  .dashboard-activity-avatar {
-    @apply w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0 shadow-md;
-  }
-
-  .dashboard-activity-avatar.alice {
-    @apply bg-gradient-to-br from-pink-400 to-pink-600;
-  }
-
-  .dashboard-activity-avatar.marie {
-    @apply bg-gradient-to-br from-blue-400 to-blue-600;
-  }
-
-  .dashboard-activity-avatar.laura {
-    @apply bg-gradient-to-br from-purple-400 to-purple-600;
-  }
-
-  .dashboard-activity-content {
-    @apply flex-1 min-w-0;
-  }
-
-  .dashboard-activity-text {
-    @apply text-gray-800 text-sm mb-1 leading-relaxed;
-  }
-
-  .dashboard-activity-user {
-    @apply font-semibold text-gray-900;
-  }
-
-  .dashboard-activity-time {
-    @apply text-gray-500 text-xs font-medium;
-  }
-
-  .dashboard-activity-icon {
-    @apply text-xl flex-shrink-0;
-  }
-
-  .dashboard-tips-list {
-    @apply space-y-4;
-  }
-
-  .dashboard-tip {
-    @apply flex items-start gap-4 p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 hover:from-blue-100 hover:to-indigo-100 transition-all duration-200;
-  }
-
-  .dashboard-tip-icon {
-    @apply text-2xl flex-shrink-0 mt-0.5;
-  }
-
-  .dashboard-tip-content {
-    @apply flex-1;
-  }
-
-  .dashboard-tip-title {
-    @apply font-semibold text-gray-900 mb-2 text-sm;
-  }
-
-  .dashboard-tip-text {
-    @apply text-gray-600 text-sm leading-relaxed;
-  }
-
-  .dashboard-premium-cta {
-    @apply relative bg-gradient-to-br from-purple-600 via-pink-600 to-red-500 rounded-3xl p-8 text-center text-white overflow-hidden shadow-2xl;
-  }
-
-  .dashboard-premium-decorations {
-    @apply absolute text-4xl opacity-10 pointer-events-none;
-  }
-
-  .dashboard-premium-decorations:nth-child(1) {
-    @apply top-6 left-8 animate-pulse;
-  }
-
-  .dashboard-premium-decorations:nth-child(2) {
-    @apply top-6 right-8 animate-pulse;
-    animation-delay: 1s;
-  }
-
-  .dashboard-premium-decorations:nth-child(3) {
-    @apply bottom-6 left-1/2 transform -translate-x-1/2 animate-pulse;
-    animation-delay: 2s;
-  }
-
-  .dashboard-premium-icon {
-    @apply text-5xl mb-4 animate-bounce;
-  }
-
-  .dashboard-premium-title {
-    @apply text-2xl font-bold mb-4 leading-tight;
-  }
-
-  .dashboard-premium-text {
-    @apply text-purple-100 mb-8 max-w-lg mx-auto leading-relaxed;
-  }
-
-  .dashboard-premium-features {
-    @apply flex justify-center gap-8 mb-8 flex-wrap;
-  }
-
-  .dashboard-premium-feature {
-    @apply flex items-center gap-3 text-sm font-medium bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm;
-  }
-
-  .dashboard-premium-button {
-    @apply bg-white text-purple-600 font-bold px-10 py-4 rounded-2xl hover:bg-purple-50 hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl;
-  }
-
-  /* Avatars améliorés */
-  .avatar {
-    @apply relative inline-block rounded-full overflow-hidden ring-2 ring-white shadow-lg;
-  }
-
-  .avatar-online::after {
-    @apply absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full;
-    content: '';
-  }
-
-  /* ============================================================================
-     Styles spécifiques aux composants de profil
-     ============================================================================ */
-
-  /* Boutons principaux améliorés */
-  .btn-primary {
-    @apply inline-flex items-center justify-center px-6 py-3 text-sm font-semibold text-white;
-    @apply bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600;
-    @apply rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 ease-out;
-    @apply focus:outline-none focus:ring-4 focus:ring-pink-200 dark:focus:ring-pink-800;
-    @apply disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5;
-  }
-
-  .btn-secondary {
-    @apply inline-flex items-center justify-center px-6 py-3 text-sm font-semibold;
-    @apply text-gray-700 bg-white border border-gray-300 hover:bg-gray-50;
-    @apply rounded-xl shadow-sm hover:shadow-md transition-all duration-300 ease-out;
-    @apply focus:outline-none focus:ring-4 focus:ring-gray-200;
-  }
-
-  .btn-ghost {
-    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium;
-    @apply text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg;
-    @apply transition-all duration-200 ease-out;
-    @apply focus:outline-none focus:ring-2 focus:ring-gray-200;
-  }
-
-  /* Champs de saisie améliorés et uniformisés */
-  .input-field {
-    @apply w-full px-4 py-3 text-sm bg-white border border-gray-300 rounded-xl;
-    @apply placeholder:text-gray-400 transition-all duration-200 ease-out;
-    @apply hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200;
-    @apply focus:border-pink-400 shadow-sm hover:shadow-md;
-  }
-
-  .input-field:focus {
-    box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  }
-
-  /* Textarea spécifique avec même style que input */
-  textarea.input-field {
-    @apply resize-none min-h-[120px] leading-relaxed;
-  }
-
-  /* ✅ Select uniformisé - VERSION CORRIGÉE */
-  select.input-field {
-    @apply cursor-pointer;
-
-    /* ✅ CORRECTION : Supprimer l'apparence par défaut pour éviter la duplication */
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-
-    /* Chevron personnalisé */
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-    background-position: right 0.75rem center;
-    background-repeat: no-repeat;
-    background-size: 1.5em 1.5em;
-    padding-right: 2.5rem;
-  }
-
-  select.input-field:focus {
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23ec4899' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-  }
-
-  /* ✅ CORRECTION : Supprimer le chevron d'Internet Explorer */
-  select.input-field::-ms-expand {
-    display: none;
-  }
-
-  /* États d'erreur uniformisés */
-  .input-field.error {
-    @apply border-red-300 focus:border-red-500 focus:ring-red-200;
-  }
-
-  .input-field.error:focus {
-    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  }
-
-  /* Formulaires harmonisés */
-  .form-group {
-    @apply space-y-2;
-  }
-
-  .form-label {
-    @apply block text-sm font-medium text-gray-700 mb-2;
-  }
-
-  .form-error {
-    @apply text-red-500 text-sm mt-1 flex items-center gap-1;
-  }
-
-  .form-helper {
-    @apply text-gray-500 text-sm mt-1;
-  }
-
-  .form-section {
-    @apply bg-white rounded-xl p-6 border border-gray-200 shadow-sm;
-  }
-
-  .form-section-header {
-    @apply mb-6;
-  }
-
-  .form-section-title {
-    @apply text-2xl font-bold text-gray-800 mb-2;
-  }
-
-  .form-section-subtitle {
-    @apply text-gray-600;
-  }
-
-  /* Grilles de formulaire uniformisées */
-  .form-grid {
-    @apply grid grid-cols-1 md:grid-cols-2 gap-6;
-  }
-
-  .form-grid-full {
-    @apply col-span-1 md:col-span-2;
-  }
-
-  /* Section centres d'intérêt harmonisée */
-  .interests-section {
-    @apply bg-white rounded-xl p-6 border border-gray-200 shadow-sm;
-  }
-
-  .interests-header {
-    @apply flex items-center gap-3 mb-4;
-  }
-
-  .interests-title {
-    @apply text-lg font-semibold text-gray-800;
-  }
-
-  .interests-counter {
-    @apply text-sm text-gray-500 ml-auto;
-  }
-
-  .interests-add-section {
-    @apply flex gap-2 mb-4;
-  }
-
-  .interests-input {
-    @apply flex-1;
-  }
-
-  .interests-add-button {
-    @apply px-6 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600;
-    @apply disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200;
-    @apply font-medium text-sm;
-  }
-
-  .interests-grid {
-    @apply flex flex-wrap gap-2 mb-4;
-  }
-
-  .interests-predefined {
-    @apply mb-4;
-  }
-
-  .interests-selected {
-    @apply mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg;
-  }
-
-  .interests-selected-header {
-    @apply text-sm text-purple-700 mb-3 font-medium;
-  }
-
-  .interests-selected-list {
-    @apply flex flex-wrap gap-2;
-  }
-
-  .interest-tag-predefined {
-    @apply px-3 py-2 rounded-full border-2 transition-all text-sm cursor-pointer;
-    @apply font-medium hover:scale-105;
-  }
-
-  .interest-tag-predefined.unselected {
-    @apply border-gray-300 text-gray-700 hover:border-purple-300 bg-white;
-  }
-
-  .interest-tag-predefined.selected {
-    @apply border-purple-500 bg-purple-500 text-white shadow-md;
-  }
-
-  .interest-tag-selected {
-    @apply inline-flex items-center gap-2 px-3 py-1 bg-purple-100 text-purple-700;
-    @apply rounded-full text-sm border border-purple-200;
-  }
-
-  .interest-tag-remove {
-    @apply text-purple-500 hover:text-purple-700 transition-colors cursor-pointer;
-    @apply font-bold text-lg leading-none;
-  }
-
-  /* Compteur de caractères */
-  .character-counter {
-    @apply flex justify-between items-center mt-1;
-  }
-
-  .character-count {
-    @apply text-xs text-gray-500 ml-auto;
-  }
-
-  /* Info box harmonisée */
-  .info-box {
-    @apply bg-blue-50 border border-blue-200 rounded-lg p-4;
-  }
-
-  .info-box-title {
-    @apply font-medium text-blue-800 mb-2 flex items-center gap-2;
-  }
-
-  .info-box-text {
-    @apply text-sm text-blue-700 leading-relaxed;
-  }
-
-  /* Boutons de section uniformisés */
-  .section-actions {
-    @apply flex gap-4 pt-6 border-t border-gray-200 mt-8;
-  }
-
-  .btn-section-primary {
-    @apply flex-1 py-3 px-6 bg-gradient-to-r from-pink-500 to-rose-500;
-    @apply text-white font-semibold rounded-xl shadow-lg;
-    @apply hover:from-pink-600 hover:to-rose-600 hover:shadow-xl hover:-translate-y-0.5;
-    @apply focus:outline-none focus:ring-4 focus:ring-pink-200;
-    @apply disabled:opacity-50 disabled:cursor-not-allowed;
-    @apply transition-all duration-300 ease-out;
-  }
-
-  .btn-section-primary:disabled:hover {
-    @apply transform-none;
-  }
-
-  .btn-section-secondary {
-    @apply px-6 py-3 border border-gray-300 text-gray-700 rounded-xl;
-    @apply hover:bg-gray-50 hover:border-gray-400 transition-all duration-200;
-    @apply font-medium;
-  }
-
-  /* Loading state uniformisé */
-  .loading-content {
-    @apply flex items-center justify-center gap-2;
-  }
-
-  .loading-spinner {
-    @apply animate-spin rounded-full h-5 w-5 border-b-2 border-white;
-  }
-
-  /* Responsive pour formulaires */
-  @media (max-width: 768px) {
-    .form-grid {
-      @apply grid-cols-1;
-    }
-
-    .interests-add-section {
-      @apply flex-col;
-    }
-
-    .interests-add-button {
-      @apply w-full;
-    }
-
-    .section-actions {
-      @apply flex-col;
-    }
-
-    .btn-section-primary,
-    .btn-section-secondary {
-      @apply w-full;
-    }
-  }
-
-  /* Cartes de profil améliorées */
-  .profile-card {
-    @apply bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg;
-    @apply transition-all duration-300 ease-out p-6;
-  }
-
-  .profile-section {
-    @apply bg-white rounded-xl p-6 border border-gray-200 shadow-sm;
-    @apply hover:shadow-md transition-shadow duration-300;
-  }
-
-  .profile-header {
-    @apply flex items-center justify-between mb-4 pb-4 border-b border-gray-200;
-  }
-
-  .profile-title {
-    @apply text-lg font-semibold text-gray-900 flex items-center gap-2;
-  }
-
-  .profile-subtitle {
-    @apply text-gray-600 text-sm;
-  }
-
-  /* Tags d'intérêts améliorés */
-  .interest-tag {
-    @apply inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium;
-    @apply bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700;
-    @apply border border-purple-200 shadow-sm hover:shadow-md;
-    @apply transition-all duration-200 ease-out hover:scale-105;
-  }
-
-  .interest-tag.selected {
-    @apply bg-gradient-to-r from-purple-500 to-pink-500 text-white;
-    @apply border-purple-500 shadow-md;
-  }
-
-  /* Grille de photos améliorée */
-  .photos-grid {
-    @apply grid grid-cols-2 md:grid-cols-3 gap-4;
-  }
-
-  .photo-card {
-    @apply relative aspect-square rounded-xl overflow-hidden bg-gray-100;
-    @apply shadow-lg hover:shadow-xl transition-all duration-300;
-  }
-
-  .photo-card:hover {
-    transform: scale(1.02);
-  }
-
-  .photo-overlay {
-    @apply absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent;
-    @apply opacity-0 transition-all duration-300;
-  }
-
-  .photo-card:hover .photo-overlay {
-    @apply opacity-100;
-  }
-
-  /* Messages et alertes */
-  .alert {
-    @apply p-4 rounded-xl border;
-  }
-
-  .alert-success {
-    @apply bg-green-50 border-green-200 text-green-800;
-  }
-
-  .alert-error {
-    @apply bg-red-50 border-red-200 text-red-800;
-  }
-
-  .alert-warning {
-    @apply bg-yellow-50 border-yellow-200 text-yellow-800;
-  }
-
-  .alert-info {
-    @apply bg-blue-50 border-blue-200 text-blue-800;
-  }
-
-  /* Formulaires améliorés */
-  .form-group {
-    @apply space-y-2;
-  }
-
-  .form-label {
-    @apply block text-sm font-medium text-gray-700 mb-2;
-  }
-
-  .form-error {
-    @apply text-red-500 text-sm mt-1;
-  }
-
-  .form-helper {
-    @apply text-gray-500 text-sm mt-1;
-  }
-
-  /* Sélecteurs de préférences */
-  .preference-option {
-    @apply p-4 rounded-xl border-2 text-left transition-all duration-200;
-    @apply border-gray-200 hover:border-pink-300 text-gray-700;
-    @apply hover:bg-pink-50 cursor-pointer;
-  }
-
-  .preference-option.selected {
-    @apply border-pink-500 bg-pink-50 text-pink-700 font-medium;
-    @apply shadow-sm;
-  }
-
-  /* Upload de photos amélioré */
-  .upload-area {
-    @apply w-full h-32 border-2 border-dashed rounded-xl transition-all duration-200;
-    @apply border-pink-300 bg-pink-50 hover:bg-pink-100 hover:border-pink-400;
-    @apply cursor-pointer flex items-center justify-center;
-  }
-
-  .upload-area.disabled {
-    @apply border-gray-300 bg-gray-50 cursor-not-allowed opacity-50;
-  }
-
-  .upload-area:not(.disabled):hover {
-    @apply bg-pink-100 border-pink-400;
-  }
-
-  /* Statistiques de profil */
-  .profile-stat {
-    @apply bg-white rounded-xl p-4 text-center border border-gray-200;
-    @apply shadow-sm hover:shadow-md transition-all duration-300;
-  }
-
-  .profile-stat-value {
-    @apply text-2xl font-bold mb-1;
-  }
-
-  .profile-stat-label {
-    @apply text-sm text-gray-600;
-  }
-
-  /* Sections de paramètres */
-  .settings-section {
-    @apply bg-white border border-gray-200 rounded-xl p-6 space-y-4;
-  }
-
-  .settings-header {
-    @apply flex items-center mb-4;
-  }
-
-  .settings-title {
-    @apply text-lg font-semibold text-gray-800 ml-3;
-  }
-
-  .settings-option {
-    @apply flex items-start space-x-3;
-  }
-
-  .settings-checkbox {
-    @apply mt-1 h-4 w-4 text-pink-600 focus:ring-pink-500 border-gray-300 rounded;
-  }
-
-  .settings-option-text {
-    @apply font-medium text-gray-800;
-  }
-
-  .settings-option-description {
-    @apply text-sm text-gray-600;
-  }
-
-  /* Zone de danger améliorée */
-  .danger-zone {
-    @apply bg-red-50 border border-red-200 rounded-xl p-6;
-  }
-
-  .danger-title {
-    @apply text-lg font-semibold text-red-800 flex items-center gap-3 mb-4;
-  }
-
-  .danger-text {
-    @apply text-sm text-red-700 mb-4;
-  }
-
-  .danger-button {
-    @apply px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700;
-    @apply transition-colors text-sm font-medium;
-  }
-
-  /* Modale améliorée */
-  .modal-overlay {
-    @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50;
-  }
-
-  .modal-content {
-    @apply bg-white rounded-2xl shadow-2xl max-w-md w-full p-6;
-  }
-
-  .modal-header {
-    @apply text-center mb-6;
-  }
-
-  .modal-icon {
-    @apply w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4;
-  }
-
-  .modal-title {
-    @apply text-xl font-bold text-gray-900 mb-2;
-  }
-
-  .modal-text {
-    @apply text-gray-600;
-  }
-
-  /* Badge de complétion */
-  .completion-badge {
-    @apply absolute -bottom-2 -right-2 bg-white rounded-full p-2 shadow-lg border border-gray-200;
-  }
-
-  .completion-text {
-    @apply text-xs font-bold text-pink-600;
-  }
-
-  /* Navigation par onglets */
-  .tab-button {
-    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
-    @apply text-gray-600 hover:text-gray-900 hover:bg-gray-100;
-  }
-
-  .tab-button.active {
-    @apply text-pink-600 bg-pink-50 border border-pink-200;
-  }
-
-  /* Gradients personnalisés */
-  .gradient-pink {
-    background: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
-  }
-
-  .gradient-purple {
-    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-  }
-
-  .gradient-blue {
-    background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
-  }
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
 }
 
-/* ============================================================================
-   Animations personnalisées
-   ============================================================================ */
-
-@keyframes float {
-
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-
-  50% {
-    transform: translateY(-10px);
-  }
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
 }
 
-@keyframes shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes pulse-glow {
-
-  0%,
-  100% {
-    box-shadow: 0 0 5px rgba(236, 72, 153, 0.5);
-  }
-
-  50% {
-    box-shadow: 0 0 20px rgba(236, 72, 153, 0.8);
-  }
-}
-
-/* ============================================================================
-   Utilitaires helper
-   ============================================================================ */
-
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-.animate-shimmer {
-  animation: shimmer 2s ease-in-out infinite;
-}
-
-.animate-fade-in-up {
-  animation: fadeInUp 0.5s ease-out;
-}
-
-.animate-scale-in {
-  animation: scaleIn 0.3s ease-out;
-}
-
-/* ============================================================================
-   Responsive amélioré
-   ============================================================================ */
-
-@media (max-width: 640px) {
-  .dashboard-content {
-    @apply px-4 py-6;
-  }
-
-  .dashboard-title {
-    @apply text-2xl;
-  }
-
-  .dashboard-stats-grid {
-    @apply grid-cols-2 gap-4;
-  }
-
-  .dashboard-actions-grid {
-    @apply grid-cols-1;
-  }
-
-  .dashboard-activity-section {
-    @apply grid-cols-1;
-  }
-
-  .photos-grid {
-    @apply grid-cols-2;
-  }
-
-  .btn-primary,
-  .btn-secondary {
-    @apply text-sm px-4 py-2.5;
-  }
-}
-
-
-@keyframes slideInFromRight {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.animate-slideInFromRight {
-  animation: slideInFromRight 0.3s ease-out forwards;
-  opacity: 0;
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
 }

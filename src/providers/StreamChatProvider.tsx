@@ -2,7 +2,7 @@
 
 import { Chat } from 'stream-chat-react'
 import { useStreamChat } from '@/hooks/useStreamChat'
-import 'stream-chat-react/dist/css/v2/index.css'
+// CSS importé dans globals.css
 
 export function StreamChatProvider({ children }: { children: React.ReactNode }) {
   const { client, isConnecting } = useStreamChat()
