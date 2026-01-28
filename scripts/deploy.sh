@@ -128,7 +128,6 @@ setup_environment() {
         # Adapter les variables pour Docker si nécessaire
         if [ "$environment" = "docker" ]; then
             sed -i 's/localhost:5432/database:5432/g' "$ENV_FILE"
-            sed -i 's/localhost:6379/redis:6379/g' "$ENV_FILE"
         fi
     fi
     
@@ -159,7 +158,7 @@ deploy() {
     
     # Démarrer les services de base
     log_info "Démarrage des services de base..."
-    docker-compose -f "$COMPOSE_FILE" up -d database redis
+    docker-compose -f "$COMPOSE_FILE" up -d database
     
     # Attendre que PostgreSQL soit prêt
     log_info "Attente de PostgreSQL..."

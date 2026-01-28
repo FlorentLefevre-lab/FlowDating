@@ -1,4 +1,4 @@
-// lib/clientCache.ts - Cache côté client uniquement (pas de Redis)
+// lib/clientCache.ts - Cache côté client
 class ClientCache {
     private cache = new Map<string, { 
       data: any; 
@@ -75,7 +75,7 @@ class ClientCache {
   // Instance globale pour le cache client
   export const clientCache = new ClientCache();
   
-  // API simplifiée compatible avec votre cache Redis
+  // API simplifiée
   export const apiCache = {
     // Cache profil
     profile: {

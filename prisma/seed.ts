@@ -1,8 +1,23 @@
 // prisma/seed.ts - Script corrigé pour remplir la BDD PostgreSQL avec 100 utilisateurs
+import { config } from 'dotenv';
+import path from 'path';
+
+// Load environment variables from .env.local BEFORE anything else
+const envPath = path.join(process.cwd(), '.env.local');
+const result = config({ path: envPath });
+
+console.log('=== SEED DEBUG ===');
+console.log('Env path:', envPath);
+console.log('Dotenv result:', result.error ? result.error.message : 'loaded');
+console.log('DATABASE_URL:', process.env.DATABASE_URL ? process.env.DATABASE_URL.replace(/:[^:@]+@/, ':****@') : 'NOT SET');
+console.log('==================');
+
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  log: ['error', 'warn'],
+});
 
 // Données pour générer des utilisateurs variés
 const prenoms = [

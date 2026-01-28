@@ -1,0 +1,79 @@
+{
+  "activeMatch": {
+    "status": "active",
+    "hasMessages": true,
+    "lastMessageAt": "2024-01-15T10:30:00Z",
+    "compatibility": 85,
+    "isNew": false
+  },
+  "newMatch": {
+    "status": "active",
+    "hasMessages": false,
+    "lastMessageAt": null,
+    "compatibility": 78,
+    "isNew": true
+  },
+  "dormantMatch": {
+    "status": "dormant",
+    "hasMessages": true,
+    "lastMessageAt": "2024-01-01T10:30:00Z",
+    "compatibility": 72,
+    "isNew": false
+  },
+  "archivedMatch": {
+    "status": "archived",
+    "hasMessages": true,
+    "lastMessageAt": "2023-12-15T10:30:00Z",
+    "compatibility": 65,
+    "isNew": false
+  },
+  "matchUsers": [
+    {
+      "name": "Match User 1",
+      "age": 25,
+      "bio": "First match user for testing",
+      "location": "Paris, France",
+      "profession": "Developer",
+      "isOnline": true
+    },
+    {
+      "name": "Match User 2",
+      "age": 27,
+      "bio": "Second match user for testing",
+      "location": "Lyon, France",
+      "profession": "Designer",
+      "isOnline": false
+    },
+    {
+      "name": "Match User 3",
+      "age": 24,
+      "bio": "Third match user for testing",
+      "location": "Bordeaux, France",
+      "profession": "Marketing",
+      "isOnline": true
+    }
+  ],
+  "testMessages": [
+    {
+      "content": "Hello! How are you?",
+      "sender": "user1",
+      "timestamp": "2024-01-15T10:30:00Z"
+    },
+    {
+      "content": "I'm doing great, thanks! You?",
+      "sender": "user2",
+      "timestamp": "2024-01-15T10:31:00Z"
+    },
+    {
+      "content": "Pretty good! Nice to match with you.",
+      "sender": "user1",
+      "timestamp": "2024-01-15T10:32:00Z"
+    }
+  ],
+  "filterOptions": {
+    "status": ["all", "active", "dormant", "new"],
+    "timeframe": ["all", "today", "week", "month"],
+    "sortBy": ["recent", "activity", "compatibility", "name", "age"],
+    "sortOrder": ["asc", "desc"]
+  }
+}

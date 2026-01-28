@@ -231,11 +231,10 @@ export function getStatsInsights(stats: StatsData | null, metrics: any) {
 export type StatsHookReturn = ReturnType<typeof useStats>;
 export type StatsWithMetricsReturn = ReturnType<typeof useStatsWithMetrics>;
 
-// 🔥 Constantes mises à jour pour éviter les appels répétés
+// Constantes pour la configuration du cache
 export const STATS_CONFIG = {
   CACHE_TIME: 5 * 60 * 1000,        // 5 minutes côté client
-  POLLING_INTERVAL: 2 * 60 * 1000,   // 2 minutes polling  
+  POLLING_INTERVAL: 2 * 60 * 1000,   // 2 minutes polling
   NAVBAR_CACHE_TIME: 10 * 60 * 1000, // 10 minutes navbar
   MANUAL_REFRESH_ONLY: true,         // Privilégier refresh manuel
-  REDIS_TTL: 30 * 1000,             // 30s côté serveur Redis
 } as const;

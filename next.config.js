@@ -323,17 +323,6 @@ const nextConfig = {
     ]
   },
 
-  // Configuration turbopack pour développement
-  ...(IS_DEV && AVAILABLE_CPUS >= 16 && {
-    turbo: {
-      resolveAlias: {
-        '@': './src',
-        '@components': './src/components',
-        '@utils': './src/utils',
-      },
-    }
-  }),
-
   experimental: {
     cpus: CONFIG.cpus,
     esmExternals: true,
