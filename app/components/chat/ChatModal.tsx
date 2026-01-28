@@ -169,17 +169,23 @@ export function ChatModal({ isOpen, onClose, channelId, targetUserName, isCreati
                           </div>
 
                           <div className="flex-1 overflow-hidden">
-                            <ChannelList
-                              filters={{ 
-                                members: { $in: [session?.user?.id] },
-                                ...(channelId && { id: channelId })
-                              }}
-                              sort={{ last_message_at: -1 }}
-                              options={{ limit: 10 }}
-                              Preview={CustomChannelPreview}
-                              EmptyStateIndicator={EmptyStateIndicator}
-                              setActiveChannel={setSelectedChannel}
-                            />
+                            {session?.user?.id && (
+                              <ChannelList
+                                filters={{
+                                  members: { $in: [session.user.id] },
+                                  ...(channelId && { id: channelId })
+                                }}
+                                sort={{ last_message_at: -1 }}
+                                options={{ limit: 10 }}
+                                Preview={(props) => (
+                                  <CustomChannelPreview
+                                    {...props}
+                                    setActiveChannel={(channel: any) => setSelectedChannel(channel)}
+                                  />
+                                )}
+                                EmptyStateIndicator={EmptyStateIndicator}
+                              />
+                            )}
                           </div>
                         </div>
 
@@ -187,7 +193,7 @@ export function ChatModal({ isOpen, onClose, channelId, targetUserName, isCreati
                         <div className={`${isMobile && !selectedChannel ? 'hidden' : 'flex'} flex-1 flex-col min-w-0`}>
                           {selectedChannel ? (
                             <Channel channel={selectedChannel} Message={CustomMessage}>
-                              <Window hideOnThread>
+                              <Window>
                                 <ChannelHeader />
                                 <MessageList />
                                 <MessageInput />

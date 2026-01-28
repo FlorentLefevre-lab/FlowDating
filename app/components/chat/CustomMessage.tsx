@@ -19,9 +19,8 @@ export function CustomMessage(props: MessageUIComponentProps) {
       {!isMyMessage && showAvatar && (
         <div className="custom-message__avatar">
           <Avatar
-            image={message.user?.image}
+            image={message.user?.image as string | undefined}
             name={message.user?.name || message.user?.id}
-            size={32}
           />
         </div>
       )}
@@ -38,9 +37,8 @@ export function CustomMessage(props: MessageUIComponentProps) {
         </div>
         
         <div className="custom-message__timestamp">
-          <MessageTimestamp 
-            timestamp={message.created_at} 
-            format="LT"
+          <MessageTimestamp
+            message={message as any}
           />
         </div>
       </div>

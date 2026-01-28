@@ -163,16 +163,16 @@ export async function POST(request: NextRequest) {
 
     // ✅ ÉTAPE 2 : Créer ou récupérer le channel
     console.log(`🔄 [CHAT] Création du channel Stream...`)
-    const channel = serverClient.channel('messaging', channelId, {
+    const channelOptions: Record<string, unknown> = {
       members: [session.user.id, userId],
       created_by_id: session.user.id,
       match_id: matchId,
       match_date: matchDate.toISOString(),
-      // Métadonnées utiles
       user1_name: currentUser.name,
       user2_name: targetUser.name,
       match_type: 'reciprocal_like'
-    })
+    }
+    const channel = serverClient.channel('messaging', channelId, channelOptions as any)
 
     // S'assurer que le channel existe
     await channel.create()

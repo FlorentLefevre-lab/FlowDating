@@ -1,25 +1,48 @@
 // =====================================================
 // src/hooks/useStreamChat.ts - VERSION CORRIGÉE
 // =====================================================
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback, useSyncExternalStore } from 'react'
 import { StreamChat } from 'stream-chat'
 import { useSession } from 'next-auth/react'
 import { streamChatManager } from '@/lib/streamChatClient'
 
-export function useStreamChat() {
+// Types
+interface ConnectionState {
+  isConnected: boolean
+  isConnecting: boolean
+  connectionId: string | null
+  lastError: Error | null
+  retryCount: number
+}
+
+interface UseStreamChatReturn {
+  client: StreamChat | null
+  isConnecting: boolean
+  isConnected: boolean
+  error: string | null
+  refresh: () => Promise<void>
+  getDebugInfo: () => ReturnType<typeof streamChatManager.getDebugInfo>
+}
+
+/**
+ * Hook principal pour utiliser Stream Chat
+ * Gère la connexion, la déconnexion et l'état
+ */
+export function useStreamChat(): UseStreamChatReturn {
   const { data: session, status } = useSession()
   const [client, setClient] = useState<StreamChat | null>(null)
   const [isConnecting, setIsConnecting] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const mountedRef = useRef(true)
 
+  // Initialisation du chat
   useEffect(() => {
-    let mounted = true
-    let reconnectTimeout: NodeJS.Timeout | null = null
+    mountedRef.current = true
 
     const initializeChat = async () => {
       // Si pas authentifié, nettoyer et sortir
       if (status === 'unauthenticated' || !session?.user?.id) {
-        if (mounted) {
+        if (mountedRef.current) {
           setClient(null)
           setIsConnecting(false)
           setError(null)
@@ -33,152 +56,168 @@ export function useStreamChat() {
       }
 
       try {
-        // ✅ Vérifier mounted avant setState
-        if (mounted) {
+        if (mountedRef.current) {
           setError(null)
+          setIsConnecting(true)
         }
-        
+
         // Obtenir le token
         const response = await fetch('/api/chat/stream/token')
         if (!response.ok) {
-          throw new Error('Failed to get token')
+          throw new Error('Impossible d\'obtenir le token de chat')
         }
-        
+
         const { token } = await response.json()
-        
-        // Se connecter via le manager
+
+        // Se connecter via le manager (gère les retries automatiquement)
         const streamClient = await streamChatManager.getClient(
           session.user.id,
           {
             id: session.user.id,
-            name: session.user.name || 'Anonymous',
-            image: session.user.image || '/default-avatar.png',
-            email: session.user.email,
+            name: session.user.name || 'Utilisateur',
+            image: session.user.image || undefined,
+            email: session.user.email || undefined,
           },
           token
         )
 
-        // ✅ Vérifier mounted avant setState
-        if (mounted && streamClient) {
-          console.log('🟢 Client Stream connecté pour:', session.user.id)
+        if (mountedRef.current && streamClient) {
+          console.log('✅ [useStreamChat] Client connecté')
           setClient(streamClient)
           setIsConnecting(false)
-          
-          // ✅ Sync async sans bloquer
-          streamChatManager.syncPresence().catch(console.error)
         }
-      } catch (error) {
-        console.error('❌ Erreur initialisation Stream Chat:', error)
-        // ✅ Vérifier mounted avant setState
-        if (mounted) {
+      } catch (err) {
+        console.error('❌ [useStreamChat] Erreur:', err)
+        if (mountedRef.current) {
           setIsConnecting(false)
-          setError('Erreur de connexion au chat')
-          
-          // Réessayer après 5 secondes
-          reconnectTimeout = setTimeout(() => {
-            if (mounted) {
-              console.log('🔄 Tentative de reconnexion...')
-              initializeChat()
-            }
-          }, 5000)
+          setError(err instanceof Error ? err.message : 'Erreur de connexion au chat')
         }
       }
     }
 
-    // Lancer l'initialisation
     initializeChat()
 
-    // Gérer la déconnexion proprement
     return () => {
-      mounted = false
-      
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout)
-      }
-      
-      // Note: On ne déconnecte pas ici car le manager gère la connexion
-      // La déconnexion se fait quand l'utilisateur se déconnecte de l'app
+      mountedRef.current = false
     }
   }, [session, status])
 
   // Déconnecter quand l'utilisateur se déconnecte
   useEffect(() => {
     if (status === 'unauthenticated') {
-      console.log('🔄 Déconnexion de Stream Chat...')
+      console.log('🔄 [useStreamChat] Déconnexion...')
       streamChatManager.disconnect()
+      setClient(null)
     }
   }, [status])
 
-  // ✅ Gérer la visibilité de la page avec debouncing
+  // S'abonner aux changements d'état de connexion
+  useEffect(() => {
+    const unsubscribe = streamChatManager.subscribeToConnectionState((state: ConnectionState) => {
+      if (mountedRef.current) {
+        if (state.lastError) {
+          setError(state.lastError.message)
+        }
+      }
+    })
+
+    return unsubscribe
+  }, [])
+
+  // Gérer la visibilité de la page (sync quand on revient)
   useEffect(() => {
     if (!client) return
 
-    let visibilityTimeout: NodeJS.Timeout | null = null
+    let debounceTimeout: NodeJS.Timeout | null = null
 
-    const handleVisibilityChange = async () => {
+    const handleVisibilityChange = () => {
       if (!document.hidden && client) {
-        // ✅ Debounce pour éviter les appels répétés
-        if (visibilityTimeout) clearTimeout(visibilityTimeout)
-        visibilityTimeout = setTimeout(async () => {
-          try {
-            console.log('👁 Page redevenue visible, synchronisation...')
-            await streamChatManager.syncPresence()
-          } catch (error) {
-            console.error('❌ Erreur sync visibilité:', error)
-          }
+        // Debounce pour éviter les appels répétés
+        if (debounceTimeout) clearTimeout(debounceTimeout)
+        debounceTimeout = setTimeout(() => {
+          streamChatManager.refreshUnreadCount().catch(console.error)
         }, 1000)
       }
     }
 
-    const handleFocus = async () => {
-      if (client) {
-        // ✅ Debounce pour éviter les appels répétés
-        if (visibilityTimeout) clearTimeout(visibilityTimeout)
-        visibilityTimeout = setTimeout(async () => {
-          try {
-            console.log('🎯 Fenêtre focalisée, synchronisation...')
-            await streamChatManager.syncPresence()
-          } catch (error) {
-            console.error('❌ Erreur sync focus:', error)
-          }
-        }, 1000)
-      }
-    }
-    
     document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('focus', handleFocus)
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('focus', handleFocus)
-      // ✅ Nettoyer le timeout
-      if (visibilityTimeout) {
-        clearTimeout(visibilityTimeout)
+      if (debounceTimeout) clearTimeout(debounceTimeout)
+    }
+  }, [client])
+
+  // Fonction de refresh manuel
+  const refresh = useCallback(async () => {
+    if (client) {
+      try {
+        await streamChatManager.refreshUnreadCount()
+      } catch (err) {
+        console.error('❌ [useStreamChat] Erreur refresh:', err)
       }
     }
   }, [client])
 
-  // Exposer des méthodes utiles
-  const refresh = async () => {
-    if (client) {
-      try {
-        await streamChatManager.syncPresence()
-      } catch (error) {
-        console.error('❌ Erreur refresh:', error)
-      }
-    }
-  }
-
-  const getDebugInfo = () => {
+  // Debug info
+  const getDebugInfo = useCallback(() => {
     return streamChatManager.getDebugInfo()
-  }
+  }, [])
 
-  return { 
-    client, 
-    isConnecting, 
+  return {
+    client,
+    isConnecting,
+    isConnected: streamChatManager.isConnected(),
     error,
     refresh,
     getDebugInfo,
-    isConnected: streamChatManager.isConnected()
   }
+}
+
+/**
+ * Hook pour obtenir le nombre de messages non-lus
+ * Utilise useSyncExternalStore pour une synchronisation optimale avec React
+ */
+export function useUnreadCount(): number {
+  // Utiliser useSyncExternalStore pour une meilleure intégration React 18+
+  const subscribe = useCallback((callback: () => void) => {
+    return streamChatManager.subscribeToUnreadCount(() => {
+      callback()
+    })
+  }, [])
+
+  const getSnapshot = useCallback(() => {
+    return streamChatManager.getUnreadCount()
+  }, [])
+
+  const getServerSnapshot = useCallback(() => {
+    return 0 // Côté serveur, toujours 0
+  }, [])
+
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+}
+
+/**
+ * Hook pour obtenir l'état de connexion
+ */
+export function useStreamConnectionState() {
+  const [connectionState, setConnectionState] = useState(() =>
+    streamChatManager.getConnectionState()
+  )
+
+  useEffect(() => {
+    const unsubscribe = streamChatManager.subscribeToConnectionState(setConnectionState)
+    return unsubscribe
+  }, [])
+
+  return connectionState
+}
+
+/**
+ * Hook pour rafraîchir le compteur de non-lus manuellement
+ */
+export function useRefreshUnreadCount() {
+  return useCallback(async () => {
+    await streamChatManager.refreshUnreadCount()
+  }, [])
 }

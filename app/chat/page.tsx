@@ -1,34 +1,46 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { 
-  Chat, 
-  ChannelList, 
-  Channel, 
-  Window, 
-  MessageList, 
-  MessageInput, 
+import {
+  Chat,
+  ChannelList,
+  Channel,
+  Window,
+  MessageList,
+  MessageInput,
   ChannelHeader,
   Thread,
-  LoadingIndicator 
+  LoadingIndicator
 } from 'stream-chat-react'
 import { useSearchParams } from 'next/navigation'
 import { useStreamChat } from '@/hooks/useStreamChat'
 import { streamChatManager } from '@/lib/streamChatClient'
-import type { Channel as StreamChannel, StreamChat } from 'stream-chat'
+import { CustomChannelPreview } from '@/components/chat/CustomChannelPreview'
+import { CustomMessage } from '@/components/chat/CustomMessage'
+import type { Channel as StreamChannel, Event } from 'stream-chat'
 import 'stream-chat-react/dist/css/v2/index.css'
 
 export default function ChatPage() {
   const searchParams = useSearchParams()
-  const { client, isConnecting } = useStreamChat()
+  const { client, isConnecting, error: connectionError } = useStreamChat()
   const [activeChannel, setActiveChannel] = useState<StreamChannel | null>(null)
   const [channelListKey, setChannelListKey] = useState(0)
   const [isLoadingChannel, setIsLoadingChannel] = useState(false)
-  const [lastRefresh, setLastRefresh] = useState(Date.now())
-  
+
   const channelCreationAttempted = useRef(false)
+  const mountedRef = useRef(true)
+  const eventHandlersRef = useRef<Map<string, (event: Event) => void>>(new Map())
+
   const userId = searchParams.get('userId')
   const matchId = searchParams.get('matchId')
+
+  // Cleanup au démontage
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   // Empêcher le scroll de la page principale
   useEffect(() => {
@@ -38,145 +50,142 @@ export default function ChatPage() {
     }
   }, [])
 
-  // Fonction pour rafraîchir la liste des channels
+  // Fonction pour rafraîchir la liste des channels (sans polling)
   const refreshChannelList = useCallback(() => {
-    console.log('🔄 Rafraîchissement de la liste des channels')
-    setChannelListKey(prev => prev + 1)
-    setLastRefresh(Date.now())
+    if (mountedRef.current) {
+      setChannelListKey(prev => prev + 1)
+    }
   }, [])
 
-  // Synchronisation de la présence et rafraîchissement automatique
+  // Configuration des event listeners WebSocket (REMPLACE LE POLLING)
   useEffect(() => {
     if (!client) return
 
-    let syncInterval: NodeJS.Timeout
-    let visibilityHandler: () => void
-
-    const setupSync = async () => {
-      // Synchroniser la présence au démarrage
-      await streamChatManager.syncPresence()
-
-      // Synchroniser toutes les 20 secondes
-      syncInterval = setInterval(async () => {
-        await streamChatManager.syncPresence()
-        refreshChannelList()
-      }, 20000)
-
-      // Synchroniser quand on revient sur l'onglet
-      visibilityHandler = () => {
-        if (!document.hidden) {
-          console.log('🔄 Retour sur l\'onglet, synchronisation...')
-          streamChatManager.syncPresence()
-          refreshChannelList()
-        }
-      }
-      document.addEventListener('visibilitychange', visibilityHandler)
-    }
-
-    setupSync()
-
-    return () => {
-      if (syncInterval) clearInterval(syncInterval)
-      if (visibilityHandler) {
-        document.removeEventListener('visibilitychange', visibilityHandler)
-      }
-    }
-  }, [client, refreshChannelList])
-
-  // Écouter les événements globaux pour la synchronisation temps réel
-  useEffect(() => {
-    if (!client) return
-
-    // Événements qui déclenchent un rafraîchissement
-    const events = [
-      'user.presence.changed',
-      'user.updated',
-      'message.new',
-      'message.updated',
-      'message.deleted',
-      'channel.updated',
-      'member.added',
-      'member.removed',
-      'member.updated',
-      'notification.added_to_channel',
-      'notification.removed_from_channel'
-    ]
-
-    const handlers: Record<string, (event: any) => void> = {}
-
-    // Handler générique pour rafraîchir
-    const handleRefresh = (eventType: string) => (event: any) => {
-      console.log(`📢 Événement ${eventType}:`, {
-        type: event.type,
-        user: event.user?.id,
-        channel: event.channel?.id
+    const cleanup = () => {
+      // Nettoyer tous les event handlers
+      eventHandlersRef.current.forEach((handler, eventType) => {
+        client.off(eventType as any, handler)
       })
-      
-      // Rafraîchir la liste si nécessaire
-      const shouldRefresh = 
-        eventType.includes('presence') ||
-        eventType.includes('user') ||
-        (event.channel && !activeChannel) ||
-        (event.channel?.id !== activeChannel?.id)
-
-      if (shouldRefresh) {
-        refreshChannelList()
-      }
+      eventHandlersRef.current.clear()
     }
 
-    // Ajouter tous les listeners
-    events.forEach(eventType => {
-      handlers[eventType] = handleRefresh(eventType)
-      client.on(eventType as any, handlers[eventType])
-    })
+    // Nettoyer les anciens handlers d'abord
+    cleanup()
 
-    // Handler spécial pour les nouveaux messages
-    const handleNewMessage = (event: any) => {
-      if (event.user?.id !== client.userID && !document.hidden) {
-        // Jouer un son de notification (optionnel)
-        const audio = new Audio('/notification.mp3')
-        audio.volume = 0.3
-        audio.play().catch(() => {})
+    // Handler pour les nouveaux messages -> rafraîchir la liste
+    const handleNewMessage = (event: Event) => {
+      // Rafraîchir seulement si le message vient d'un autre channel ou autre utilisateur
+      if (event.channel_id !== activeChannel?.id || event.user?.id !== client.userID) {
+        refreshChannelList()
       }
     }
     client.on('message.new', handleNewMessage)
+    eventHandlersRef.current.set('message.new', handleNewMessage)
+
+    // Handler pour les mises à jour de channel
+    const handleChannelUpdated = () => {
+      refreshChannelList()
+    }
+    client.on('channel.updated', handleChannelUpdated)
+    eventHandlersRef.current.set('channel.updated', handleChannelUpdated)
+
+    // Handler pour l'ajout à un nouveau channel
+    const handleAddedToChannel = () => {
+      refreshChannelList()
+    }
+    client.on('notification.added_to_channel', handleAddedToChannel)
+    eventHandlersRef.current.set('notification.added_to_channel', handleAddedToChannel)
+
+    // Handler pour la suppression d'un channel
+    const handleRemovedFromChannel = () => {
+      refreshChannelList()
+    }
+    client.on('notification.removed_from_channel', handleRemovedFromChannel)
+    eventHandlersRef.current.set('notification.removed_from_channel', handleRemovedFromChannel)
+
+    // Handler pour les changements de membres
+    const handleMemberUpdated = () => {
+      refreshChannelList()
+    }
+    client.on('member.updated', handleMemberUpdated)
+    eventHandlersRef.current.set('member.updated', handleMemberUpdated)
+
+    // Handler pour les messages lus
+    const handleMessageRead = () => {
+      refreshChannelList()
+    }
+    client.on('message.read', handleMessageRead)
+    eventHandlersRef.current.set('message.read', handleMessageRead)
+
+    // Handler pour la récupération de connexion
+    const handleConnectionRecovered = () => {
+      console.log('🔄 [Chat] Connexion récupérée, rafraîchissement...')
+      refreshChannelList()
+    }
+    client.on('connection.recovered', handleConnectionRecovered)
+    eventHandlersRef.current.set('connection.recovered', handleConnectionRecovered)
+
+    console.log('✅ [Chat] Event listeners configurés')
+
+    return cleanup
+  }, [client, activeChannel?.id, refreshChannelList])
+
+  // Synchronisation au retour sur l'onglet
+  useEffect(() => {
+    if (!client) return
+
+    let debounceTimeout: NodeJS.Timeout | null = null
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden && mountedRef.current) {
+        // Debounce pour éviter les appels répétés
+        if (debounceTimeout) clearTimeout(debounceTimeout)
+        debounceTimeout = setTimeout(() => {
+          console.log('🔄 [Chat] Retour sur l\'onglet, synchronisation...')
+          refreshChannelList()
+        }, 500)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
-      // Retirer tous les listeners
-      events.forEach(eventType => {
-        client.off(eventType as any, handlers[eventType])
-      })
-      client.off('message.new', handleNewMessage)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      if (debounceTimeout) clearTimeout(debounceTimeout)
     }
-  }, [client, activeChannel, refreshChannelList])
+  }, [client, refreshChannelList])
 
   // Fonction pour gérer la sélection d'un channel
   const handleChannelSelected = useCallback(async (channel: StreamChannel) => {
+    if (!mountedRef.current) return
+
     try {
-      console.log('📱 Sélection du channel:', channel.id)
+      console.log('📱 [Chat] Sélection du channel:', channel.id)
       setIsLoadingChannel(true)
-      
+
       if (!channel.initialized) {
-        console.log('🔄 Initialisation du channel...')
+        console.log('🔄 [Chat] Initialisation du channel...')
         await channel.watch({ presence: true })
       }
-      
+
+      // Marquer comme lu
       if (channel.countUnread() > 0) {
         await channel.markRead()
       }
-      
-      setActiveChannel(channel)
-      setIsLoadingChannel(false)
-      console.log('✅ Channel activé')
-      
-      // Rafraîchir la liste pour mettre à jour les indicateurs
-      refreshChannelList()
-      
+
+      if (mountedRef.current) {
+        setActiveChannel(channel)
+        setIsLoadingChannel(false)
+      }
+
+      console.log('✅ [Chat] Channel activé')
     } catch (error) {
-      console.error('❌ Erreur sélection channel:', error)
-      setIsLoadingChannel(false)
+      console.error('❌ [Chat] Erreur sélection channel:', error)
+      if (mountedRef.current) {
+        setIsLoadingChannel(false)
+      }
     }
-  }, [refreshChannelList])
+  }, [])
 
   // Création et activation du channel quand on arrive avec des params
   useEffect(() => {
@@ -188,8 +197,8 @@ export default function ChatPage() {
 
     const createAndOpenChannel = async () => {
       try {
-        console.log('🔄 Création/ouverture du channel...')
-        
+        console.log('🔄 [Chat] Création/ouverture du channel...')
+
         const response = await fetch('/api/chat/create-channel', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -201,57 +210,46 @@ export default function ChatPage() {
         }
 
         const { channelId } = await response.json()
-        console.log('✅ Channel ID:', channelId)
+        console.log('✅ [Chat] Channel ID:', channelId)
 
-        // Attendre un peu que le channel soit créé
-        await new Promise(resolve => setTimeout(resolve, 1500))
+        // Attendre un peu que le channel soit créé côté Stream
+        await new Promise(resolve => setTimeout(resolve, 1000))
 
         try {
           const channel = client.channel('messaging', channelId)
           await channel.watch({ presence: true })
           await handleChannelSelected(channel)
-          refreshChannelList()
         } catch (error) {
-          console.error('❌ Erreur chargement channel:', error)
-          
+          console.error('❌ [Chat] Erreur chargement channel:', error)
+
+          // Fallback: chercher le channel
           const channels = await client.queryChannels({
             type: 'messaging',
             id: channelId
           })
-          
+
           if (channels.length > 0) {
             await handleChannelSelected(channels[0])
-            refreshChannelList()
           }
         }
 
+        // Nettoyer l'URL
         window.history.replaceState({}, '', '/chat')
-
       } catch (error) {
-        console.error('❌ Erreur:', error)
+        console.error('❌ [Chat] Erreur:', error)
       }
     }
 
     createAndOpenChannel()
-  }, [client, userId, matchId, isConnecting, handleChannelSelected, refreshChannelList])
+  }, [client, userId, matchId, isConnecting, handleChannelSelected])
 
-  // Fonction pour forcer la synchronisation
+  // Fonction pour forcer la synchronisation (bouton manuel)
   const forceSyncPresence = useCallback(async () => {
     if (!client) return
-    
-    console.log('🔄 Synchronisation forcée...')
+
+    console.log('🔄 [Chat] Synchronisation forcée...')
     await streamChatManager.syncPresence()
     refreshChannelList()
-    
-    // Afficher une notification
-    const notification = document.createElement('div')
-    notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50'
-    notification.textContent = '✅ Synchronisation effectuée'
-    document.body.appendChild(notification)
-    
-    setTimeout(() => {
-      notification.remove()
-    }, 2000)
   }, [client, refreshChannelList])
 
   // Loader
@@ -261,6 +259,29 @@ export default function ChatPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-pink-500 border-t-transparent mx-auto mb-4"></div>
           <p className="text-gray-600 font-medium">Connexion au chat...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Erreur de connexion
+  if (connectionError) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center max-w-md mx-auto p-6">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Erreur de connexion</h2>
+          <p className="text-gray-600 mb-4">{connectionError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors"
+          >
+            Réessayer
+          </button>
         </div>
       </div>
     )
@@ -283,7 +304,7 @@ export default function ChatPage() {
       <div className="flex-1 overflow-hidden">
         <Chat client={client} theme="str-chat__theme-light">
           <div className="flex h-full">
-            
+
             {/* Sidebar avec liste des channels */}
             <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50">
               {/* Header */}
@@ -300,11 +321,8 @@ export default function ChatPage() {
                     </svg>
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Dernière sync: {new Date(lastRefresh).toLocaleTimeString()}
-                </p>
               </div>
-              
+
               {/* Liste des conversations */}
               <div className="flex-1 overflow-y-auto">
                 <ChannelList
@@ -313,9 +331,9 @@ export default function ChatPage() {
                     type: 'messaging',
                     members: { $in: [client.userID!] }
                   }}
-                  sort={{ 
+                  sort={{
                     last_message_at: -1,
-                    updated_at: -1 
+                    updated_at: -1
                   }}
                   options={{
                     state: true,
@@ -325,13 +343,13 @@ export default function ChatPage() {
                   }}
                   setActiveChannelOnMount={false}
                   Preview={(props) => (
-                    <CustomChannelPreview 
-                      {...props} 
-                      setActiveChannel={handleChannelSelected}
+                    <CustomChannelPreview
+                      {...props}
+                      setActiveChannel={(channel: any) => handleChannelSelected(channel)}
                       active={props.channel.id === activeChannel?.id}
                     />
                   )}
-                  onChannelSelected={handleChannelSelected}
+                  customActiveChannel={activeChannel?.cid}
                   EmptyStateIndicator={() => (
                     <div className="p-8 text-center">
                       <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -363,23 +381,20 @@ export default function ChatPage() {
                   </div>
                 </div>
               ) : activeChannel ? (
-                <Channel 
-                  channel={activeChannel} 
+                <Channel
+                  channel={activeChannel}
                   key={activeChannel.id}
                 >
                   <Window>
                     <ChannelHeader />
-                    <MessageList 
+                    <MessageList
                       Message={CustomMessage}
                       messageActions={['delete', 'react']}
                       disableDateSeparator={false}
                       hideDeletedMessages={false}
                       noGroupByUser={false}
                     />
-                    <MessageInput 
-                      grow
-                      maxRows={10}
-                      disableMentions
+                    <MessageInput
                       additionalTextareaProps={{
                         placeholder: 'Tapez votre message...',
                         maxLength: 1000
@@ -406,7 +421,7 @@ export default function ChatPage() {
                 </div>
               )}
             </div>
-            
+
           </div>
         </Chat>
       </div>
