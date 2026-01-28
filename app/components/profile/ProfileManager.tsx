@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
-import { 
+import {
   CheckIcon,
   ExclamationTriangleIcon,
   EyeIcon,
@@ -11,7 +11,9 @@ import {
   PhotoIcon,
   HeartIcon,
   CogIcon,
-  HomeIcon
+  HomeIcon,
+  UserIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 
 // 🆕 NOUVEAU : Ajouter ces imports
@@ -45,6 +47,14 @@ const PreferencesForm = dynamic(() => import('./PreferencesForm'), {
 
 const SettingsPanel = dynamic(() => import('./SettingsPanel'), {
   loading: () => <SimpleLoading message="Chargement des paramètres..." />
+});
+
+const PhysicalInfoForm = dynamic(() => import('./PhysicalInfoForm'), {
+  loading: () => <SimpleLoading message="Chargement des caractéristiques..." />
+});
+
+const LifestyleForm = dynamic(() => import('./LifestyleForm'), {
+  loading: () => <SimpleLoading message="Chargement du style de vie..." />
 });
 
 const ProfileManager: React.FC = () => {
@@ -84,17 +94,31 @@ const ProfileManager: React.FC = () => {
       color: 'green',
       description: 'Nom, âge, bio, localisation'
     },
-    { 
-      id: 'personal' as TabType, 
-      label: 'Infos personnelles', 
-      icon: IdentificationIcon, 
+    {
+      id: 'personal' as TabType,
+      label: 'Infos personnelles',
+      icon: IdentificationIcon,
       color: 'purple',
       description: 'Genre, profession, centres d\'intérêt'
     },
-    { 
-      id: 'photos' as TabType, 
-      label: 'Photos', 
-      icon: PhotoIcon, 
+    {
+      id: 'physical' as TabType,
+      label: 'Physique',
+      icon: UserIcon,
+      color: 'cyan',
+      description: 'Taille, poids, silhouette'
+    },
+    {
+      id: 'lifestyle' as TabType,
+      label: 'Style de vie',
+      icon: SparklesIcon,
+      color: 'orange',
+      description: 'Tabac, alcool, enfants, animaux'
+    },
+    {
+      id: 'photos' as TabType,
+      label: 'Photos',
+      icon: PhotoIcon,
       color: 'yellow',
       description: 'Gérer vos photos de profil'
     },
@@ -265,6 +289,64 @@ const ProfileManager: React.FC = () => {
     } catch (error) {
       console.error('❌ Erreur sauvegarde:', error);
       showMessage('❌ Erreur lors de la sauvegarde', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePhysicalInfoSubmit = async (data: any) => {
+    setSaving(true);
+    try {
+      console.log('Sauvegarde des caractéristiques physiques:', data);
+
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const updatedData = await response.json();
+      setProfile(prev => prev ? { ...prev, ...updatedData } : null);
+
+      showMessage('Caractéristiques physiques sauvegardées !', 'success');
+      setActiveTab('overview');
+    } catch (error) {
+      console.error('Erreur sauvegarde:', error);
+      showMessage('Erreur lors de la sauvegarde', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLifestyleSubmit = async (data: any) => {
+    setSaving(true);
+    try {
+      console.log('Sauvegarde du style de vie:', data);
+
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const updatedData = await response.json();
+      setProfile(prev => prev ? { ...prev, ...updatedData } : null);
+
+      showMessage('Style de vie sauvegardé !', 'success');
+      setActiveTab('overview');
+    } catch (error) {
+      console.error('Erreur sauvegarde:', error);
+      showMessage('Erreur lors de la sauvegarde', 'error');
     } finally {
       setSaving(false);
     }
@@ -485,10 +567,28 @@ const ProfileManager: React.FC = () => {
             )}
 
             {activeTab === 'personal' && (
-              <PersonalInfoForm 
+              <PersonalInfoForm
                 profile={profile}
                 loading={saving}
                 onSubmit={handlePersonalInfoSubmit}
+                onCancel={() => setActiveTab('overview')}
+              />
+            )}
+
+            {activeTab === 'physical' && (
+              <PhysicalInfoForm
+                profile={profile}
+                loading={saving}
+                onSubmit={handlePhysicalInfoSubmit}
+                onCancel={() => setActiveTab('overview')}
+              />
+            )}
+
+            {activeTab === 'lifestyle' && (
+              <LifestyleForm
+                profile={profile}
+                loading={saving}
+                onSubmit={handleLifestyleSubmit}
                 onCancel={() => setActiveTab('overview')}
               />
             )}

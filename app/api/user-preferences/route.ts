@@ -1,4 +1,4 @@
-// src/app/api/user-preferences/route.ts - Version finale avec mappings complets
+// src/app/api/user-preferences/route.ts - API préférences utilisateur (enums anglais uniquement)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
@@ -12,43 +12,9 @@ const prisma = globalForPrisma.prisma ?? new PrismaClient();
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// 🔄 MAPPING des valeurs françaises vers les enums Prisma
-const genderMapping = {
-  'homme': 'MALE',
-  'femme': 'FEMALE',
-  'autre': 'OTHER',
-  'non-binaire': 'NON_BINARY',
-  'préfère ne pas dire': 'PREFER_NOT_TO_SAY',
-  'tous': 'ALL'
-} as const;
-
-const lookingForMapping = {
-  'relation-serieuse': 'SERIOUS_RELATIONSHIP',
-  'relation-occasionnelle': 'CASUAL',
-  'amitie': 'FRIENDSHIP',
-  'aventure': 'ADVENTURE',
-  'mariage': 'MARRIAGE',
-  'pas-sur': 'UNSURE'
-} as const;
-
-// 🔄 MAPPING inverse pour le retour des données
-const genderMappingReverse = {
-  'MALE': 'homme',
-  'FEMALE': 'femme',
-  'OTHER': 'autre',
-  'NON_BINARY': 'non-binaire',
-  'PREFER_NOT_TO_SAY': 'préfère ne pas dire',
-  'ALL': 'tous'
-} as const;
-
-const lookingForMappingReverse = {
-  'SERIOUS_RELATIONSHIP': 'relation-serieuse',
-  'CASUAL': 'relation-occasionnelle',
-  'FRIENDSHIP': 'amitie',
-  'ADVENTURE': 'aventure',
-  'MARRIAGE': 'mariage',
-  'UNSURE': 'pas-sur'
-} as const;
+// Enums valides (uniquement anglais côté backend)
+const validGenders = ['MALE', 'FEMALE', 'OTHER', 'NON_BINARY', 'PREFER_NOT_TO_SAY', 'ALL'] as const;
+const validLookingFor = ['SERIOUS_RELATIONSHIP', 'CASUAL', 'FRIENDSHIP', 'ADVENTURE', 'MARRIAGE', 'UNSURE'] as const;
 
 export async function PUT(request: NextRequest) {
   try {
@@ -103,39 +69,41 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // 🔄 VALIDATION et MAPPING des enums
-    let mappedGender = null;
-    let mappedLookingFor = null;
+    // Validation des enums
+    let validatedGender: string | null = null;
+    let validatedLookingFor: string | null = null;
 
     if (gender && gender.trim()) {
-      const trimmedGender = gender.trim();
-      if (!Object.keys(genderMapping).includes(trimmedGender)) {
+      const upperGender = gender.trim().toUpperCase();
+      if (!validGenders.includes(upperGender as any)) {
         return NextResponse.json({
-          error: `Valeur gender invalide: ${trimmedGender}. Valeurs acceptées: ${Object.keys(genderMapping).join(', ')}`
+          error: `Valeur gender invalide: ${gender}. Valeurs acceptées: ${validGenders.join(', ')}`
         }, { status: 400 });
       }
-      mappedGender = genderMapping[trimmedGender as keyof typeof genderMapping];
+      validatedGender = upperGender;
+      console.log(`✅ Gender: ${validatedGender}`);
     }
 
     if (lookingFor && lookingFor.trim()) {
-      const trimmedLookingFor = lookingFor.trim();
-      if (!Object.keys(lookingForMapping).includes(trimmedLookingFor)) {
+      const upperLookingFor = lookingFor.trim().toUpperCase();
+      if (!validLookingFor.includes(upperLookingFor as any)) {
         return NextResponse.json({
-          error: `Valeur lookingFor invalide: ${trimmedLookingFor}. Valeurs acceptées: ${Object.keys(lookingForMapping).join(', ')}`
+          error: `Valeur lookingFor invalide: ${lookingFor}. Valeurs acceptées: ${validLookingFor.join(', ')}`
         }, { status: 400 });
       }
-      mappedLookingFor = lookingForMapping[trimmedLookingFor as keyof typeof lookingForMapping];
+      validatedLookingFor = upperLookingFor;
+      console.log(`✅ LookingFor: ${validatedLookingFor}`);
     }
 
     console.log('✅ Validation préférences OK');
 
-    // Préparer les données à sauvegarder avec les valeurs mappées
+    // Préparer les données à sauvegarder
     const preferencesData = {
       minAge: minAgeNum,
       maxAge: maxAgeNum,
       maxDistance: maxDistanceNum,
-      gender: mappedGender,
-      lookingFor: mappedLookingFor
+      gender: validatedGender,
+      lookingFor: validatedLookingFor
     };
 
     console.log('📝 Données à sauvegarder:', preferencesData);
@@ -165,19 +133,17 @@ export async function PUT(request: NextRequest) {
 
     console.log('✅ Préférences sauvegardées en base:', savedPreferences);
 
-    // 🔄 Retourner les données avec mapping inverse (français)
-    const responseData = {
+    // Retourner les données (enums anglais)
+    return NextResponse.json({
       id: savedPreferences.id,
       minAge: savedPreferences.minAge,
       maxAge: savedPreferences.maxAge,
       maxDistance: savedPreferences.maxDistance,
-      gender: savedPreferences.gender ? genderMappingReverse[savedPreferences.gender as keyof typeof genderMappingReverse] : null,
-      lookingFor: savedPreferences.lookingFor ? lookingForMappingReverse[savedPreferences.lookingFor as keyof typeof lookingForMappingReverse] : null,
+      gender: savedPreferences.gender,
+      lookingFor: savedPreferences.lookingFor,
       createdAt: savedPreferences.createdAt,
       updatedAt: savedPreferences.updatedAt
-    };
-
-    return NextResponse.json(responseData);
+    });
 
   } catch (error) {
     console.error('❌ Erreur PUT user-preferences:', error);
@@ -211,14 +177,14 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ Préférences récupérées:', user.preferences);
 
-    // 🔄 Retourner les préférences avec mapping inverse ou des valeurs par défaut
+    // Retourner les préférences (enums anglais) ou valeurs par défaut
     const preferences = user.preferences ? {
       id: user.preferences.id,
       minAge: user.preferences.minAge,
       maxAge: user.preferences.maxAge,
       maxDistance: user.preferences.maxDistance,
-      gender: user.preferences.gender ? genderMappingReverse[user.preferences.gender as keyof typeof genderMappingReverse] : null,
-      lookingFor: user.preferences.lookingFor ? lookingForMappingReverse[user.preferences.lookingFor as keyof typeof lookingForMappingReverse] : null,
+      gender: user.preferences.gender,
+      lookingFor: user.preferences.lookingFor,
       createdAt: user.preferences.createdAt,
       updatedAt: user.preferences.updatedAt
     } : {

@@ -86,6 +86,22 @@ model User {
   religion      String?
   ethnicity     String?
 
+  // Caracteristiques physiques
+  height        Int?      // en cm
+  weight        Int?      // en kg
+  bodyType      String?   // Mince, Athletique, Normal, Quelques kilos en plus, etc.
+  eyeColor      String?
+  hairColor     String?
+
+  // Style de vie
+  smoking       String?   // Non-fumeur, Fumeur occasionnel, Fumeur
+  drinking      String?   // Jamais, Occasionnellement, Regulierement
+  drugs         String?   // Jamais, Occasionnellement, Sociales
+  children      String?   // N'en a pas, En a, N'en veut pas, En veut
+  pets          String?   // Aucun, Chien, Chat, Autres
+  education     String?   // Niveau d'etudes
+  languages     String[]  // Langues parlees
+
   // Champs géographiques
   department String?
   postcode   String?
@@ -133,6 +149,10 @@ model User {
   // Relations de vues de profil
   profileViewsGiven    ProfileView[] @relation("UserViewsGiven")
   profileViewsReceived ProfileView[] @relation("UserViewsReceived")
+
+  // Relations de matchs
+  matchesAsUser1 Match[] @relation("UserMatches1")
+  matchesAsUser2 Match[] @relation("UserMatches2")
 
   @@map("users")
 }
@@ -282,4 +302,33 @@ model ProfileView {
   @@index([viewerId])
   @@index([viewedId])
   @@map("profile_views")
+}
+
+// ================================
+// MODÈLE MATCH
+// ================================
+
+enum MatchStatus {
+  ACTIVE
+  UNMATCHED
+  BLOCKED
+}
+
+model Match {
+  id        String      @id @default(cuid())
+  user1Id   String
+  user2Id   String
+  status    MatchStatus @default(ACTIVE)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  // Relations - user1Id est toujours < user2Id pour éviter les doublons
+  user1 User @relation("UserMatches1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2 User @relation("UserMatches2", fields: [user2Id], references: [id], onDelete: Cascade)
+
+  @@unique([user1Id, user2Id])
+  @@index([user1Id])
+  @@index([user2Id])
+  @@index([status])
+  @@map("matches")
 }

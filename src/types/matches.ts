@@ -11,6 +11,7 @@ export interface User {
   department?: string;
   region?: string;
   profession?: string;
+  gender?: string | null;
   interests: string[];
   photo?: {
     id: string;

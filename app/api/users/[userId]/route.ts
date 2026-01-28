@@ -37,6 +37,26 @@ export async function GET(
           location: true,
           profession: true,
           gender: true,
+          interests: true,
+          // Informations personnelles
+          maritalStatus: true,
+          zodiacSign: true,
+          dietType: true,
+          religion: true,
+          ethnicity: true,
+          // Caractéristiques physiques
+          height: true,
+          weight: true,
+          bodyType: true,
+          eyeColor: true,
+          hairColor: true,
+          // Style de vie
+          smoking: true,
+          drinking: true,
+          drugs: true,
+          children: true,
+          pets: true,
+          education: true,
           preferences: true,
           photos: {
             select: { url: true, isPrimary: true },
@@ -104,8 +124,6 @@ export async function GET(
       select: {
         id: true,
         name: true,
-        // Only show email to matched users
-        email: hasMatch,
         image: true,
         age: true,
         bio: true,
@@ -113,6 +131,25 @@ export async function GET(
         profession: true,
         gender: true,
         interests: true,
+        // Informations personnelles
+        maritalStatus: true,
+        zodiacSign: true,
+        dietType: true,
+        religion: true,
+        ethnicity: true,
+        // Caractéristiques physiques
+        height: true,
+        weight: true,
+        bodyType: true,
+        eyeColor: true,
+        hairColor: true,
+        // Style de vie
+        smoking: true,
+        drinking: true,
+        drugs: true,
+        children: true,
+        pets: true,
+        education: true,
         // Only show preferences to matched users
         preferences: hasMatch,
         photos: {

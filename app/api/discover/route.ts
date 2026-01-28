@@ -33,36 +33,52 @@ async function handleGetDiscover(request: NextRequest) {
     const offset = parseInt(url.searchParams.get('offset') || '0');
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
 
-    // 1. Récupérer l'utilisateur avec cache
-    let currentUser = await apiCache.userBasic.get(session.user.email);
-    if (!currentUser) {
-      currentUser = await prisma.user.findUnique({
-        where: { email: session.user.email },
-        select: { id: true, interests: true, age: true, location: true, name: true }
-      });
-      if (currentUser) {
-        await apiCache.userBasic.set(session.user.email, currentUser);
+    // 1. Récupérer l'utilisateur avec ses préférences et son genre
+    const currentUser = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: {
+        id: true,
+        interests: true,
+        age: true,
+        location: true,
+        name: true,
+        gender: true,
+        preferences: {
+          select: {
+            gender: true,
+            minAge: true,
+            maxAge: true,
+            maxDistance: true
+          }
+        }
       }
-    }
+    });
 
     if (!currentUser) {
       return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
     }
 
-    // 2. Vérifier le cache des résultats de découverte
-    const cachedResults = await apiCache.discover.get(currentUser.id, { filters, offset, limit });
-    if (cachedResults && cachedResults.length > 0) {
-      console.log(`📦 Cache HIT - ${cachedResults.length} profils depuis le cache`);
-      return NextResponse.json({
-        success: true,
-        users: cachedResults,
-        meta: {
-          responseTime: Date.now() - startTime,
-          cacheHit: true,
-          source: 'cache'
-        }
-      });
-    }
+    console.log('👤 Utilisateur actuel:', {
+      id: currentUser.id,
+      gender: currentUser.gender,
+      preferences: currentUser.preferences
+    });
+    console.log('🔍 Filtres reçus de l\'URL:', filters);
+
+    // 2. CACHE DÉSACTIVÉ TEMPORAIREMENT pour debug du filtrage gender
+    // const cachedResults = await apiCache.discover.get(currentUser.id, { filters, offset, limit });
+    // if (cachedResults && cachedResults.length > 0) {
+    //   console.log(`📦 Cache HIT - ${cachedResults.length} profils depuis le cache`);
+    //   return NextResponse.json({
+    //     success: true,
+    //     users: cachedResults,
+    //     meta: {
+    //       responseTime: Date.now() - startTime,
+    //       cacheHit: true,
+    //       source: 'cache'
+    //     }
+    //   });
+    // }
 
     // 3. Récupérer les exclusions avec cache
     let exclusions = await apiCache.exclusions.get(currentUser.id);
@@ -97,7 +113,7 @@ async function handleGetDiscover(request: NextRequest) {
       await apiCache.exclusions.set(currentUser.id, exclusions);
     }
 
-    // 4. Récupérer les utilisateurs découvrables
+    // 4. Récupérer les utilisateurs découvrables avec compatibilité mutuelle
     const whereConditions: any = {
       AND: [
         { id: { notIn: exclusions.excludedIds } },
@@ -105,18 +121,53 @@ async function handleGetDiscover(request: NextRequest) {
       ]
     };
 
-    // Appliquer les filtres
-    if (filters.minAge || filters.maxAge) {
+    // Appliquer les filtres d'âge (depuis URL ou préférences utilisateur)
+    const minAge = filters.minAge || currentUser.preferences?.minAge;
+    const maxAge = filters.maxAge || currentUser.preferences?.maxAge;
+
+    if (minAge || maxAge) {
       whereConditions.AND.push({
         age: {
-          ...(filters.minAge && { gte: filters.minAge }),
-          ...(filters.maxAge && { lte: filters.maxAge })
+          ...(minAge && { gte: minAge }),
+          ...(maxAge && { lte: maxAge })
         }
       });
     }
 
-    if (filters.gender) {
-      whereConditions.AND.push({ gender: filters.gender });
+    // ========================================
+    // FILTRE DE COMPATIBILITÉ MUTUELLE
+    // ========================================
+
+    // 1. Filtre par préférence de genre de l'utilisateur actuel
+    // (Je veux voir des personnes de ce genre)
+    const myGenderPreference = filters.gender || currentUser.preferences?.gender;
+    console.log('🔍 DEBUG Gender Filter:', {
+      fromURL: filters.gender,
+      fromDB: currentUser.preferences?.gender,
+      final: myGenderPreference
+    });
+
+    if (myGenderPreference && myGenderPreference !== 'ALL') {
+      whereConditions.AND.push({ gender: myGenderPreference });
+      console.log('🎯 Filtre APPLIQUÉ: Je recherche des', myGenderPreference);
+    } else {
+      console.log('⚠️ AUCUN filtre gender appliqué! myGenderPreference =', myGenderPreference);
+    }
+
+    // 2. Filtre pour n'afficher que les personnes qui pourraient être intéressées par moi
+    // (Leur préférence de genre doit correspondre à mon genre, ou être 'ALL')
+    if (currentUser.gender) {
+      whereConditions.AND.push({
+        OR: [
+          // Leur préférence correspond à mon genre
+          { preferences: { gender: currentUser.gender } },
+          // Ou ils recherchent tout le monde
+          { preferences: { gender: 'ALL' } },
+          // Ou ils n'ont pas défini de préférence (inclure par défaut)
+          { preferences: null }
+        ]
+      });
+      console.log('🎯 Filtre: Personnes intéressées par', currentUser.gender);
     }
 
     if (filters.online) {
@@ -124,6 +175,8 @@ async function handleGetDiscover(request: NextRequest) {
         lastSeen: { gte: new Date(Date.now() - 15 * 60 * 1000) }
       });
     }
+
+    console.log('🔍 Conditions de recherche:', JSON.stringify(whereConditions, null, 2));
 
     const users = await prisma.user.findMany({
       where: whereConditions,
@@ -141,6 +194,13 @@ async function handleGetDiscover(request: NextRequest) {
       take: limit,
       skip: offset
     });
+
+    // DEBUG: Afficher les genres des utilisateurs retournés
+    const genderCounts = users.reduce((acc, u) => {
+      acc[u.gender || 'NULL'] = (acc[u.gender || 'NULL'] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    console.log('📊 Genres retournés:', genderCounts, `(Total: ${users.length})`);
 
     // 5. Calculer la compatibilité
     const enrichedUsers = users.map(user => {
@@ -245,30 +305,79 @@ async function handlePostDiscover(request: NextRequest) {
 
     const { prisma } = await import('@/lib/db');
     
-    // Récupérer l'utilisateur actuel
-    let currentUser = await apiCache.userBasic.get(session.user.email);
-    if (!currentUser) {
-      currentUser = await prisma.user.findUnique({
-        where: { email: session.user.email },
-        select: { id: true, name: true }
-      });
-      if (currentUser) {
-        await apiCache.userBasic.set(session.user.email, currentUser);
+    // Récupérer l'utilisateur actuel avec son genre et préférences
+    const currentUser = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: {
+        id: true,
+        name: true,
+        gender: true,
+        preferences: {
+          select: { gender: true }
+        }
       }
-    }
+    });
 
     if (!currentUser) {
       return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
     }
 
-    // Vérifier l'utilisateur cible
+    // Vérifier l'utilisateur cible avec son genre et préférences
     const targetUser = await prisma.user.findUnique({
       where: { id: targetUserId },
-      select: { id: true, name: true }
+      select: {
+        id: true,
+        name: true,
+        gender: true,
+        preferences: {
+          select: { gender: true }
+        }
+      }
     });
 
     if (!targetUser) {
       return NextResponse.json({ error: 'Utilisateur cible introuvable' }, { status: 404 });
+    }
+
+    // ========================================
+    // VALIDATION DE COMPATIBILITÉ MUTUELLE
+    // ========================================
+    if (action === 'like' || action === 'super_like') {
+      const myGenderPref = currentUser.preferences?.gender;
+      const theirGenderPref = targetUser.preferences?.gender;
+      const myGender = currentUser.gender;
+      const theirGender = targetUser.gender;
+
+      console.log('🔍 Vérification compatibilité:', {
+        me: { gender: myGender, preference: myGenderPref },
+        them: { gender: theirGender, preference: theirGenderPref }
+      });
+
+      // Vérifier que je peux être intéressé par cette personne
+      const iAmInterestedInThem = !myGenderPref || myGenderPref === 'ALL' || myGenderPref === theirGender;
+
+      // Vérifier que cette personne pourrait être intéressée par moi
+      const theyCouldBeInterestedInMe = !theirGenderPref || theirGenderPref === 'ALL' || theirGenderPref === myGender;
+
+      if (!iAmInterestedInThem) {
+        console.log('❌ Incompatibilité: Ma préférence ne correspond pas à leur genre');
+        return NextResponse.json({
+          success: false,
+          error: 'Ce profil ne correspond pas à vos préférences',
+          reason: 'preference_mismatch'
+        }, { status: 400 });
+      }
+
+      if (!theyCouldBeInterestedInMe) {
+        console.log('❌ Incompatibilité: Leur préférence ne correspond pas à mon genre');
+        return NextResponse.json({
+          success: false,
+          error: 'Votre profil ne correspond pas aux préférences de cette personne',
+          reason: 'mutual_incompatibility'
+        }, { status: 400 });
+      }
+
+      console.log('✅ Compatibilité mutuelle validée');
     }
 
     // Vérification des limites d'actions (simple)

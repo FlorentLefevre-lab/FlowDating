@@ -4,6 +4,8 @@ export { default as ProfileManager } from './ProfileManager';
 export { default as ProfileOverview } from './ProfileOverview';
 export { default as BasicInfoForm } from './BasicInfoForm';
 export { default as PersonalInfoForm } from './PersonalInfoForm';
+export { default as PhysicalInfoForm } from './PhysicalInfoForm';
+export { default as LifestyleForm } from './LifestyleForm';
 export { default as PhotosManager } from './PhotosManager';
 export { default as PreferencesForm } from './PreferencesForm';
 export { default as SettingsPanel } from './SettingsPanel';
@@ -31,5 +33,16 @@ export {
   ETHNICITIES,
   INTEREST_OPTIONS,
   LOOKING_FOR_OPTIONS,
-  DISTANCE_OPTIONS
+  DISTANCE_OPTIONS,
+  // Caractéristiques physiques
+  BODY_TYPES,
+  EYE_COLORS,
+  HAIR_COLORS,
+  // Style de vie
+  SMOKING_OPTIONS,
+  DRINKING_OPTIONS,
+  DRUGS_OPTIONS,
+  CHILDREN_OPTIONS,
+  PETS_OPTIONS,
+  EDUCATION_OPTIONS
 } from '@/constants/profileData';

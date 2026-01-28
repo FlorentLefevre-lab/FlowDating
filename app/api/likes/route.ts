@@ -93,11 +93,10 @@ async function handlePostLikes(request: NextRequest) {
       where: {
         viewerId_viewedId: { viewerId: fromUserId, viewedId: toUserId }
       },
-      update: { viewedAt: new Date() },
+      update: {},
       create: {
         viewerId: fromUserId,
-        viewedId: toUserId,
-        viewedAt: new Date()
+        viewedId: toUserId
       }
     });
 
@@ -124,23 +123,33 @@ async function handlePostLikes(request: NextRequest) {
 
       if (mutualLike) {
         // C'est un match ! Créer dans la table Match
+        // user1Id doit être < user2Id pour éviter les doublons
+        const [user1Id, user2Id] = [fromUserId, toUserId].sort();
+
         const match = await prisma.match.create({
           data: {
-            users: {
-              connect: [
-                { id: fromUserId },
-                { id: toUserId }
-              ]
-            }
+            user1Id,
+            user2Id,
+            status: 'ACTIVE'
           },
           include: {
-            users: {
+            user1: {
               select: {
                 id: true,
                 name: true,
-                photos: { 
+                photos: {
                   where: { isPrimary: true },
-                  take: 1 
+                  take: 1
+                }
+              }
+            },
+            user2: {
+              select: {
+                id: true,
+                name: true,
+                photos: {
+                  where: { isPrimary: true },
+                  take: 1
                 }
               }
             }
@@ -151,22 +160,6 @@ async function handlePostLikes(request: NextRequest) {
         matchId = match.id;
         console.log('🎉 MATCH créé !', matchId);
         console.log('💕 Entre:', currentUser.name, 'et', targetUser.name);
-
-        // Créer un message de bienvenue automatique
-        try {
-          await prisma.message.create({
-            data: {
-              content: `🎉 Félicitations ! Vous avez matché ! Dites bonjour à ${targetUser.name} !`,
-              senderId: fromUserId,
-              receiverId: toUserId,
-              matchId: match.id
-            }
-          });
-          console.log('✅ Message de bienvenue créé');
-        } catch (msgError) {
-          console.log('⚠️ Erreur création message:', msgError);
-          // Le match est créé, on continue même si le message échoue
-        }
       }
 
     } else if (action === 'dislike') {

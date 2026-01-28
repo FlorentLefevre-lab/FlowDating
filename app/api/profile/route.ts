@@ -75,8 +75,14 @@ export async function PUT(request: NextRequest) {
 
     // Traitement de chaque champ avec mapping si nécessaire
     const fieldsToUpdate = [
-      'name', 'age', 'bio', 'location', 'profession', 
-      'zodiacSign', 'dietType', 'religion', 'ethnicity', 'interests'
+      'name', 'age', 'bio', 'location', 'profession',
+      'zodiacSign', 'dietType', 'religion', 'ethnicity', 'interests',
+      // Caractéristiques physiques
+      'height', 'weight', 'bodyType', 'eyeColor', 'hairColor',
+      // Style de vie
+      'smoking', 'drinking', 'drugs', 'children', 'pets', 'education',
+      // Localisation
+      'department', 'region', 'postcode'
     ];
 
     // Copier les champs simples (sans mapping)
@@ -135,6 +141,9 @@ export async function PUT(request: NextRequest) {
       age: updatedUser.age,
       bio: updatedUser.bio,
       location: updatedUser.location,
+      department: updatedUser.department,
+      region: updatedUser.region,
+      postcode: updatedUser.postcode,
       profession: updatedUser.profession,
       gender: updatedUser.gender ? genderMappingReverse[updatedUser.gender as keyof typeof genderMappingReverse] : null,
       maritalStatus: updatedUser.maritalStatus ? maritalStatusMappingReverse[updatedUser.maritalStatus as keyof typeof maritalStatusMappingReverse] : null,
@@ -142,10 +151,23 @@ export async function PUT(request: NextRequest) {
       dietType: updatedUser.dietType,
       religion: updatedUser.religion,
       ethnicity: updatedUser.ethnicity,
+      // Caractéristiques physiques
+      height: updatedUser.height,
+      weight: updatedUser.weight,
+      bodyType: updatedUser.bodyType,
+      eyeColor: updatedUser.eyeColor,
+      hairColor: updatedUser.hairColor,
+      // Style de vie
+      smoking: updatedUser.smoking,
+      drinking: updatedUser.drinking,
+      drugs: updatedUser.drugs,
+      children: updatedUser.children,
+      pets: updatedUser.pets,
+      education: updatedUser.education,
       interests: updatedUser.interests,
       photos: updatedUser.photos,
       preferences: updatedUser.preferences,
-      accountStatus: updatedUser.accountStatus, // ✅ AJOUT CRUCIAL
+      accountStatus: updatedUser.accountStatus,
       createdAt: updatedUser.createdAt,
       updatedAt: updatedUser.updatedAt
     };
@@ -204,6 +226,9 @@ export async function GET(request: NextRequest) {
       age: user.age,
       bio: user.bio,
       location: user.location,
+      department: user.department,
+      region: user.region,
+      postcode: user.postcode,
       profession: user.profession,
       gender: user.gender ? genderMappingReverse[user.gender as keyof typeof genderMappingReverse] : null,
       maritalStatus: user.maritalStatus ? maritalStatusMappingReverse[user.maritalStatus as keyof typeof maritalStatusMappingReverse] : null,
@@ -211,11 +236,24 @@ export async function GET(request: NextRequest) {
       dietType: user.dietType,
       religion: user.religion,
       ethnicity: user.ethnicity,
+      // Caractéristiques physiques
+      height: user.height,
+      weight: user.weight,
+      bodyType: user.bodyType,
+      eyeColor: user.eyeColor,
+      hairColor: user.hairColor,
+      // Style de vie
+      smoking: user.smoking,
+      drinking: user.drinking,
+      drugs: user.drugs,
+      children: user.children,
+      pets: user.pets,
+      education: user.education,
       interests: user.interests,
       photos: user.photos,
       preferences: user.preferences,
-      accountStatus: user.accountStatus, // ✅ AJOUT CRUCIAL
-      isPremium: user.isPremium || false, // ✅ Statut premium pour les limites de photos
+      accountStatus: user.accountStatus,
+      isPremium: user.isPremium || false,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };

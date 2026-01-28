@@ -1,12 +1,15 @@
-// src/app/discover/page.tsx - VERSION ULTRA SIMPLE QUI MARCHE
+// src/app/discover/page.tsx - VERSION AVEC FILTRAGE PAR PRÉFÉRENCES
 'use client';
 import { SimpleLoading } from '@/components/ui/SimpleLoading';
 import { SimpleError } from '@/components/ui/SimpleError';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
+// Enums valides pour le genre
+const validGenders = ['MALE', 'FEMALE', 'OTHER', 'NON_BINARY', 'ALL'];
+
 // ================================
-// VERSION SIMPLE POUR DÉBUG
+// VERSION AVEC PRÉFÉRENCES UTILISATEUR
 // ================================
 
 export default function DiscoverPageSimple() {
@@ -15,21 +18,64 @@ export default function DiscoverPageSimple() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [apiData, setApiData] = useState<any>(null);
+  const [userPreferences, setUserPreferences] = useState<any>(null);
 
   const currentProfile = profiles[currentIndex];
 
   // ================================
-  // CHARGEMENT ADAPTATIF
+  // CHARGEMENT DES PRÉFÉRENCES
   // ================================
 
-  const loadProfiles = async () => {
+  const loadPreferences = async () => {
+    try {
+      console.log('⚙️ Chargement des préférences utilisateur...');
+      const response = await fetch('/api/user-preferences');
+
+      if (response.ok) {
+        const prefs = await response.json();
+        console.log('✅ Préférences chargées:', prefs);
+        setUserPreferences(prefs);
+        return prefs;
+      }
+    } catch (err) {
+      console.warn('⚠️ Impossible de charger les préférences:', err);
+    }
+    return null;
+  };
+
+  // ================================
+  // CHARGEMENT DES PROFILS AVEC FILTRES
+  // ================================
+
+  const loadProfiles = async (prefs?: any) => {
     try {
       setLoading(true);
       setError(null);
 
-      console.log('🔍 Chargement des profils...');
+      // Utiliser les préférences passées ou celles en state
+      const preferences = prefs || userPreferences;
 
-      const response = await fetch('/api/discover');
+      // Construire les query params selon les préférences
+      const params = new URLSearchParams();
+
+      if (preferences) {
+        if (preferences.minAge) params.set('minAge', preferences.minAge.toString());
+        if (preferences.maxAge) params.set('maxAge', preferences.maxAge.toString());
+        if (preferences.maxDistance) params.set('maxDistance', preferences.maxDistance.toString());
+
+        // Ajouter le filtre gender (déjà en enum anglais)
+        if (preferences.gender && preferences.gender !== 'ALL') {
+          params.set('gender', preferences.gender);
+          console.log(`🎯 Filtre gender: ${preferences.gender}`);
+        }
+      }
+
+      const queryString = params.toString();
+      const url = queryString ? `/api/discover?${queryString}` : '/api/discover';
+
+      console.log('🔍 Chargement des profils avec URL:', url);
+
+      const response = await fetch(url);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -156,9 +202,13 @@ export default function DiscoverPageSimple() {
     }
   };
 
-  // Chargement initial
+  // Chargement initial : préférences puis profils
   useEffect(() => {
-    loadProfiles();
+    const init = async () => {
+      const prefs = await loadPreferences();
+      await loadProfiles(prefs);
+    };
+    init();
   }, []);
 
   // ================================
@@ -249,7 +299,13 @@ export default function DiscoverPageSimple() {
           <div className="mt-2 text-xs">
             <p><strong>Profils chargés:</strong> {profiles.length}</p>
             <p><strong>Index actuel:</strong> {currentIndex}</p>
-            <p><strong>Profil actuel:</strong> {currentProfile?.name}</p>
+            <p><strong>Profil actuel:</strong> {currentProfile?.name} ({currentProfile?.gender})</p>
+            <details className="mt-2">
+              <summary>⚙️ Préférences utilisateur</summary>
+              <pre className="bg-white p-2 rounded mt-1 overflow-auto max-h-32">
+                {JSON.stringify(userPreferences, null, 2)}
+              </pre>
+            </details>
             <details className="mt-2">
               <summary>Données API brutes</summary>
               <pre className="bg-white p-2 rounded mt-1 overflow-auto max-h-32">

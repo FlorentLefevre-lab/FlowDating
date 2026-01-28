@@ -175,7 +175,7 @@ export interface UserProfile {
   department?: string | null;
   region?: string | null;
   postcode?: string | null;
-  
+
   // Informations personnelles
   gender: string | null;
   profession: string | null;
@@ -184,20 +184,35 @@ export interface UserProfile {
   dietType: string | null;
   religion: string | null;
   ethnicity: string | null;
+
+  // Caractéristiques physiques
   height?: number | null;
+  weight?: number | null;
+  bodyType?: string | null;
+  eyeColor?: string | null;
+  hairColor?: string | null;
+
+  // Style de vie
+  smoking?: string | null;
+  drinking?: string | null;
+  drugs?: string | null;
+  children?: string | null;
+  pets?: string | null;
   education?: string | null;
-  
+  languages?: string[];
+
   // Collections
   interests: string[];
   photos: Photo[];
   preferences?: UserPreferences;
-  
+
   // Métadonnées
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string;
   isVerified?: boolean;
   isActive?: boolean;
+  isPremium?: boolean;
   completionPercentage?: number;
 }
 
@@ -225,6 +240,23 @@ export interface PersonalInfoFormData {
   height?: number;
   education?: string;
   interests: string[];
+}
+
+export interface PhysicalInfoFormData {
+  height: number | null;
+  weight: number | null;
+  bodyType: string;
+  eyeColor: string;
+  hairColor: string;
+}
+
+export interface LifestyleFormData {
+  smoking: string;
+  drinking: string;
+  drugs: string;
+  children: string;
+  pets: string;
+  education: string;
 }
 
 export interface PreferencesFormData {
@@ -301,7 +333,7 @@ export interface NotificationMessage {
 
 // ==================== TYPES POUR LES ONGLETS ====================
 
-export type TabType = 'overview' | 'edit' | 'personal' | 'photos' | 'preferences' | 'settings' | 'privacy';
+export type TabType = 'overview' | 'edit' | 'personal' | 'physical' | 'lifestyle' | 'photos' | 'preferences' | 'settings' | 'privacy';
 
 export interface TabConfig {
   id: TabType;

@@ -1,9 +1,9 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  HeartIcon, 
-  MapPinIcon, 
+import {
+  HeartIcon,
+  MapPinIcon,
   CalendarIcon,
   UserIcon
 } from '@heroicons/react/24/outline';
@@ -17,10 +17,10 @@ interface PreferencesFormProps {
   onSubmit: (data: any) => void;
 }
 
-const PreferencesForm: React.FC<PreferencesFormProps> = ({ 
-  profile, 
-  loading, 
-  onSubmit 
+const PreferencesForm: React.FC<PreferencesFormProps> = ({
+  profile,
+  loading,
+  onSubmit
 }) => {
   const [formData, setFormData] = useState<UserPreferences>({
     minAge: profile?.preferences?.minAge || 18,
@@ -32,12 +32,26 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Options pour les genres recherchés
+  // Synchroniser le formulaire quand les préférences sont chargées
+  useEffect(() => {
+    if (profile?.preferences) {
+      console.log('🔄 Mise à jour du formulaire avec les préférences:', profile.preferences);
+      setFormData({
+        minAge: profile.preferences.minAge || 18,
+        maxAge: profile.preferences.maxAge || 35,
+        maxDistance: profile.preferences.maxDistance || 50,
+        gender: profile.preferences.gender || '',
+        lookingFor: profile.preferences.lookingFor || ''
+      });
+    }
+  }, [profile?.preferences]);
+
+  // Options pour les genres recherchés (value = enum anglais, label = français)
   const genderOptions = [
-    { value: 'femme', label: 'Femmes' },
-    { value: 'homme', label: 'Hommes' },
-    { value: 'non-binaire', label: 'Personnes non-binaires' },
-    { value: 'tous', label: 'Tout le monde' }
+    { value: 'FEMALE', label: 'Femmes' },
+    { value: 'MALE', label: 'Hommes' },
+    { value: 'NON_BINARY', label: 'Personnes non-binaires' },
+    { value: 'ALL', label: 'Tout le monde' }
   ];
 
   const handleInputChange = (field: keyof UserPreferences, value: any) => {
@@ -49,19 +63,21 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (isSubmitting) return;
-    
+
     // Validation
     if (formData.minAge && formData.maxAge && formData.minAge > formData.maxAge) {
       alert('L\'âge minimum ne peut pas être supérieur à l\'âge maximum');
       return;
     }
 
+    console.log('📤 Soumission des préférences:', formData);
     setIsSubmitting(true);
-    
+
     try {
       await onSubmit(formData);
+      console.log('✅ Préférences soumises avec succès');
     } catch (error) {
       console.error('❌ Erreur soumission préférences:', error);
     } finally {

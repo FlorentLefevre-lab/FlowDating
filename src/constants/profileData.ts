@@ -144,35 +144,35 @@ export const INTEREST_OPTIONS = [
   'Immobilier', 'Networking', 'Leadership'
 ];
 
-// ✅ VALEURS CORRIGÉES pour correspondre parfaitement aux mappings de l'API
+// Options de type de relation (value = enum anglais, label = français)
 export const LOOKING_FOR_OPTIONS = [
   {
-    value: 'relation-serieuse', // ✅ Correspond à SERIOUS_RELATIONSHIP
+    value: 'SERIOUS_RELATIONSHIP',
     label: 'Relation sérieuse',
     description: 'Je cherche une relation durable et engagée'
   },
   {
-    value: 'relation-occasionnelle', // ✅ Corrigé : était 'relation-decontractee'
+    value: 'CASUAL',
     label: 'Relation décontractée',
     description: 'Je veux prendre le temps de me connaître'
   },
   {
-    value: 'amitie', // ✅ Correspond à FRIENDSHIP
+    value: 'FRIENDSHIP',
     label: 'Amitié',
     description: 'Je recherche de nouveaux amis'
   },
   {
-    value: 'aventure', // ✅ Correspond à ADVENTURE
+    value: 'ADVENTURE',
     label: 'Aventure',
     description: 'Je suis ouvert(e) à toutes les possibilités'
   },
   {
-    value: 'pas-sur', // ✅ Corrigé : correspondra à UNSURE
+    value: 'UNSURE',
     label: 'Je ne sais pas encore',
     description: 'Je verrai bien où ça me mène'
   },
   {
-    value: 'mariage', // ✅ Correspond à MARRIAGE
+    value: 'MARRIAGE',
     label: 'Mariage',
     description: 'Je cherche la personne avec qui fonder une famille'
   }
@@ -209,4 +209,91 @@ export const DISTANCE_OPTIONS = [
     label: '500+ km',
     description: 'Partout'
   }
+];
+
+// Caractéristiques physiques
+export const BODY_TYPES = [
+  { value: 'mince', label: 'Mince' },
+  { value: 'athletique', label: 'Athlétique' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'quelques-kilos', label: 'Quelques kilos en plus' },
+  { value: 'ronde', label: 'Rond(e)' },
+  { value: 'musclé', label: 'Musclé(e)' }
+];
+
+export const EYE_COLORS = [
+  { value: 'marron', label: 'Marron' },
+  { value: 'bleu', label: 'Bleu' },
+  { value: 'vert', label: 'Vert' },
+  { value: 'noisette', label: 'Noisette' },
+  { value: 'gris', label: 'Gris' },
+  { value: 'noir', label: 'Noir' },
+  { value: 'ambre', label: 'Ambre' },
+  { value: 'vairons', label: 'Vairons' }
+];
+
+export const HAIR_COLORS = [
+  { value: 'noir', label: 'Noir' },
+  { value: 'brun', label: 'Brun' },
+  { value: 'chatain', label: 'Châtain' },
+  { value: 'blond', label: 'Blond' },
+  { value: 'roux', label: 'Roux' },
+  { value: 'gris', label: 'Gris' },
+  { value: 'blanc', label: 'Blanc' },
+  { value: 'colore', label: 'Coloré' },
+  { value: 'chauve', label: 'Chauve' }
+];
+
+// Style de vie
+export const SMOKING_OPTIONS = [
+  { value: 'non-fumeur', label: 'Non-fumeur' },
+  { value: 'fumeur-occasionnel', label: 'Fumeur occasionnel' },
+  { value: 'fumeur', label: 'Fumeur' },
+  { value: 'en-cours-arret', label: 'En cours d\'arrêt' },
+  { value: 'vapoteur', label: 'Vapoteur' }
+];
+
+export const DRINKING_OPTIONS = [
+  { value: 'jamais', label: 'Jamais' },
+  { value: 'occasionnellement', label: 'Occasionnellement' },
+  { value: 'sociales', label: 'En soirées' },
+  { value: 'regulierement', label: 'Régulièrement' }
+];
+
+export const DRUGS_OPTIONS = [
+  { value: 'jamais', label: 'Jamais' },
+  { value: 'occasionnellement', label: 'Occasionnellement' },
+  { value: 'sociales', label: 'En soirées' },
+  { value: 'prefer-not-to-say', label: 'Préfère ne pas dire' }
+];
+
+export const CHILDREN_OPTIONS = [
+  { value: 'aucun-en-veut', label: 'N\'en a pas, mais en veut' },
+  { value: 'aucun-ne-veut-pas', label: 'N\'en a pas et n\'en veut pas' },
+  { value: 'aucun-indecis', label: 'N\'en a pas, indécis' },
+  { value: 'en-a-en-veut-plus', label: 'En a, en veut d\'autres' },
+  { value: 'en-a-ne-veut-plus', label: 'En a, n\'en veut plus' }
+];
+
+export const PETS_OPTIONS = [
+  { value: 'aucun', label: 'Aucun' },
+  { value: 'chien', label: 'Chien' },
+  { value: 'chat', label: 'Chat' },
+  { value: 'chien-chat', label: 'Chien et chat' },
+  { value: 'oiseau', label: 'Oiseau' },
+  { value: 'poisson', label: 'Poisson' },
+  { value: 'rongeur', label: 'Rongeur' },
+  { value: 'reptile', label: 'Reptile' },
+  { value: 'autres', label: 'Autres' }
+];
+
+export const EDUCATION_OPTIONS = [
+  { value: 'brevet', label: 'Brevet des collèges' },
+  { value: 'cap-bep', label: 'CAP / BEP' },
+  { value: 'bac', label: 'Baccalauréat' },
+  { value: 'bac-plus-2', label: 'Bac +2 (BTS, DUT)' },
+  { value: 'licence', label: 'Licence (Bac +3)' },
+  { value: 'master', label: 'Master (Bac +5)' },
+  { value: 'doctorat', label: 'Doctorat' },
+  { value: 'autre', label: 'Autre' }
 ];
