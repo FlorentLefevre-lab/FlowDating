@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ReportList } from "@/components/admin/moderation/ReportList";
 import { useToast } from "@/components/ui/use-toast";
@@ -45,7 +46,7 @@ interface ReportsResponse {
   categoryBreakdown: Record<string, number>;
 }
 
-export default function ReportsPage() {
+function ReportsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -139,5 +140,17 @@ export default function ReportsPage() {
         currentPriority={priority ? parseInt(priority) : null}
       />
     </div>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+      </div>
+    }>
+      <ReportsContent />
+    </Suspense>
   );
 }

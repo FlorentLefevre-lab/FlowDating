@@ -5,9 +5,9 @@
  * Prevents IDOR (Insecure Direct Object Reference) vulnerabilities.
  */
 
-import { getServerSession, Session } from 'next-auth';
+import { Session } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
 
 // Extended session type with user ID
@@ -80,7 +80,7 @@ function logUnauthorizedAccess(
 export function withAuth(handler: AuthenticatedHandler): (req: NextRequest) => Promise<NextResponse> {
   return async (req: NextRequest) => {
     try {
-      const session = await getServerSession(authOptions);
+      const session = await auth();
 
       if (!session?.user?.id) {
         logUnauthorizedAccess('access', null, 'unknown', 'N/A', 'No valid session');
@@ -423,7 +423,7 @@ export function withAdmin(
 ): (req: NextRequest) => Promise<NextResponse> {
   return async (req: NextRequest) => {
     try {
-      const session = await getServerSession(authOptions);
+      const session = await auth();
 
       if (!session?.user?.id) {
         logUnauthorizedAccess('admin_access', null, 'admin', 'N/A', 'No valid session');

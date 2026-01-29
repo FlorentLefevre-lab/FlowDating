@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PhotoQueue } from "@/components/admin/moderation/PhotoQueue";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,7 +50,7 @@ interface PhotoResponse {
   };
 }
 
-export default function PhotoModerationPage() {
+function PhotoModerationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -241,5 +242,17 @@ export default function PhotoModerationPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function PhotoModerationPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+      </div>
+    }>
+      <PhotoModerationContent />
+    </Suspense>
   );
 }

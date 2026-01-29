@@ -5,7 +5,7 @@ declare module 'next-auth' {
   interface Session {
     user: {
       id: string
-      role: UserRole
+      role: string
       provider?: string
       emailVerified?: Date | null
     } & DefaultSession['user']
@@ -18,15 +18,15 @@ declare module 'next-auth' {
 
   interface User {
     id: string
-    role: UserRole
+    role: string
     provider?: string
   }
 }
 
-declare module 'next-auth/jwt' {
+declare module '@auth/core/jwt' {
   interface JWT {
     id: string
-    role: UserRole
+    role: string
     provider?: string
     emailVerified?: Date | null
   }

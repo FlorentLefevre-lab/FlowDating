@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { getToken } from "next-auth/jwt"
+import { auth } from "@/auth"
 
 // Chemins publics (sans authentification)
 const publicPaths = new Set([
@@ -29,7 +29,7 @@ function isAdminPath(pathname: string): boolean {
   return pathname.startsWith('/admin') || pathname.startsWith('/api/admin')
 }
 
-export async function middleware(request: NextRequest) {
+export default auth((request) => {
   const { pathname } = request.nextUrl
 
   // Autoriser les chemins publics
@@ -37,12 +37,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Vérifier l'authentification via les cookies de session
-  const sessionToken = request.cookies.get('authjs.session-token') ||
-                      request.cookies.get('__Secure-authjs.session-token')
-
-  // Si pas de token de session, rediriger vers login
-  if (!sessionToken) {
+  // Si pas de session, rediriger vers login
+  if (!request.auth) {
     const loginUrl = new URL('/auth/login', request.url)
     loginUrl.searchParams.set('callbackUrl', pathname)
     return NextResponse.redirect(loginUrl)
@@ -50,27 +46,16 @@ export async function middleware(request: NextRequest) {
 
   // Protection des routes admin
   if (isAdminPath(pathname)) {
-    try {
-      const token = await getToken({
-        req: request as any,
-        secret: process.env.NEXTAUTH_SECRET
-      })
-
-      // Vérifier le rôle admin/moderator
-      const role = token?.role as string | undefined
-      if (!role || (role !== 'ADMIN' && role !== 'MODERATOR')) {
-        // Rediriger vers la page d'accueil si pas admin
-        return NextResponse.redirect(new URL('/', request.url))
-      }
-    } catch (error) {
-      console.error('[MIDDLEWARE] Erreur vérification admin:', error)
+    const role = request.auth.user?.role
+    if (!role || (role !== 'ADMIN' && role !== 'MODERATOR')) {
+      // Rediriger vers la page d'accueil si pas admin
       return NextResponse.redirect(new URL('/', request.url))
     }
   }
 
-  // Token présent, continuer
+  // Authentifié, continuer
   return NextResponse.next()
-}
+})
 
 export const config = {
   matcher: [

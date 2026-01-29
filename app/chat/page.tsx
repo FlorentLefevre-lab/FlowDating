@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import {
   Chat,
   ChannelList,
@@ -16,7 +16,7 @@ import { useStreamChat } from '@/hooks/useStreamChat'
 import type { Channel as StreamChannel } from 'stream-chat'
 import { SimpleLoading, SimpleError, Button } from '@/components/ui'
 
-export default function ChatPage() {
+function ChatContent() {
   const searchParams = useSearchParams()
   const { client, isConnecting, error: connectionError } = useStreamChat()
   const [activeChannel, setActiveChannel] = useState<StreamChannel | null>(null)
@@ -90,13 +90,11 @@ export default function ChatPage() {
           }}
           sort={{ last_message_at: -1 }}
           options={{ presence: true, watch: true, limit: 30 }}
-          onChannelSelect={(channel) => setActiveChannel(channel)}
         />
         <Channel channel={activeChannel || undefined}>
           <Window>
             <ChannelHeader />
             <MessageList
-              scrollToLatest
               disableDateSeparator={false}
             />
             <MessageInput focus />
@@ -105,5 +103,17 @@ export default function ChatPage() {
         </Channel>
       </Chat>
     </div>
+  )
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen bg-gray-50 flex-center">
+        <SimpleLoading message="Chargement..." size="lg" />
+      </div>
+    }>
+      <ChatContent />
+    </Suspense>
   )
 }

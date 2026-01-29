@@ -9,8 +9,7 @@
 import { RateLimiterRedis, RateLimiterMemory, RateLimiterRes, RateLimiterAbstract } from 'rate-limiter-flexible';
 import { getRedisClient, isRedisHealthy } from '@/lib/redis';
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/auth';
 
 // Flag to track if Redis is available
 let redisAvailable: boolean | null = null;
@@ -226,7 +225,7 @@ function getLimiterPoints(type: LimiterType): number {
  */
 async function getClientIdentifier(req: NextRequest): Promise<string> {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (session?.user?.id) {
       return `user:${session.user.id}`;
     }

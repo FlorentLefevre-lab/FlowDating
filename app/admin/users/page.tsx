@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -66,7 +66,7 @@ const roleIcons: Record<string, React.ReactNode> = {
   USER: <UserIcon className="h-4 w-4 text-gray-400" />
 }
 
-export default function UsersPage() {
+function UsersContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -293,5 +293,17 @@ export default function UsersPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function UsersPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+      </div>
+    }>
+      <UsersContent />
+    </Suspense>
   )
 }

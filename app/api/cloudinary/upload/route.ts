@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/auth';
 import { v2 as cloudinary } from 'cloudinary';
 
 // Configuration Cloudinary
@@ -13,7 +12,7 @@ cloudinary.config({
 export async function POST(request: NextRequest) {
   try {
     // Vérifier l'authentification
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Non autorisé' },
@@ -65,7 +64,7 @@ export async function POST(request: NextRequest) {
       ],
     });
 
-    console.log('✅ Photo uploadée vers Cloudinary:', result.public_id);
+    console.log('Photo uploadée vers Cloudinary:', result.public_id);
 
     return NextResponse.json({
       success: true,
@@ -76,7 +75,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ Erreur upload Cloudinary:', error);
+    console.error('Erreur upload Cloudinary:', error);
     return NextResponse.json(
       { error: error.message || 'Erreur lors de l\'upload' },
       { status: 500 }

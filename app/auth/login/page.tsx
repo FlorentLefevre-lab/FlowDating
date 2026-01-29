@@ -1,19 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Button, Card, Input } from '@/components/ui'
+import { Button, Card, Input, SimpleLoading } from '@/components/ui'
 
-export default function LoginPage() {
+function LoginContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
   const searchParams = useSearchParams()
-        const callbackUrl = searchParams.get('callbackUrl') || '/home'
+  const callbackUrl = searchParams.get('callbackUrl') || '/home'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -21,26 +21,20 @@ export default function LoginPage() {
     setError('')
 
     try {
-      console.log('🔑 Tentative de connexion avec:', email)
-      
       const result = await signIn('credentials', {
         email,
         password,
         redirect: false,
       })
 
-      console.log('🔑 Résultat de la connexion:', result)
-
       if (result?.error) {
-        console.log('❌ Erreur de connexion:', result.error)
         setError('Email ou mot de passe incorrect')
       } else if (result?.ok) {
-        console.log('✅ Connexion réussie, redirection vers:', callbackUrl)
         router.push(callbackUrl)
-        router.refresh() // Force le rafraîchissement pour NextAuth v5
+        router.refresh()
       }
     } catch (error) {
-      console.error('❌ Erreur lors de la connexion:', error)
+      console.error('Erreur lors de la connexion:', error)
       setError('Une erreur est survenue')
     } finally {
       setLoading(false)
@@ -50,10 +44,9 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setLoading(true)
     try {
-      console.log('🔑 Tentative de connexion Google')
       await signIn('google', { callbackUrl: '/home' })
     } catch (error) {
-      console.error('❌ Erreur Google Sign-In:', error)
+      console.error('Erreur Google Sign-In:', error)
       setError('Erreur avec Google Sign-In')
       setLoading(false)
     }
@@ -62,10 +55,9 @@ export default function LoginPage() {
   const handleFacebookSignIn = async () => {
     setLoading(true)
     try {
-      console.log('🔑 Tentative de connexion Facebook')
       await signIn('facebook', { callbackUrl: '/home' })
     } catch (error) {
-      console.error('❌ Erreur Facebook Sign-In:', error)
+      console.error('Erreur Facebook Sign-In:', error)
       setError('Erreur avec Facebook Sign-In')
       setLoading(false)
     }
@@ -74,7 +66,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex-center py-12 px-4 sm:px-6 lg:px-8">
       <Card className="max-w-md w-full p-8">
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="flex-center">
             <div className="text-4xl mb-4">💖</div>
@@ -87,7 +78,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Formulaire */}
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
@@ -144,7 +134,6 @@ export default function LoginPage() {
             )}
           </Button>
 
-          {/* OAuth Providers */}
           <div>
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
@@ -197,11 +186,10 @@ export default function LoginPage() {
           </div>
         </form>
 
-        {/* Mode test */}
         <Card className="mt-8 p-4 bg-blue-50 border-blue-200">
           <h3 className="text-sm font-medium text-blue-800 mb-2">Mode test</h3>
           <p className="text-xs text-blue-600 mb-2">
-            Pour tester l'application, utilisez n'importe quel email et mot de passe.
+            Pour tester l&apos;application, utilisez n&apos;importe quel email et mot de passe.
           </p>
           <Button
             onClick={() => {
@@ -216,5 +204,17 @@ export default function LoginPage() {
         </Card>
       </Card>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex-center">
+        <SimpleLoading message="Chargement..." />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   )
 }

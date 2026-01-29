@@ -15,7 +15,8 @@
       "Bash(if exist .next rmdir /s /q .next)",
       "Bash(npx prisma generate:*)",
       "Bash(node scripts/set-admin.js:*)",
-      "Bash(node scripts/check-status.js:*)"
+      "Bash(node scripts/check-status.js:*)",
+      "WebFetch(domain:www.prisma.io)"
     ]
   }
 }
