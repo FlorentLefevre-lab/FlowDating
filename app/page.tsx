@@ -1,22 +1,24 @@
-export default function HomePage() {
+import Link from 'next/link'
+import { Button } from '@/components/ui'
+
+export default function LandingPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500">
+    <div className="min-h-screen flex-center bg-gradient-to-br from-secondary-500 to-primary-500">
       <div className="text-center text-white p-8">
+        <div className="text-6xl mb-4">💖</div>
         <h1 className="text-6xl font-bold mb-4">Flow Dating</h1>
-        <p className="text-xl mb-8">Bienvenue sur l application</p>
+        <p className="text-xl mb-8 opacity-90">Trouvez l'amour en toute simplicité</p>
         <div className="flex gap-4 justify-center">
-          <a
-            href="/auth/login"
-            className="bg-pink-600 hover:bg-pink-700 px-6 py-3 rounded-lg font-semibold"
-          >
-            Se connecter
-          </a>
-          <a
-            href="/auth/register"
-            className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold"
-          >
-            S inscrire
-          </a>
+          <Button asChild variant="default" size="lg" className="bg-white text-primary-600 hover:bg-gray-100">
+            <Link href="/auth/login">
+              Se connecter
+            </Link>
+          </Button>
+          <Button asChild variant="gradient" size="lg">
+            <Link href="/auth/register">
+              S'inscrire
+            </Link>
+          </Button>
         </div>
       </div>
     </div>

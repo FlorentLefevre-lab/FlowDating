@@ -1,0 +1,297 @@
+/* ============================================================================
+   STREAM CHAT OVERRIDES
+   Customizations for stream-chat-react library
+   ============================================================================ */
+
+/* ===== CSS VARIABLES ===== */
+.str-chat {
+  --str-chat__primary-color: theme('colors.primary.500');
+  --str-chat__active-primary-color: theme('colors.primary.700');
+  --str-chat__surface-color: theme('colors.primary.50');
+  --str-chat__secondary-surface-color: theme('colors.primary.100');
+}
+
+/* ===== MESSAGE CONTAINER LAYOUT ===== */
+
+/* Container interne du message */
+.str-chat__message-inner {
+  max-width: 90% !important;
+  width: auto !important;
+  min-width: 70% !important;
+}
+
+/* Bulle de message */
+.str-chat__message-bubble {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* Conteneur texte */
+.str-chat__message-text {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* Texte intérieur */
+.str-chat__message-text-inner,
+.str-chat__message-simple-text-inner {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding: 14px 18px !important;
+  font-size: 15px !important;
+  line-height: 1.5 !important;
+  word-wrap: break-word !important;
+}
+
+/* Le paragraphe */
+.str-chat__message-text-inner p {
+  margin: 0 !important;
+}
+
+/* ===== MESSAGE ALIGNMENT ===== */
+
+/* Mes messages à droite */
+.str-chat__message--me {
+  justify-content: flex-end !important;
+}
+
+.str-chat__message--me .str-chat__message-inner {
+  margin-left: auto !important;
+  margin-right: 0 !important;
+}
+
+/* Messages des autres à gauche */
+.str-chat__message--other {
+  justify-content: flex-start !important;
+}
+
+.str-chat__message--other .str-chat__message-inner {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+
+/* ===== MESSAGE BUBBLES STYLING ===== */
+
+/* Messages reçus (autres) */
+.str-chat__message--other .str-chat__message-bubble {
+  background-color: theme('colors.chat.bubble.received') !important;
+  color: theme('colors.chat.text.received') !important;
+  border-radius: theme('borderRadius.bubble-received') !important;
+}
+
+/* Messages envoyés (moi) */
+.str-chat__message--me .str-chat__message-bubble {
+  background-color: theme('colors.chat.bubble.sent') !important;
+  color: theme('colors.chat.text.sent') !important;
+  border-radius: theme('borderRadius.bubble-sent') !important;
+}
+
+.str-chat__message--me .str-chat__message-text-inner,
+.str-chat__message--me .str-chat__message-simple-text-inner {
+  color: theme('colors.chat.text.sent') !important;
+}
+
+/* ===== INPUT AREA ===== */
+
+.str-chat__message-input,
+.str-chat__input-flat {
+  padding-bottom: 12px !important;
+  margin-bottom: 0 !important;
+  min-height: 60px !important;
+}
+
+.str-chat__message-input-wrapper {
+  padding-bottom: 16px !important;
+  margin-bottom: env(safe-area-inset-bottom, 0) !important;
+}
+
+.str-chat__main-panel-inner {
+  padding-bottom: 0 !important;
+  overflow: visible !important;
+}
+
+.str-chat__input-flat-wrapper {
+  min-height: 50px !important;
+  padding: 8px 12px !important;
+}
+
+/* ===== CHANNEL HEADER ===== */
+
+.str-chat__header-livestream,
+.str-chat__channel-header {
+  padding-top: 16px !important;
+}
+
+.str-chat__header-livestream-left,
+.str-chat__channel-header-title {
+  padding-top: 8px !important;
+}
+
+/* ===== CHANNEL LIST ===== */
+
+.str-chat__channel-list {
+  padding-top: 20px !important;
+}
+
+.str-chat__channel-list-messenger {
+  padding-top: 16px !important;
+}
+
+.str-chat__channel-preview-messenger {
+  margin-top: 8px !important;
+}
+
+/* ===== LAYOUT CONTAINERS ===== */
+
+/* Panel principal des messages */
+.str-chat__main-panel,
+.str-chat__channel {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+/* Messages alignés selon l'expéditeur */
+.str-chat__li--top,
+.str-chat__li--middle,
+.str-chat__li--bottom,
+.str-chat__li--single {
+  width: 100% !important;
+}
+
+/* Messages - Zone pleine largeur */
+.str-chat__list,
+.str-chat__main-panel,
+.str-chat__main-panel-inner,
+.str-chat__message-list,
+.str-chat__message-list-scroll,
+.str-chat__virtual-list {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.str-chat__ul,
+.str-chat__li {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Scroll fluide */
+.str-chat__list,
+.str-chat__message-list-scroll {
+  scroll-behavior: smooth;
+}
+
+/* ===== CUSTOM CHANNEL PREVIEW ===== */
+
+.channel-preview {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.channel-preview:hover {
+  background-color: theme('colors.gray.50');
+}
+
+.channel-preview--active {
+  background-color: theme('colors.primary.100');
+}
+
+.channel-preview__avatar-wrapper {
+  position: relative;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.channel-preview__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.channel-preview__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.channel-preview__name {
+  font-weight: 600;
+  font-size: 14px;
+  color: theme('colors.gray.900');
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.channel-preview__time {
+  font-size: 12px;
+  color: theme('colors.gray.400');
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.channel-preview__message {
+  display: flex;
+  align-items: center;
+}
+
+.channel-preview__text {
+  font-size: 13px;
+  color: theme('colors.gray.500');
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== PRESENCE INDICATOR ===== */
+
+.presence-indicator {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.presence-indicator__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.presence-indicator--online .presence-indicator__dot {
+  background-color: theme('colors.status.online');
+}
+
+.presence-indicator--offline .presence-indicator__dot {
+  background-color: theme('colors.status.offline');
+}
+
+/* ===== CHAT PAGE CONTAINER ===== */
+
+/* Empêcher le scroll du body quand le chat est ouvert */
+body.chat-open {
+  overflow: hidden;
+}
+
+/* Container du chat - hauteur fixe */
+.chat-page-container {
+  height: calc(100vh - 72px);
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  overflow: hidden;
+}

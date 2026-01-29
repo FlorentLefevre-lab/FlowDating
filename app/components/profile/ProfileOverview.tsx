@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { getMaxPhotos } from '@/lib/config/photos';
 import { motion } from 'framer-motion';
 import { useSession } from 'next-auth/react';
-import { 
+import {
   PencilIcon,
   PhotoIcon,
   HeartIcon,
@@ -20,6 +20,7 @@ import {
   CheckIcon,
   ChevronRightIcon
 } from '@heroicons/react/24/outline';
+import { Button, Card, Badge, SimpleLoading } from '@/components/ui';
 
 // Types simplifiés pour éviter les erreurs d'import
 interface Photo {
@@ -132,11 +133,8 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({
   if (!profile) {
     return (
       <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Chargement du profil...</p>
-          </div>
+        <div className="flex-center h-64">
+          <SimpleLoading message="Chargement du profil..." />
         </div>
       </div>
     );
@@ -215,9 +213,9 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({
                       <span className="text-gray-400 italic">Nom non défini</span>
                     )}
                   </h2>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => {
                       console.log('Clic sur modifier profil');
                       try {
@@ -226,11 +224,11 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({
                         console.error('Erreur onTabChange:', error);
                       }
                     }}
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-pink-600 bg-white rounded-lg hover:bg-pink-50 transition-all shadow-sm border border-pink-200"
+                    className="text-primary-600 border-primary-200 hover:bg-primary-50"
                   >
-                    <PencilIcon className="w-4 h-4" />
+                    <PencilIcon className="w-4 h-4 mr-2" />
                     Modifier
-                  </motion.button>
+                  </Button>
                 </div>
                 
                 {/* Informations secondaires */}
@@ -307,20 +305,21 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {profile.interests.slice(0, 8).map((interest, index) => (
-                    <motion.span
+                    <motion.div
                       key={index}
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.1 }}
-                      className="px-3 py-1.5 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 rounded-full text-sm font-medium shadow-sm"
                     >
-                      {interest}
-                    </motion.span>
+                      <Badge className="badge-primary">
+                        {interest}
+                      </Badge>
+                    </motion.div>
                   ))}
                   {profile.interests.length > 8 && (
-                    <span className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-full text-sm">
+                    <Badge className="badge-gray">
                       +{profile.interests.length - 8} autres
-                    </span>
+                    </Badge>
                   )}
                 </div>
               </div>
@@ -354,16 +353,16 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm"
           >
+          <Card className="p-6">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <div className="flex-between mb-6">
+              <h3 className="text-subheading flex items-center gap-2">
                 📊 Mes statistiques totales
               </h3>
               {isLoadingStats && (
                 <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <div className="spinner-sm"></div>
                   <span>Chargement...</span>
                 </div>
               )}
@@ -461,6 +460,7 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({
                 </div>
               </div>
             </div>
+          </Card>
           </motion.div>
         </div>
 
@@ -471,16 +471,16 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
           >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <PhotoIcon className="w-5 h-5 text-pink-500" />
+          <Card className="p-6">
+            <div className="flex-between mb-4">
+              <h2 className="text-subheading flex items-center gap-2">
+                <PhotoIcon className="w-5 h-5 text-primary-500" />
                 Photos ({profile.photos?.length || 0}/{maxPhotos})
               </h2>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   console.log('Clic sur gérer photos');
                   try {
@@ -489,10 +489,10 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({
                     console.error('Erreur onTabChange gérer photos:', error);
                   }
                 }}
-                className="text-sm text-pink-600 bg-pink-50 px-3 py-1.5 rounded-lg hover:bg-pink-100 transition-colors"
+                className="text-primary-600 hover:bg-primary-50"
               >
                 Gérer
-              </motion.button>
+              </Button>
             </div>
             
             {profile.photos && profile.photos.length > 0 ? (
@@ -564,9 +564,8 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({
                 <p className="text-gray-500 text-sm mb-4">
                   Ajoutez des photos pour rendre votre profil plus attractif
                 </p>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                <Button
+                  variant="default"
                   onClick={() => {
                     console.log('Clic sur ajouter photos');
                     try {
@@ -575,12 +574,12 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({
                       console.error('Erreur onTabChange ajouter photos:', error);
                     }
                   }}
-                  className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors"
                 >
                   Ajouter des photos
-                </motion.button>
+                </Button>
               </div>
             )}
+          </Card>
           </motion.div>
 
           {/* Actions rapides */}
@@ -588,9 +587,9 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
           >
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <Card className="p-6">
+            <h2 className="text-subheading mb-4">
               Actions rapides
             </h2>
             
@@ -679,6 +678,7 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({
                 <ChevronRightIcon className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
               </motion.button>
             </div>
+          </Card>
           </motion.div>
         </div>
       </div>

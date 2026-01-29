@@ -42,6 +42,16 @@ import {
 } from 'lucide-react';
 import { useMatches } from '@/hooks/useMatches';
 import { Match } from '@/types/matches';
+import {
+  Button,
+  Card,
+  CardContent,
+  Badge,
+  Input,
+  Skeleton,
+  SimpleLoading,
+  SimpleError
+} from '@/components/ui';
 import './matches.css';
 
 // ===============================
@@ -210,19 +220,18 @@ const ProfileModal = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
+      className="modal-overlay flex-center p-4"
       onClick={onClose}
     >
-      <div
-        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[95vh] overflow-hidden modal-content"
-        onClick={(e) => e.stopPropagation()}
+      <Card
+        className="max-w-2xl w-full max-h-[95vh] overflow-hidden modal-content"
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         {/* Header avec photo */}
         <div className="relative">
           {isLoading ? (
-            <div className="w-full h-48 bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center">
-              <div className="w-12 h-12 border-4 border-pink-400 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-full h-48 bg-gradient-to-br from-pink-200 to-purple-200 flex-center">
+              <div className="spinner-lg"></div>
             </div>
           ) : profile?.image || (profile?.photos && profile.photos.length > 0) ? (
             <img
@@ -231,7 +240,7 @@ const ProfileModal = ({
               className="w-full h-48 object-contain"
             />
           ) : (
-            <div className="w-full h-48 bg-gradient-to-br from-pink-400 to-purple-600 flex items-center justify-center">
+            <div className="w-full h-48 bg-gradient-to-br from-pink-400 to-purple-600 flex-center">
               <span className="text-white text-5xl font-bold">
                 {(profile?.name || userName)?.charAt(0) || '?'}
               </span>
@@ -239,34 +248,33 @@ const ProfileModal = ({
           )}
 
           {/* Bouton fermer */}
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onClose}
-            className="absolute top-4 right-4 w-10 h-10 bg-white bg-opacity-90 rounded-full flex items-center justify-center hover:bg-opacity-100 transition-all shadow-lg"
+            className="absolute top-4 right-4 bg-white/90 hover:bg-white rounded-full shadow-lg"
           >
             <X className="w-5 h-5 text-gray-700" />
-          </button>
+          </Button>
 
           {/* Badge genre */}
           {profile?.gender && (
-            <div className="absolute bottom-4 left-4 bg-white bg-opacity-90 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
+            <Badge variant="secondary" className="absolute bottom-4 left-4 bg-white/90">
               {getGenderLabel(profile.gender)}
-            </div>
+            </Badge>
           )}
         </div>
 
         {/* Contenu du profil */}
-        <div className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 200px - 70px)' }}>
+        <CardContent className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 200px - 70px)' }}>
           {isLoading ? (
             <div className="space-y-4">
-              <div className="h-8 bg-gray-200 rounded w-1/2 animate-pulse"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/3 animate-pulse"></div>
-              <div className="h-20 bg-gray-200 rounded animate-pulse"></div>
+              <Skeleton className="h-8 w-1/2" />
+              <Skeleton className="h-4 w-1/3" />
+              <Skeleton className="h-20 w-full" />
             </div>
           ) : error ? (
-            <div className="text-center py-8">
-              <div className="text-red-500 mb-2">⚠️</div>
-              <p className="text-gray-600">{error}</p>
-            </div>
+            <SimpleError message={error} />
           ) : profile ? (
             <div className="space-y-6">
               {/* Nom et age */}
@@ -429,17 +437,14 @@ const ProfileModal = ({
               {/* Interets */}
               {profile.interests && profile.interests.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  <h3 className="text-caption uppercase tracking-wide mb-3">
                     Centres d'interet
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {profile.interests.map((interest, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1.5 bg-pink-100 text-pink-700 rounded-full text-sm font-medium"
-                      >
+                      <Badge key={index} variant="default" className="badge-primary">
                         {interest}
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 </div>
@@ -465,19 +470,21 @@ const ProfileModal = ({
               )}
             </div>
           ) : null}
-        </div>
+        </CardContent>
 
         {/* Footer avec bouton */}
         <div className="p-3 border-t bg-gray-50">
-          <button
+          <Button
             onClick={onOpenChat}
-            className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl hover:from-pink-600 hover:to-purple-700 transition-all font-medium"
+            variant="gradient"
+            size="lg"
+            className="w-full"
           >
-            <MessageCircle className="w-5 h-5" />
-            <span>Envoyer un message</span>
-          </button>
+            <MessageCircle className="w-5 h-5 mr-2" />
+            Envoyer un message
+          </Button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };
@@ -491,13 +498,13 @@ const StatsCard = ({ title, value, icon: Icon, gradient, subtitle }: {
   subtitle?: string;
 }) => (
   <div className={`${gradient} text-white rounded-lg p-4 stats-card`}>
-    <div className="flex items-center justify-between">
+    <div className="flex-between">
       <div>
-        <p className="text-white text-opacity-80 text-sm">{title}</p>
+        <p className="text-white/80 text-sm">{title}</p>
         <p className="text-2xl font-bold">{value}</p>
-        {subtitle && <p className="text-white text-opacity-70 text-xs mt-1">{subtitle}</p>}
+        {subtitle && <p className="text-white/70 text-xs mt-1">{subtitle}</p>}
       </div>
-      <Icon className="w-6 h-6 text-white text-opacity-80" />
+      <Icon className="w-6 h-6 text-white/80" />
     </div>
   </div>
 );
@@ -527,24 +534,24 @@ const MatchCard = ({ match, onOpenChat, onOpenProfile, isOpeningChat }: {
     switch (match.status) {
       case 'active':
         return (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+          <Badge className="badge-success">
             <Activity className="w-3 h-3 mr-1" />
             Actif
-          </span>
+          </Badge>
         );
       case 'dormant':
         return (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+          <Badge className="badge-warning">
             <Clock className="w-3 h-3 mr-1" />
             Endormi
-          </span>
+          </Badge>
         );
       case 'archived':
         return (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+          <Badge className="badge-gray">
             <Archive className="w-3 h-3 mr-1" />
             Archivé
-          </span>
+          </Badge>
         );
       default:
         return null;
@@ -552,12 +559,12 @@ const MatchCard = ({ match, onOpenChat, onOpenProfile, isOpeningChat }: {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-200 match-card animate-fadeInUp">
+    <Card className="card-hover overflow-hidden match-card animate-fadeInUp">
       <div className="relative">
         {/* Zone cliquable pour ouvrir le profil */}
         <button
           onClick={() => onOpenProfile(match)}
-          className="relative w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 rounded-t-lg overflow-hidden group"
+          className="relative w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-t-lg overflow-hidden group"
           title={`Voir le profil de ${match.user.name}`}
         >
           {match.user.photo?.url ? (
@@ -567,30 +574,30 @@ const MatchCard = ({ match, onOpenChat, onOpenProfile, isOpeningChat }: {
               className="w-full h-48 object-contain"
             />
           ) : (
-            <div className="w-full h-48 bg-gradient-to-br from-pink-400 to-purple-600 flex items-center justify-center">
+            <div className="w-full h-48 bg-gradient-to-br from-primary-400 to-secondary-600 flex-center">
               <span className="text-white text-4xl font-bold">
                 {match.user.name?.charAt(0) || '?'}
               </span>
             </div>
           )}
           {/* Indicateur de clic au survol */}
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex-center">
             <span className="bg-white text-gray-800 px-4 py-2 rounded-full text-sm font-medium shadow-lg opacity-0 group-hover:opacity-100 transform scale-90 group-hover:scale-100 transition-all duration-300">
               Voir le profil
             </span>
           </div>
         </button>
-        
+
         <div className="absolute top-3 left-3 flex flex-col space-y-2 pointer-events-none">
           {match.isNew && (
-            <span className="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full font-medium animate-bounce-gentle">
+            <Badge className="bg-yellow-500 text-white animate-bounce-gentle">
               Nouveau
-            </span>
+            </Badge>
           )}
           {match.user.isOnline && (
-            <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full font-medium status-online">
+            <Badge className="badge-online">
               En ligne
-            </span>
+            </Badge>
           )}
         </div>
 
@@ -600,14 +607,14 @@ const MatchCard = ({ match, onOpenChat, onOpenProfile, isOpeningChat }: {
 
         {match.compatibility && (
           <div className="absolute bottom-3 right-3 pointer-events-none">
-            <div className="glass-badge text-pink-600 text-xs font-bold px-2 py-1 rounded-full">
+            <Badge className="glass text-primary-600 font-bold">
               {match.compatibility}% ♥
-            </div>
+            </Badge>
           </div>
         )}
       </div>
 
-      <div className="p-4">
+      <CardContent className="p-4">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
             <h3 className="font-semibold text-lg text-gray-900 truncate">
@@ -655,42 +662,38 @@ const MatchCard = ({ match, onOpenChat, onOpenProfile, isOpeningChat }: {
         {match.user.interests && match.user.interests.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-3">
             {match.user.interests.slice(0, 3).map((interest, index) => (
-              <span
-                key={index}
-                className="px-2 py-1 text-xs bg-pink-100 text-pink-600 rounded-full"
-              >
+              <Badge key={index} variant="secondary" className="badge-primary text-xs">
                 {interest}
-              </span>
+              </Badge>
             ))}
             {match.user.interests.length > 3 && (
-              <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+              <Badge variant="secondary" className="badge-gray text-xs">
                 +{match.user.interests.length - 3}
-              </span>
+              </Badge>
             )}
           </div>
         )}
 
-        <div className="flex space-x-2">
-          <button
-            onClick={() => onOpenChat(match)}
-            disabled={isOpeningChat}
-            className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 transition-all btn-match disabled:opacity-50"
-          >
-            {isOpeningChat ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>Ouverture...</span>
-              </>
-            ) : (
-              <>
-                <MessageCircle size={16} />
-                <span>Démarrer une conversation</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
+        <Button
+          onClick={() => onOpenChat(match)}
+          disabled={isOpeningChat}
+          variant="gradient"
+          className="w-full btn-match"
+        >
+          {isOpeningChat ? (
+            <>
+              <div className="spinner-sm mr-2"></div>
+              <span>Ouverture...</span>
+            </>
+          ) : (
+            <>
+              <MessageCircle size={16} className="mr-2" />
+              <span>Démarrer une conversation</span>
+            </>
+          )}
+        </Button>
+      </CardContent>
+    </Card>
   );
 };
 
@@ -797,33 +800,16 @@ export default function MatchesPage() {
 
   if (status === 'loading' || isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-pink-200 border-t-pink-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-gray-800">
-            Chargement des matchs...
-          </h2>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex-center">
+        <SimpleLoading message="Chargement des matchs..." size="lg" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-6">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-red-500 text-2xl">⚠️</span>
-          </div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Erreur</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button
-            onClick={() => loadMatches()}
-            className="bg-pink-500 text-white px-6 py-3 rounded-lg hover:bg-pink-600 transition-colors font-medium"
-          >
-            Réessayer
-          </button>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex-center">
+        <SimpleError message={error} onRetry={() => loadMatches()} />
       </div>
     );
   }
@@ -833,26 +819,26 @@ export default function MatchesPage() {
       <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
         <div className="container mx-auto max-w-7xl p-4">
           {/* En-tête avec statistiques */}
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 animate-slideInRight">
-            <div className="flex items-center justify-between mb-6">
+          <Card className="p-6 mb-6 animate-slideInRight">
+            <div className="flex-between mb-6">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 flex items-center space-x-3">
-                  <Heart className="text-pink-600 animate-pulse-gentle" />
+                <h1 className="text-heading flex items-center space-x-3">
+                  <Heart className="text-primary-600 animate-pulse-gentle" />
                   <span>Mes Matchs</span>
                   <Sparkles className="text-yellow-500" size={24} />
                 </h1>
-                <p className="text-gray-600 mt-1">
+                <p className="text-body mt-1">
                   Découvrez vos connexions et entamez des conversations
                 </p>
               </div>
-              <button
+              <Button
                 onClick={() => refreshMatches()}
                 disabled={isRefreshing}
-                className="flex items-center space-x-2 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors disabled:opacity-50"
+                variant="default"
               >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                <span>Actualiser</span>
-              </button>
+                <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Actualiser
+              </Button>
             </div>
 
             {/* Statistiques détaillées */}
@@ -887,37 +873,38 @@ export default function MatchesPage() {
                 icon={Zap} 
                 gradient="gradient-stats-purple"
               />
-              <StatsCard 
-                title="Temps réponse" 
-                value={stats.averageResponseTime} 
-                icon={TrendingUp} 
+              <StatsCard
+                title="Temps réponse"
+                value={stats.averageResponseTime}
+                icon={TrendingUp}
                 gradient="gradient-stats-gray"
               />
             </div>
-          </div>
+          </Card>
 
           {/* Barre de recherche et filtres */}
-          <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+          <Card className="p-4 mb-6">
             {/* Recherche */}
             <div className="flex flex-col lg:flex-row gap-4 mb-4">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
+                <Input
                   type="text"
                   placeholder="Rechercher par nom, profession, ville..."
                   value={filters.searchQuery}
                   onChange={(e) => updateFilters({ searchQuery: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent search-input"
+                  className="pl-10 input-search"
                 />
               </div>
-              <button
+              <Button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors filter-button"
+                variant="outline"
+                className="filter-button"
               >
-                <Filter className="w-4 h-4" />
-                <span>Filtres</span>
-                {showFilters ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+                <Filter className="w-4 h-4 mr-2" />
+                Filtres
+                {showFilters ? <EyeOff className="w-4 h-4 ml-2" /> : <Eye className="w-4 h-4 ml-2" />}
+              </Button>
             </div>
 
             {/* Filtres détaillés */}
@@ -926,11 +913,11 @@ export default function MatchesPage() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   {/* Filtre par statut */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Statut</label>
+                    <label className="text-caption block mb-2">Statut</label>
                     <select
                       value={filters.status}
                       onChange={(e) => updateFilters({ status: e.target.value as any })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                      className="select-base w-full"
                     >
                       <option value="all">Tous</option>
                       <option value="active">Actifs</option>
@@ -941,11 +928,11 @@ export default function MatchesPage() {
 
                   {/* Filtre par période */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Période</label>
+                    <label className="text-caption block mb-2">Période</label>
                     <select
                       value={filters.timeframe}
                       onChange={(e) => updateFilters({ timeframe: e.target.value as any })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                      className="select-base w-full"
                     >
                       <option value="all">Toutes</option>
                       <option value="today">Aujourd'hui</option>
@@ -956,11 +943,11 @@ export default function MatchesPage() {
 
                   {/* Tri */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Trier par</label>
+                    <label className="text-caption block mb-2">Trier par</label>
                     <select
                       value={filters.sortBy}
                       onChange={(e) => updateFilters({ sortBy: e.target.value as any })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                      className="select-base w-full"
                     >
                       <option value="recent">Plus récents</option>
                       <option value="activity">Activité</option>
@@ -972,63 +959,64 @@ export default function MatchesPage() {
 
                   {/* Ordre de tri */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Ordre</label>
-                    <button
+                    <label className="text-caption block mb-2">Ordre</label>
+                    <Button
                       onClick={() => updateFilters({ sortOrder: filters.sortOrder === 'asc' ? 'desc' : 'asc' })}
-                      className="w-full flex items-center justify-center space-x-2 border border-gray-300 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors"
+                      variant="outline"
+                      className="w-full flex-center"
                     >
                       {filters.sortOrder === 'asc' ? (
-                        <SortAsc className="w-4 h-4" />
+                        <SortAsc className="w-4 h-4 mr-2" />
                       ) : (
-                        <SortDesc className="w-4 h-4" />
+                        <SortDesc className="w-4 h-4 mr-2" />
                       )}
-                      <span>{filters.sortOrder === 'asc' ? 'Croissant' : 'Décroissant'}</span>
-                    </button>
+                      {filters.sortOrder === 'asc' ? 'Croissant' : 'Décroissant'}
+                    </Button>
                   </div>
                 </div>
               </div>
             )}
 
             {/* Résultats du filtrage */}
-            <div className="flex items-center justify-between mt-4 pt-4 border-t">
-              <p className="text-sm text-gray-600">
-                {filteredMatches.length} match{filteredMatches.length > 1 ? 's' : ''} 
+            <div className="flex-between mt-4 pt-4 border-t">
+              <p className="text-caption">
+                {filteredMatches.length} match{filteredMatches.length > 1 ? 's' : ''}
                 {filters.searchQuery && ` pour "${filters.searchQuery}"`}
               </p>
-              
+
               {(filters.status !== 'all' || filters.timeframe !== 'all' || filters.searchQuery) && (
-                <button
+                <Button
                   onClick={clearFilters}
-                  className="text-sm text-pink-600 hover:text-pink-700 font-medium"
+                  variant="link"
+                  className="text-primary-600"
                 >
                   Réinitialiser les filtres
-                </button>
+                </Button>
               )}
             </div>
-          </div>
+          </Card>
 
           {/* Liste des matchs */}
           {filteredMatches.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+            <Card className="p-8 text-center">
               <Heart className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-subheading mb-2">
                 Aucun match trouvé
               </h3>
-              <p className="text-gray-500 mb-4">
+              <p className="text-body mb-4">
                 {filters.status !== 'all' || filters.searchQuery
                   ? 'Essayez de modifier vos filtres de recherche.'
                   : 'Continuez à swiper pour trouver vos âmes sœurs !'
                 }
               </p>
-              <div className="space-y-3">
-                <button
-                  onClick={() => router.push('/discover')}
-                  className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 transition-all font-medium"
-                >
-                  Découvrir des profils
-                </button>
-              </div>
-            </div>
+              <Button
+                onClick={() => router.push('/discover')}
+                variant="gradient"
+                size="lg"
+              >
+                Découvrir des profils
+              </Button>
+            </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredMatches.map((match) => (
@@ -1044,14 +1032,16 @@ export default function MatchesPage() {
           )}
 
           {/* Bouton flottant */}
-          <div className="fixed bottom-6 right-6">
-            <button
+          <div className="fixed bottom-6 right-6 safe-bottom">
+            <Button
               onClick={() => router.push('/discover')}
-              className="w-14 h-14 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:from-pink-600 hover:to-purple-700 transition-all duration-200 flex items-center justify-center group"
+              variant="gradient"
+              size="icon"
+              className="w-14 h-14 rounded-full shadow-lg hover:shadow-xl group"
               title="Découvrir de nouveaux profils"
             >
               <Plus size={24} className="group-hover:scale-110 transition-transform" />
-            </button>
+            </Button>
           </div>
         </div>
       </div>

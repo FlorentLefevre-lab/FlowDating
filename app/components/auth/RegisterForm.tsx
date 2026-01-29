@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import Link from 'next/link'
+import { Button, Card, Input } from '@/components/ui'
 
 const registerSchema = z.object({
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
@@ -90,54 +91,52 @@ export default function RegisterForm() {
   // Affichage après inscription réussie
   if (success) {
     return (
-      <div className="max-w-md mx-auto mt-8 p-6 bg-white rounded-lg shadow-md text-center">
+      <Card className="max-w-md mx-auto mt-8 p-6 text-center">
         <div className="text-green-600 text-5xl mb-4">📧</div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+        <h2 className="text-subheading mb-4">
           Inscription réussie !
         </h2>
-        <p className="text-gray-600 mb-4">
+        <p className="text-body mb-4">
           {message || "Compte créé avec succès ! Vérifiez votre email pour activer votre compte."}
         </p>
-        
+
         {emailSent ? (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <Card className="bg-blue-50 border-blue-200 p-4 mb-4">
             <p className="text-blue-800 text-sm">
               📬 Un email de vérification a été envoyé !
             </p>
-          </div>
+          </Card>
         ) : (
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+          <Card className="bg-orange-50 border-orange-200 p-4 mb-4">
             <p className="text-orange-800 text-sm">
               ⚠️ Problème d'envoi d'email. Contactez le support si nécessaire.
             </p>
-          </div>
+          </Card>
         )}
-        
-        <p className="text-sm text-gray-500 mb-6">
+
+        <p className="text-caption mb-6">
           Vérifiez votre boîte email et vos spams. Cliquez sur le lien de vérification pour activer votre compte.
         </p>
-        
+
         <div className="space-y-3">
-          <Link
-            href="/auth/login"
-            className="block w-full bg-pink-600 text-white py-2 px-4 rounded-md hover:bg-pink-700"
-          >
-            Aller à la connexion
-          </Link>
-          <Link
-            href="/auth/resend-verification"
-            className="block w-full bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300"
-          >
-            Renvoyer l'email de vérification
-          </Link>
+          <Button asChild variant="gradient" className="w-full">
+            <Link href="/auth/login">
+              Aller à la connexion
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="w-full">
+            <Link href="/auth/resend-verification">
+              Renvoyer l'email de vérification
+            </Link>
+          </Button>
         </div>
-      </div>
+      </Card>
     )
   }
 
   return (
-    <div className="max-w-md mx-auto mt-8 p-6 bg-white rounded-lg shadow-md">
-      <h1 className="text-2xl font-bold mb-6 text-center text-gray-900">
+    <Card className="max-w-md mx-auto mt-8 p-6">
+      <h1 className="text-heading text-center mb-6">
         Créer un compte
       </h1>
 
@@ -149,10 +148,11 @@ export default function RegisterForm() {
 
       {/* Boutons SSO en premier */}
       <div className="space-y-3 mb-6">
-        <button
+        <Button
+          variant="outline"
           onClick={() => handleSocialLogin('google')}
           disabled={isLoading}
-          className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="w-full"
         >
           <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
             <path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -161,18 +161,19 @@ export default function RegisterForm() {
             <path fill="#ea4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
           </svg>
           S'inscrire avec Google
-        </button>
+        </Button>
 
-        <button
+        <Button
+          variant="default"
           onClick={() => handleSocialLogin('facebook')}
           disabled={isLoading}
-          className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+          className="w-full bg-blue-600 hover:bg-blue-700"
         >
           <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
             <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
           </svg>
           S'inscrire avec Facebook
-        </button>
+        </Button>
       </div>
 
       {/* Séparateur */}
@@ -247,22 +248,31 @@ export default function RegisterForm() {
           )}
         </div>
 
-        <button
+        <Button
           type="submit"
+          variant="gradient"
+          size="lg"
           disabled={isLoading}
-          className="w-full bg-pink-600 text-white py-2 px-4 rounded-md hover:bg-pink-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full"
         >
-          {isLoading ? 'Création du compte...' : 'Créer mon compte'}
-        </button>
+          {isLoading ? (
+            <>
+              <div className="spinner-sm mr-2"></div>
+              Création du compte...
+            </>
+          ) : (
+            'Créer mon compte'
+          )}
+        </Button>
       </form>
 
       {/* Lien vers la connexion */}
-      <p className="mt-6 text-center text-sm text-gray-600">
+      <p className="mt-6 text-center text-caption">
         Déjà un compte ?{' '}
-        <Link href="/auth/login" className="text-pink-600 hover:text-pink-500">
+        <Link href="/auth/login" className="text-primary-600 hover:text-primary-500">
           Se connecter
         </Link>
       </p>
-    </div>
+    </Card>
   )
 }

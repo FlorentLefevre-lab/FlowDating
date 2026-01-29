@@ -9,6 +9,7 @@ import { TrashIcon, StarIcon } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { profileSchema, preferencesSchema, ProfileFormData, PreferencesFormData } from './../../lib/validations/profile';
 import { getMaxPhotos } from '@/lib/config/photos';
+import { Button, Card, Input, Badge } from '@/components/ui';
 
 
 
@@ -221,16 +222,16 @@ const ProfileForm: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6 bg-white rounded-xl shadow-lg">
+    <Card className="max-w-6xl mx-auto p-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="mb-8"
       >
-        <h2 className="text-3xl font-bold text-center text-gray-800 mb-2">
+        <h2 className="text-heading text-center mb-2">
           Mon Profil
         </h2>
-        <p className="text-center text-gray-600">
+        <p className="text-body text-center">
           Complétez votre profil pour faire de meilleures rencontres
         </p>
       </motion.div>
@@ -259,8 +260,8 @@ const ProfileForm: React.FC = () => {
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <h3 className="text-xl font-semibold mb-6 text-gray-700 flex items-center">
-            <span className="w-2 h-2 bg-pink-500 rounded-full mr-3"></span>
+          <h3 className="text-subheading mb-6 flex items-center">
+            <span className="w-2 h-2 bg-primary-500 rounded-full mr-3"></span>
             Informations personnelles
           </h3>
           
@@ -341,48 +342,56 @@ const ProfileForm: React.FC = () => {
                   placeholder="Ajouter un centre d'intérêt"
                   disabled={interests.length >= 10}
                 />
-                <button
+                <Button
                   type="button"
+                  variant="default"
                   onClick={addInterest}
                   disabled={interests.length >= 10}
-                  className="px-6 py-3 bg-pink-500 text-white rounded-lg hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   Ajouter
-                </button>
+                </Button>
               </div>
               <div className="flex flex-wrap gap-2">
                 <AnimatePresence>
                   {interests.map((interest, index) => (
-                    <motion.span
+                    <motion.div
                       key={index}
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.8 }}
-                      className="inline-flex items-center gap-2 px-3 py-1 bg-pink-100 text-pink-700 rounded-full text-sm"
                     >
-                      {interest}
-                      <button
-                        type="button"
-                        onClick={() => removeInterest(interest)}
-                        className="text-pink-500 hover:text-pink-700 transition-colors"
-                      >
-                        ×
-                      </button>
-                    </motion.span>
+                      <Badge className="badge-primary inline-flex items-center gap-2">
+                        {interest}
+                        <button
+                          type="button"
+                          onClick={() => removeInterest(interest)}
+                          className="text-primary-500 hover:text-primary-700 transition-colors"
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    </motion.div>
                   ))}
                 </AnimatePresence>
               </div>
             </div>
 
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+            <Button
               type="submit"
+              variant="gradient"
+              size="lg"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-3 px-4 rounded-lg hover:from-pink-600 hover:to-rose-600 disabled:opacity-50 font-medium transition-all"
+              className="w-full"
             >
-              {loading ? 'Sauvegarde...' : 'Sauvegarder le profil'}
-            </motion.button>
+              {loading ? (
+                <>
+                  <div className="spinner-sm mr-2"></div>
+                  Sauvegarde...
+                </>
+              ) : (
+                'Sauvegarder le profil'
+              )}
+            </Button>
           </form>
 
           {/* Préférences de recherche */}
@@ -392,8 +401,8 @@ const ProfileForm: React.FC = () => {
             transition={{ delay: 0.3 }}
             className="mt-8"
           >
-            <h3 className="text-xl font-semibold mb-6 text-gray-700 flex items-center">
-              <span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>
+            <h3 className="text-subheading mb-6 flex items-center">
+              <span className="w-2 h-2 bg-secondary-500 rounded-full mr-3"></span>
               Préférences de recherche
             </h3>
             <form onSubmit={handleSubmitPreferences(onSubmitPreferences)} className="space-y-4">
@@ -446,14 +455,14 @@ const ProfileForm: React.FC = () => {
                 )}
               </div>
 
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+              <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white py-3 px-4 rounded-lg hover:from-blue-600 hover:to-indigo-600 font-medium transition-all"
+                variant="default"
+                size="lg"
+                className="w-full bg-secondary-500 hover:bg-secondary-600"
               >
                 Sauvegarder les préférences
-              </motion.button>
+              </Button>
             </form>
           </motion.div>
         </motion.div>
@@ -464,7 +473,7 @@ const ProfileForm: React.FC = () => {
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <h3 className="text-xl font-semibold mb-6 text-gray-700 flex items-center">
+          <h3 className="text-subheading mb-6 flex items-center">
             <span className="w-2 h-2 bg-purple-500 rounded-full mr-3"></span>
             Photos ({photos.length}/{maxPhotos})
           </h3>
@@ -551,7 +560,7 @@ const ProfileForm: React.FC = () => {
           )}
         </motion.div>
       </div>
-    </div>
+    </Card>
   );
 };
 

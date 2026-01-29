@@ -10,6 +10,7 @@ import {
 
 import { UserProfile, UserPreferences, MessageType } from '@/types/profiles';
 import { LOOKING_FOR_OPTIONS, DISTANCE_OPTIONS } from '@/constants/profileData';
+import { Button, Card, Input } from '@/components/ui';
 
 interface PreferencesFormProps {
   profile: UserProfile | null;
@@ -88,10 +89,10 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
   return (
     <div className="form-section">
       <div className="form-section-header">
-        <h2 className="form-section-title">
+        <h2 className="text-heading mb-2">
           Mes Préférences
         </h2>
-        <p className="form-section-subtitle">
+        <p className="text-body">
           Personnalisez vos critères de recherche pour trouver des profils compatibles
         </p>
       </div>
@@ -100,22 +101,20 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         onSubmit={handleSubmit}
-        className="space-y-8 max-w-4xl"
+        className="space-y-4"
       >
         {/* Tranche d'âge */}
         <div className="profile-section">
           <div className="profile-header">
-            <div className="flex items-center gap-3">
-              <CalendarIcon className="w-6 h-6 text-pink-500" />
+            <div className="flex items-center gap-2">
+              <CalendarIcon className="w-5 h-5 text-pink-500" />
               <h3 className="profile-title">Tranche d'âge</h3>
             </div>
           </div>
-          
+
           <div className="form-grid">
             <div className="form-group">
-              <label className="form-label">
-                Âge minimum
-              </label>
+              <label className="form-label">Âge minimum</label>
               <input
                 type="number"
                 min="18"
@@ -125,11 +124,9 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
                 className="input-field"
               />
             </div>
-            
+
             <div className="form-group">
-              <label className="form-label">
-                Âge maximum
-              </label>
+              <label className="form-label">Âge maximum</label>
               <input
                 type="number"
                 min="18"
@@ -140,9 +137,9 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
               />
             </div>
           </div>
-          
-          <div className="mt-4 text-center">
-            <span className="text-gray-600 bg-gray-50 px-4 py-2 rounded-lg">
+
+          <div className="mt-2 text-center">
+            <span className="text-xs text-gray-600 bg-gray-50 px-3 py-1 rounded-md">
               Entre {formData.minAge} et {formData.maxAge} ans
             </span>
           </div>
@@ -151,13 +148,13 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
         {/* Distance */}
         <div className="profile-section">
           <div className="profile-header">
-            <div className="flex items-center gap-3">
-              <MapPinIcon className="w-6 h-6 text-pink-500" />
+            <div className="flex items-center gap-2">
+              <MapPinIcon className="w-5 h-5 text-pink-500" />
               <h3 className="profile-title">Distance maximale</h3>
             </div>
           </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {DISTANCE_OPTIONS.map((option) => (
               <motion.button
                 key={option.value}
@@ -169,8 +166,8 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
                   formData.maxDistance === option.value ? 'selected' : ''
                 }`}
               >
-                <div className="font-medium">{option.label}</div>
-                <div className="text-xs opacity-75">{option.description}</div>
+                <div className="text-sm font-medium">{option.label}</div>
+                <div className="text-[10px] opacity-75">{option.description}</div>
               </motion.button>
             ))}
           </div>
@@ -179,13 +176,13 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
         {/* Genre recherché */}
         <div className="profile-section">
           <div className="profile-header">
-            <div className="flex items-center gap-3">
-              <UserIcon className="w-6 h-6 text-pink-500" />
+            <div className="flex items-center gap-2">
+              <UserIcon className="w-5 h-5 text-pink-500" />
               <h3 className="profile-title">Je recherche</h3>
             </div>
           </div>
-          
-          <div className="form-grid">
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {genderOptions.map((option) => (
               <motion.button
                 key={option.value}
@@ -206,13 +203,13 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
         {/* Type de relation */}
         <div className="profile-section">
           <div className="profile-header">
-            <div className="flex items-center gap-3">
-              <HeartIcon className="w-6 h-6 text-pink-500" />
-              <h3 className="profile-title">Type de relation recherchée</h3>
+            <div className="flex items-center gap-2">
+              <HeartIcon className="w-5 h-5 text-pink-500" />
+              <h3 className="profile-title">Type de relation</h3>
             </div>
           </div>
-          
-          <div className="form-grid">
+
+          <div className="grid grid-cols-2 gap-2">
             {LOOKING_FOR_OPTIONS.map((option) => (
               <motion.button
                 key={option.value}
@@ -224,17 +221,17 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
                   formData.lookingFor === option.value ? 'selected' : ''
                 }`}
               >
-                <div className="font-medium">{option.label}</div>
-                <div className="text-sm opacity-75">{option.description}</div>
+                <div className="text-sm font-medium">{option.label}</div>
+                <div className="text-[10px] opacity-75">{option.description}</div>
               </motion.button>
             ))}
           </div>
         </div>
 
         {/* Résumé des préférences */}
-        <div className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-xl p-6 border border-pink-200">
-          <h4 className="font-semibold text-gray-800 mb-3">Résumé de vos préférences</h4>
-          <div className="space-y-2 text-sm text-gray-700">
+        <Card className="bg-gradient-to-r from-primary-50 to-rose-50 border-primary-200 p-3">
+          <h4 className="text-sm font-semibold text-gray-800 mb-2">Résumé</h4>
+          <div className="space-y-1 text-xs text-gray-700">
             <p>
               <span className="font-medium">Âge :</span> {formData.minAge}-{formData.maxAge} ans
             </p>
@@ -258,26 +255,25 @@ const PreferencesForm: React.FC<PreferencesFormProps> = ({
               </p>
             )}
           </div>
-        </div>
+        </Card>
 
         {/* Boutons d'action */}
         <div className="section-actions">
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+          <Button
             type="submit"
+            variant="gradient"
+            size="sm"
             disabled={isSubmitting || loading}
-            className="btn-section-primary"
           >
             {isSubmitting ? (
-              <div className="loading-content">
-                <div className="loading-spinner"></div>
+              <>
+                <div className="spinner-sm mr-2"></div>
                 Sauvegarde...
-              </div>
+              </>
             ) : (
-              'Sauvegarder mes préférences'
+              'Sauvegarder'
             )}
-          </motion.button>
+          </Button>
         </div>
       </motion.form>
     </div>

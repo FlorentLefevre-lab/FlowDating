@@ -1,26 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx prisma db seed:*)",
-      "Bash(npx tsx:*)",
-      "Bash(npx prisma db push:*)",
-      "Bash(timeout 10 npm run dev:*)",
-      "Bash(npx next lint:*)",
-      "Bash(timeout 15 npm run dev)",
-      "Bash(taskkill:*)",
-      "Bash(powershell -Command \"Stop-Process -Id 29460 -Force\")",
-      "Bash(powershell -Command \"Stop-Process -Id 33252 -Force\")",
-      "Bash(npx prisma generate)",
-      "Bash(powershell:*)",
-      "Bash(npx prisma migrate:*)",
-      "Bash(npx tsc:*)",
-      "Bash(xargs:*)",
-      "Bash(npm ls:*)",
+      "Bash(npm run build:*)",
       "Bash(npm install:*)",
-      "Bash(timeout 30 npm run dev:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "WebSearch"
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(npx tsc:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(curl:*)",
+      "Bash(xargs:*)",
+      "Bash(taskkill:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout:*)"
     ]
   }
 }

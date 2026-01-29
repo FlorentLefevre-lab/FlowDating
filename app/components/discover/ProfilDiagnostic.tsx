@@ -1,7 +1,6 @@
 // src/components/discover/ProfileDiagnostic.tsx
 'use client';
-import { SimpleLoading } from '@/components/ui/SimpleLoading';
-import { SimpleError } from '@/components/ui/SimpleError';
+import { SimpleLoading, SimpleError, Button, Card } from '@/components/ui';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {

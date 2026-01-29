@@ -10,15 +10,17 @@ import {
   IdentificationIcon,
   PhotoIcon,
   HeartIcon,
-  CogIcon,
-  HomeIcon,
   UserIcon,
-  SparklesIcon
+  SparklesIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 
-// 🆕 NOUVEAU : Ajouter ces imports
-import { SimpleLoading } from '@/components/ui/SimpleLoading';
-import { SimpleError } from '@/components/ui/SimpleError';
+// 🆕 NOUVEAU : Imports centralisés depuis @/components/ui
+import { SimpleLoading, SimpleError } from '@/components/ui';
+
+// Import pour les statistiques
+import { StatsDashboard } from './StatsDashboard';
+import { useStats } from '@/hooks/useStats';
 
 // ✅ GARDER : Tous vos imports et types exactement comme avant
 import type { UserProfile, TabType, MessageType } from '@/types/profiles';
@@ -45,10 +47,6 @@ const PreferencesForm = dynamic(() => import('./PreferencesForm'), {
   loading: () => <SimpleLoading message="Chargement des préférences..." />
 });
 
-const SettingsPanel = dynamic(() => import('./SettingsPanel'), {
-  loading: () => <SimpleLoading message="Chargement des paramètres..." />
-});
-
 const PhysicalInfoForm = dynamic(() => import('./PhysicalInfoForm'), {
   loading: () => <SimpleLoading message="Chargement des caractéristiques..." />
 });
@@ -65,38 +63,59 @@ const ProfileManager: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<MessageType>('success');
-  
+
   // 🆕 NOUVEAU : Ajouter un état d'erreur
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ GARDER : Votre configuration des onglets exactement comme avant
+  // Hook pour les statistiques
+  const {
+    data: statsData,
+    isLoading: statsLoading,
+    error: statsError,
+    refetch: refetchStats,
+    lastUpdated: statsLastUpdated
+  } = useStats(false);
+
+  // Configuration des onglets (ordre: Aperçu, Photos, Préférences, Stats, Infos de base, Infos détaillées, Physique, Style de vie)
   const tabs = [
-    { 
-      id: 'dashboard' as const, 
-      label: 'Accueil', 
-      icon: HomeIcon, 
-      color: 'blue',
-      description: 'Retour aà l\'accueil',
-      isLink: true,
-      href: '/home'
-    },
-    { 
-      id: 'overview' as TabType, 
-      label: 'Aperçu', 
-      icon: EyeIcon, 
+    {
+      id: 'overview' as TabType,
+      label: 'Aperçu',
+      icon: EyeIcon,
       color: 'blue',
       description: 'Vue d\'ensemble de votre profil'
     },
-    { 
-      id: 'edit' as TabType, 
-      label: 'Infos de base', 
-      icon: PencilIcon, 
+    {
+      id: 'photos' as TabType,
+      label: 'Photos',
+      icon: PhotoIcon,
+      color: 'yellow',
+      description: 'Gérer vos photos de profil'
+    },
+    {
+      id: 'preferences' as TabType,
+      label: 'Préférences',
+      icon: HeartIcon,
+      color: 'red',
+      description: 'Critères de recherche'
+    },
+    {
+      id: 'stats' as TabType,
+      label: 'Statistiques',
+      icon: ChartBarIcon,
+      color: 'indigo',
+      description: 'Vos statistiques de profil'
+    },
+    {
+      id: 'edit' as TabType,
+      label: 'Infos de base',
+      icon: PencilIcon,
       color: 'green',
       description: 'Nom, âge, bio, localisation'
     },
     {
       id: 'personal' as TabType,
-      label: 'Infos personnelles',
+      label: 'Infos détaillées',
       icon: IdentificationIcon,
       color: 'purple',
       description: 'Genre, profession, centres d\'intérêt'
@@ -114,27 +133,6 @@ const ProfileManager: React.FC = () => {
       icon: SparklesIcon,
       color: 'orange',
       description: 'Tabac, alcool, enfants, animaux'
-    },
-    {
-      id: 'photos' as TabType,
-      label: 'Photos',
-      icon: PhotoIcon,
-      color: 'yellow',
-      description: 'Gérer vos photos de profil'
-    },
-    { 
-      id: 'preferences' as TabType, 
-      label: 'Préférences', 
-      icon: HeartIcon, 
-      color: 'red',
-      description: 'Critères de recherche'
-    },
-    { 
-      id: 'settings' as TabType, 
-      label: 'Paramètres', 
-      icon: CogIcon, 
-      color: 'gray',
-      description: 'Confidentialité et sécurité'
     }
   ];
 
@@ -384,11 +382,7 @@ const ProfileManager: React.FC = () => {
     }
   };
 
-  const handleTabChange = (tabId: TabType | 'dashboard') => {
-    if (tabId === 'dashboard') {
-      window.location.href = '/dashboard';
-      return;
-    }
+  const handleTabChange = (tabId: TabType) => {
     setActiveTab(tabId);
   };
 
@@ -455,38 +449,21 @@ const ProfileManager: React.FC = () => {
             </div>
           </div>
 
-          {/* ✅ GARDER : Navigation par onglets exactement comme avant */}
+          {/* Navigation par onglets */}
           <div className="flex overflow-x-auto bg-gradient-to-r from-gray-50 to-gray-100">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
-              
-              if (tab.isLink) {
-                return (
-                  <motion.a
-                    key={tab.id}
-                    href={tab.href}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="flex flex-col items-center gap-2 p-4 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all duration-300 relative min-w-24 md:min-w-32"
-                  >
-                    <Icon className="w-5 h-5" />
-                    <div className="font-medium text-xs text-center whitespace-nowrap">
-                      {tab.label}
-                    </div>
-                  </motion.a>
-                );
-              }
-              
+
               return (
                 <motion.button
                   key={tab.id}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => handleTabChange(tab.id as TabType)}
+                  onClick={() => handleTabChange(tab.id)}
                   className={`flex flex-col items-center gap-2 p-4 border-b-2 transition-all duration-300 relative min-w-24 md:min-w-32 ${
-                    isActive 
-                      ? 'border-pink-500 text-pink-600 bg-pink-50' 
+                    isActive
+                      ? 'border-pink-500 text-pink-600 bg-pink-50'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                   }`}
                 >
@@ -494,13 +471,13 @@ const ProfileManager: React.FC = () => {
                   <div className="font-medium text-xs text-center whitespace-nowrap">
                     {tab.label}
                   </div>
-                  
-                  {tab.id === 'photos' && profile?.photos?.length && (
-                    <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-xs rounded-full bg-pink-500 text-white">
+
+                  {tab.id === 'photos' && profile?.photos?.length ? (
+                    <span className="absolute top-1 right-1 min-w-5 h-5 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-pink-500 text-white shadow-sm">
                       {profile.photos.length}
                     </span>
-                  )}
-                  
+                  ) : null}
+
                   {isActive && (
                     <motion.div
                       layoutId="activeTab"
@@ -603,21 +580,33 @@ const ProfileManager: React.FC = () => {
             )}
 
             {activeTab === 'preferences' && (
-              <PreferencesForm 
+              <PreferencesForm
                 profile={profile}
                 loading={saving}
                 onSubmit={handlePreferencesSubmit}
               />
             )}
 
-            {activeTab === 'settings' && (
-              <SettingsPanel
-                profile={profile}
-                photos={profile?.photos || []}
-                session={session}
-                onMessage={showMessage}
-                isPremium={profile?.isPremium || false}
-              />
+            {activeTab === 'stats' && (
+              <div className="p-6">
+                <div className="form-section-header mb-6">
+                  <h2 className="text-heading mb-2">
+                    Mes Statistiques
+                  </h2>
+                  <p className="text-body">
+                    Suivez l'évolution de votre profil et votre activité
+                  </p>
+                </div>
+                <StatsDashboard
+                  showDetailedStats={true}
+                  stats={statsData || undefined}
+                  isLoading={statsLoading}
+                  error={statsError}
+                  onRefresh={refetchStats}
+                  lastUpdated={statsLastUpdated}
+                  className="h-full"
+                />
+              </div>
             )}
           </motion.div>
         </AnimatePresence>

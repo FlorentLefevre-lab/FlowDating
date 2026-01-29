@@ -14,6 +14,7 @@ import {
 import { useSearchParams } from 'next/navigation'
 import { useStreamChat } from '@/hooks/useStreamChat'
 import type { Channel as StreamChannel } from 'stream-chat'
+import { SimpleLoading, SimpleError, Button } from '@/components/ui'
 
 export default function ChatPage() {
   const searchParams = useSearchParams()
@@ -59,11 +60,8 @@ export default function ChatPage() {
   // Loader
   if (isConnecting) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-pink-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-600">Connexion au chat...</p>
-        </div>
+      <div className="h-screen bg-gray-50 flex-center">
+        <SimpleLoading message="Connexion au chat..." size="lg" />
       </div>
     )
   }
@@ -71,10 +69,12 @@ export default function ChatPage() {
   // Erreur ou pas connecté
   if (connectionError || !client) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
+      <div className="h-screen bg-gray-50 flex-center">
         <div className="text-center">
-          <p className="text-red-500 mb-4">{connectionError || 'Veuillez vous connecter'}</p>
-          <a href="/login" className="btn-primary">Se connecter</a>
+          <SimpleError message={connectionError || 'Veuillez vous connecter'} />
+          <Button asChild variant="gradient" className="mt-4">
+            <a href="/login">Se connecter</a>
+          </Button>
         </div>
       </div>
     )

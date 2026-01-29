@@ -333,7 +333,7 @@ export interface NotificationMessage {
 
 // ==================== TYPES POUR LES ONGLETS ====================
 
-export type TabType = 'overview' | 'edit' | 'personal' | 'physical' | 'lifestyle' | 'photos' | 'preferences' | 'settings' | 'privacy';
+export type TabType = 'overview' | 'edit' | 'personal' | 'physical' | 'lifestyle' | 'photos' | 'preferences' | 'stats' | 'settings' | 'privacy';
 
 export interface TabConfig {
   id: TabType;

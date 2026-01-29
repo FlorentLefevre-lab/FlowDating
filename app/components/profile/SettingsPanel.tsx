@@ -16,6 +16,7 @@ import {
 import { SettingsPanelProps } from '../../types/profiles';
 import { useAccountActions } from '@/hooks/useAccountActions';
 import { getMaxPhotos } from '@/lib/config/photos';
+import { Button, Card } from '@/components/ui';
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({
   profile,
@@ -305,10 +306,10 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   };
 
   return (
-    <div className="p-6">
+    <div className="p-4">
       {/* Bannière d'alerte si compte suspendu ou banni */}
       {isAccountSuspended && (
-        <div className={`border-l-4 p-4 rounded-r-lg mb-6 ${
+        <div className={`border-l-4 p-3 rounded-r-lg mb-4 ${
           profile?.accountStatus === 'BANNED' 
             ? 'bg-red-100 border-red-500' 
             : 'bg-orange-100 border-orange-500'
@@ -344,22 +345,22 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         </div>
       )}
 
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">
+      <h2 className="text-lg font-bold text-gray-800 mb-3">
         Paramètres du compte
       </h2>
-      
-      <div className="space-y-6">
+
+      <div className="space-y-3">
         {/* Informations du compte */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center mb-4">
-            <UserCircleIcon className="w-6 h-6 text-blue-600 mr-3" />
-            <h3 className="text-lg font-semibold text-gray-800">
+        <Card className="p-4">
+          <div className="flex items-center mb-2">
+            <UserCircleIcon className="w-5 h-5 text-blue-600 mr-2" />
+            <h3 className="text-sm font-semibold text-gray-800">
               Informations du compte
             </h3>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-3">
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <div className="space-y-2">
               <div>
                 <div className="text-sm font-medium text-gray-500">Email</div>
                 <div className="text-gray-800">{profile?.email}</div>
@@ -375,123 +376,101 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 </div>
               </div>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div>
-                <div className="text-sm font-medium text-gray-500">Dernière mise à jour</div>
+                <div className="text-xs font-medium text-gray-500">Dernière mise à jour</div>
                 <div className="text-gray-800">
                   {profile?.updatedAt ? new Date(profile.updatedAt).toLocaleDateString('fr-FR', {
                     year: 'numeric',
-                    month: 'long',
+                    month: 'short',
                     day: 'numeric'
                   }) : 'N/A'}
                 </div>
               </div>
               <div>
-                <div className="text-sm font-medium text-gray-500">Nombre de photos</div>
+                <div className="text-xs font-medium text-gray-500">Photos</div>
                 <div className="text-gray-800">{photos.length}/{maxPhotos}</div>
               </div>
               <div>
-                <div className="text-sm font-medium text-gray-500">Statut du compte</div>
-                <div className={`text-gray-800 flex items-center ${isAccountSuspended ? 'text-orange-600' : 'text-green-600'}`}>
+                <div className="text-xs font-medium text-gray-500">Statut</div>
+                <div className={`flex items-center ${isAccountSuspended ? 'text-orange-600' : 'text-green-600'}`}>
                   <div className={`w-2 h-2 rounded-full mr-2 ${isAccountSuspended ? 'bg-orange-500' : 'bg-green-500'}`}></div>
-                  {accountStatus === 'UNKNOWN' ? 'Statut inconnu' : (isAccountSuspended ? 'Suspendu' : 'Actif')}
+                  {accountStatus === 'UNKNOWN' ? 'Inconnu' : (isAccountSuspended ? 'Suspendu' : 'Actif')}
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Paramètres de confidentialité */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center mb-4">
-            <ShieldCheckIcon className="w-6 h-6 text-green-600 mr-3" />
-            <h3 className="text-lg font-semibold text-gray-800">
-              Confidentialité et sécurité
+        <Card className="p-4">
+          <div className="flex items-center mb-2">
+            <ShieldCheckIcon className="w-5 h-5 text-green-600 mr-2" />
+            <h3 className="text-sm font-semibold text-gray-800">
+              Confidentialité
             </h3>
           </div>
-          
-          <div className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-700">
-                <strong>Note:</strong> Les paramètres de confidentialité avancés seront bientôt disponibles. 
-                Pour l'instant, votre profil est visible par défaut aux autres utilisateurs connectés.
-              </p>
-            </div>
-          </div>
-        </div>
+          <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
+            Les paramètres de confidentialité avancés seront bientôt disponibles.
+          </p>
+        </Card>
 
         {/* Paramètres de notifications */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center mb-4">
-            <BellIcon className="w-6 h-6 text-yellow-600 mr-3" />
-            <h3 className="text-lg font-semibold text-gray-800">
-              Paramètres de notifications
+        <Card className="p-4">
+          <div className="flex items-center mb-2">
+            <BellIcon className="w-5 h-5 text-yellow-600 mr-2" />
+            <h3 className="text-sm font-semibold text-gray-800">
+              Notifications
             </h3>
           </div>
-          
-          <div className="space-y-4">
-            <label className="flex items-start space-x-3">
-              <input 
-                type="checkbox" 
+
+          <div className="space-y-2">
+            <label className="flex items-center space-x-2 text-sm">
+              <input
+                type="checkbox"
                 checked={notificationSettings.messageNotifications}
                 onChange={(e) => updateNotificationSettings({ messageNotifications: e.target.checked })}
-                className="mt-1 h-4 w-4 text-pink-600 focus:ring-pink-500 border-gray-300 rounded" 
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
               />
-              <div>
-                <div className="font-medium text-gray-800">Notifications de messages</div>
-                <div className="text-sm text-gray-600">
-                  Recevoir une notification pour chaque nouveau message
-                </div>
-              </div>
+              <span className="text-gray-700">Messages</span>
             </label>
-            
-            <label className="flex items-start space-x-3">
-              <input 
-                type="checkbox" 
+
+            <label className="flex items-center space-x-2 text-sm">
+              <input
+                type="checkbox"
                 checked={notificationSettings.likeNotifications}
                 onChange={(e) => updateNotificationSettings({ likeNotifications: e.target.checked })}
-                className="mt-1 h-4 w-4 text-pink-600 focus:ring-pink-500 border-gray-300 rounded" 
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
               />
-              <div>
-                <div className="font-medium text-gray-800">Notifications de likes</div>
-                <div className="text-sm text-gray-600">
-                  Recevoir une notification quand quelqu'un like votre profil
-                </div>
-              </div>
+              <span className="text-gray-700">Likes</span>
             </label>
-            
-            <label className="flex items-start space-x-3">
-              <input 
-                type="checkbox" 
+
+            <label className="flex items-center space-x-2 text-sm">
+              <input
+                type="checkbox"
                 checked={notificationSettings.matchNotifications}
                 onChange={(e) => updateNotificationSettings({ matchNotifications: e.target.checked })}
-                className="mt-1 h-4 w-4 text-pink-600 focus:ring-pink-500 border-gray-300 rounded" 
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
               />
-              <div>
-                <div className="font-medium text-gray-800">Notifications de matchs</div>
-                <div className="text-sm text-gray-600">
-                  Recevoir une notification pour chaque nouveau match
-                </div>
-              </div>
+              <span className="text-gray-700">Matchs</span>
             </label>
           </div>
-        </div>
+        </Card>
 
-        {/* Zone de danger avec logique de boutons corrigée */}
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <div className="flex items-center mb-4">
-            <ExclamationTriangleIcon className="w-6 h-6 text-red-600 mr-3" />
-            <h3 className="text-lg font-semibold text-red-800">
+        {/* Zone de danger */}
+        <Card className="bg-red-50 border-red-200 p-4">
+          <div className="flex items-center mb-2">
+            <ExclamationTriangleIcon className="w-5 h-5 text-red-600 mr-2" />
+            <h3 className="text-sm font-semibold text-red-800">
               Zone de danger
             </h3>
           </div>
-          
-          <div className="mb-4">
-            <p className="text-sm text-red-700 mb-6">
-              Ces actions sont importantes. Réfléchissez bien avant de continuer.
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          <p className="text-xs text-red-700 mb-3">
+            Ces actions sont importantes et irréversibles.
+          </p>
+
+          <div className="grid grid-cols-2 gap-2">
               {/* Bouton Suspension/Réactivation */}
               {(() => {
                 if (accountStatus === 'SUSPENDED') {
@@ -499,37 +478,35 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                     <button
                       onClick={() => setShowReactivateModal(true)}
                       disabled={hookIsLoading}
-                      className="flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                      className="flex items-center justify-center px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
                     >
                       {hookIsLoading ? (
-                        <div className="flex items-center">
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                          Réactivation...
-                        </div>
+                        <>
+                          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></div>
+                          ...
+                        </>
                       ) : (
-                        <div className="flex items-center">
-                          <PlayIcon className="w-5 h-5 mr-2" />
-                          Réactiver mon compte
-                        </div>
+                        <>
+                          <PlayIcon className="w-4 h-4 mr-1" />
+                          Réactiver
+                        </>
                       )}
                     </button>
                   );
                 }
-                
+
                 if (accountStatus === 'BANNED') {
                   return (
-                    <div className="flex items-center justify-center px-4 py-3 bg-red-500 text-white rounded-lg cursor-not-allowed">
-                      <div className="flex items-center">
-                        <LockClosedIcon className="w-5 h-5 mr-2" />
-                        Compte banni - Contactez le support
-                      </div>
+                    <div className="flex items-center justify-center px-3 py-2 text-sm bg-red-500 text-white rounded-lg cursor-not-allowed">
+                      <LockClosedIcon className="w-4 h-4 mr-1" />
+                      Banni
                     </div>
                   );
                 }
-                
+
                 if (accountStatus === 'ACTIVE') {
                   const canSuspend = !isSuspending && !!profile?.id;
-                  
+
                   return (
                     <button
                       onClick={() => {
@@ -540,56 +517,46 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                         }
                       }}
                       disabled={!canSuspend}
-                      className={`flex items-center justify-center px-4 py-3 text-white rounded-lg transition-colors ${
+                      className={`flex items-center justify-center px-3 py-2 text-sm text-white rounded-lg transition-colors ${
                         canSuspend
                           ? 'bg-orange-500 hover:bg-orange-600'
                           : 'bg-gray-400 cursor-not-allowed opacity-50'
                       }`}
                     >
                       {isSuspending ? (
-                        <div className="flex items-center">
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                          Suspension...
-                        </div>
+                        <>
+                          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></div>
+                          ...
+                        </>
                       ) : (
-                        <div className="flex items-center">
-                          <PauseIcon className="w-5 h-5 mr-2" />
-                          Suspendre mon compte
-                        </div>
+                        <>
+                          <PauseIcon className="w-4 h-4 mr-1" />
+                          Suspendre
+                        </>
                       )}
                     </button>
                   );
                 }
-                
+
                 return (
-                  <div className="flex flex-col items-center justify-center px-4 py-3 bg-yellow-400 text-black rounded-lg">
-                    <div className="flex items-center mb-1">
-                      <ExclamationTriangleIcon className="w-5 h-5 mr-2" />
-                      Statut: {accountStatus}
-                    </div>
-                    <div className="text-xs text-center">
-                      {profile?.id ? 'Profile OK - Problème de statut' : 'Profile manquant'}
-                    </div>
-                    {accountStatus === 'UNKNOWN' && (
-                      <div className="text-xs text-center mt-1 text-red-700">
-                        Vérifiez votre base de données
-                      </div>
-                    )}
+                  <div className="flex items-center justify-center px-3 py-2 text-xs bg-yellow-400 text-black rounded-lg">
+                    <ExclamationTriangleIcon className="w-4 h-4 mr-1" />
+                    {accountStatus}
                   </div>
                 );
               })()}
 
               {/* Bouton Suppression */}
-              <button 
+              <Button
+                variant="destructive"
                 onClick={() => setShowDeleteModal(true)}
-                className="flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                className="flex items-center justify-center text-sm py-2"
               >
-                <XMarkIcon className="w-5 h-5 mr-2" />
-                Supprimer mon compte
-              </button>
+                <XMarkIcon className="w-4 h-4 mr-1" />
+                Supprimer
+              </Button>
             </div>
-          </div>
-        </div>
+        </Card>
       </div>
 
       {/* Modale de réactivation */}
@@ -599,7 +566,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            className="modal-overlay"
             onClick={(e) => {
               if (e.target === e.currentTarget) {
                 setShowReactivateModal(false);
@@ -610,7 +577,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+              className="modal-content"
             >
               <div className="text-center mb-6">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -637,20 +604,22 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
               </div>
 
               <div className="flex gap-3">
-                <button
+                <Button
+                  variant="outline"
                   onClick={() => setShowReactivateModal(false)}
-                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1"
                 >
                   Annuler
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="default"
                   onClick={handleReactivateAccount}
                   disabled={hookIsLoading}
-                  className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center"
+                  className="flex-1 bg-green-600 hover:bg-green-700"
                 >
                   {hookIsLoading ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      <div className="spinner-sm mr-2"></div>
                       Réactivation...
                     </>
                   ) : (
@@ -659,7 +628,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                       Réactiver
                     </>
                   )}
-                </button>
+                </Button>
               </div>
             </motion.div>
           </motion.div>
@@ -673,7 +642,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            className="modal-overlay"
             onClick={(e) => {
               if (e.target === e.currentTarget) {
                 setShowSuspendModal(false);
@@ -684,7 +653,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+              className="modal-content"
             >
               <div className="text-center mb-6">
                 <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -743,24 +712,26 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
               </div>
 
               <div className="flex gap-3">
-                <button
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setShowSuspendModal(false);
                     setSuspendReason('');
                   }}
                   disabled={isSuspending}
-                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="flex-1"
                 >
                   Annuler
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="default"
                   onClick={handleSuspendAccount}
                   disabled={isSuspending}
-                  className="flex-1 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                  className="flex-1 bg-orange-600 hover:bg-orange-700"
                 >
                   {isSuspending ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      <div className="spinner-sm mr-2"></div>
                       Suspension...
                     </>
                   ) : (
@@ -769,7 +740,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                       Suspendre
                     </>
                   )}
-                </button>
+                </Button>
               </div>
             </motion.div>
           </motion.div>
@@ -783,14 +754,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            className="modal-overlay"
             onClick={(e) => e.target === e.currentTarget && setShowDeleteModal(false)}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+              className="modal-content"
             >
               <div className="text-center mb-6">
                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -833,22 +804,24 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
               </div>
 
               <div className="flex gap-3">
-                <button
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setShowDeleteModal(false);
                     setDeleteConfirmation('');
                   }}
-                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1"
                 >
                   Annuler
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="destructive"
                   onClick={handleDeleteAccount}
                   disabled={loading || deleteConfirmation !== 'SUPPRIMER'}
-                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex-1"
                 >
                   {loading ? 'Suppression...' : 'Supprimer définitivement'}
-                </button>
+                </Button>
               </div>
 
               <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">

@@ -2,6 +2,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Button, Card } from '@/components/ui'
 
 interface StatsData {
   profileViews: number;
@@ -106,46 +107,48 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
   }
 
   return (
-    <div className={`bg-white rounded-xl p-6 border border-gray-200 shadow-sm ${className}`}>
+    <div className={className}>
       {/* En-tête avec indicateurs */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            📊 Tableau de bord
-          </h3>
-        </div>
+      <div className="flex-between mb-4">
+        <h3 className="text-subheading flex items-center gap-2">
+          📊 Tableau de bord
+        </h3>
 
         <div className="flex items-center gap-3">
           {/* Statut de connexion */}
           <div className="flex items-center gap-2 text-xs">
             <div className={`w-2 h-2 rounded-full ${
-              isLoading ? 'bg-yellow-400 animate-pulse' : 
+              isLoading ? 'bg-yellow-400 animate-pulse' :
               error ? 'bg-red-400' : 'bg-green-400'
             }`}></div>
-            <span className="text-gray-500">
+            <span className="text-caption">
               {error ? 'Erreur' : `${formatLastUpdate()}`}
             </span>
           </div>
 
           {/* Bouton refresh */}
           {onRefresh && (
-            <button
+            <Button
               onClick={onRefresh}
               disabled={isLoading}
-              className="text-sm text-pink-600 hover:text-pink-700 transition-colors disabled:opacity-50"
+              variant="ghost"
+              size="sm"
+              className="text-primary-600"
               title="Actualiser"
             >
               <span className={isLoading ? 'animate-spin' : ''}>🔄</span>
-            </button>
+            </Button>
           )}
 
           {/* Bouton détails */}
-          <button
+          <Button
             onClick={() => setExpanded(!expanded)}
-            className="text-sm text-pink-600 hover:text-pink-700 font-medium transition-colors"
+            variant="link"
+            size="sm"
+            className="text-primary-600"
           >
             {expanded ? 'Masquer' : 'Détails'} →
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -257,19 +260,21 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
 
       {/* Erreur d'affichage */}
       {error && (
-        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+        <Card className="mt-4 p-3 bg-red-50 border-red-200">
           <p className="text-sm text-red-700 flex items-center gap-2">
             ⚠️ {error}
             {onRefresh && (
-              <button 
+              <Button
                 onClick={onRefresh}
-                className="text-red-600 hover:text-red-800 font-medium underline"
+                variant="link"
+                size="sm"
+                className="text-red-600 hover:text-red-800"
               >
                 Réessayer
-              </button>
+              </Button>
             )}
           </p>
-        </div>
+        </Card>
       )}
     </div>
   )

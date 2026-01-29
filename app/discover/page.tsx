@@ -1,7 +1,6 @@
 // src/app/discover/page.tsx - VERSION AVEC FILTRAGE PAR PRÉFÉRENCES
 'use client';
-import { SimpleLoading } from '@/components/ui/SimpleLoading';
-import { SimpleError } from '@/components/ui/SimpleError';
+import { SimpleLoading, SimpleError, Button, Card } from '@/components/ui';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
@@ -221,57 +220,50 @@ export default function DiscoverPageSimple() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center max-w-md mx-4">
-          <h2 className="text-xl font-bold mb-4">Erreur</h2>
-          <p className="text-red-600 mb-4">{error}</p>
-          <div className="bg-gray-200 p-4 rounded mb-4 text-left">
-            <h3 className="font-bold mb-2">Debug API:</h3>
-            <pre className="text-xs overflow-auto">
-              {JSON.stringify(apiData, null, 2)}
-            </pre>
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex-center">
+        <Card className="max-w-md mx-4 p-6">
+          <div className="text-center">
+            <h2 className="text-subheading mb-4">Erreur</h2>
+            <p className="text-red-600 mb-4">{error}</p>
+            <div className="bg-gray-100 p-4 rounded-lg mb-4 text-left">
+              <h3 className="font-bold mb-2 text-sm">Debug API:</h3>
+              <pre className="text-xs overflow-auto">
+                {JSON.stringify(apiData, null, 2)}
+              </pre>
+            </div>
+            <Button onClick={() => loadProfiles()} variant="default">
+              Réessayer
+            </Button>
           </div>
-          <button
-            onClick={loadProfiles}
-            className="bg-blue-500 text-white px-4 py-2 rounded"
-          >
-            Réessayer
-          </button>
-        </div>
+        </Card>
       </div>
     );
   }
 
   if (profiles.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-bold mb-4">Aucun profil</h2>
-          <p className="mb-4">Aucun profil disponible</p>
-          <button
-            onClick={loadProfiles}
-            className="bg-blue-500 text-white px-4 py-2 rounded"
-          >
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex-center">
+        <Card className="p-6 text-center">
+          <h2 className="text-subheading mb-4">Aucun profil</h2>
+          <p className="text-body mb-4">Aucun profil disponible</p>
+          <Button onClick={() => loadProfiles()} variant="default">
             Recharger
-          </button>
-        </div>
+          </Button>
+        </Card>
       </div>
     );
   }
 
   if (!currentProfile) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-bold mb-4">Fin des profils</h2>
-          <p className="mb-4">Vous avez vu {currentIndex} profils</p>
-          <button
-            onClick={loadProfiles}
-            className="bg-green-500 text-white px-4 py-2 rounded"
-          >
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex-center">
+        <Card className="p-6 text-center">
+          <h2 className="text-subheading mb-4">Fin des profils</h2>
+          <p className="text-body mb-4">Vous avez vu {currentIndex} profils</p>
+          <Button onClick={() => loadProfiles()} variant="gradient">
             Recharger
-          </button>
-        </div>
+          </Button>
+        </Card>
       </div>
     );
   }
@@ -341,12 +333,12 @@ export default function DiscoverPageSimple() {
               </h2>
               <p className="text-sm opacity-90 mb-2">📍 {currentProfile.location}</p>
               <p className="text-sm opacity-90 mb-2">💼 {currentProfile.profession}</p>
-              <div className="flex items-center mb-3">
-                <span className="bg-pink-500 text-white px-2 py-1 rounded-full text-xs">
+              <div className="flex items-center mb-3 gap-2">
+                <span className="badge-primary">
                   ✨ {currentProfile.compatibility}% compatible
                 </span>
                 {currentProfile.isOnline && (
-                  <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs ml-2">
+                  <span className="badge-online">
                     🟢 En ligne
                   </span>
                 )}
@@ -357,7 +349,7 @@ export default function DiscoverPageSimple() {
           {/* Bio */}
           {currentProfile.bio && (
             <div className="p-4">
-              <p className="text-gray-700 text-sm">{currentProfile.bio}</p>
+              <p className="text-body">{currentProfile.bio}</p>
             </div>
           )}
 
@@ -366,10 +358,7 @@ export default function DiscoverPageSimple() {
             <div className="px-4 pb-4">
               <div className="flex flex-wrap gap-2">
                 {currentProfile.interests.slice(0, 5).map((interest: string, index: number) => (
-                  <span 
-                    key={index}
-                    className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-xs"
-                  >
+                  <span key={index} className="badge badge-gray">
                     {interest}
                   </span>
                 ))}
@@ -378,27 +367,33 @@ export default function DiscoverPageSimple() {
           )}
 
           {/* Boutons d'action */}
-          <div className="p-4 flex justify-center space-x-4">
-            <button
+          <div className="p-4 flex-center space-x-4">
+            <Button
               onClick={() => handleAction('dislike')}
-              className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+              variant="ghost"
+              size="icon"
+              className="w-14 h-14 rounded-full bg-gray-100 hover:bg-gray-200"
             >
-              <span className="text-xl">👎</span>
-            </button>
-            
-            <button
+              <span className="text-2xl">👎</span>
+            </Button>
+
+            <Button
               onClick={() => handleAction('super_like')}
-              className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors"
+              variant="ghost"
+              size="icon"
+              className="w-14 h-14 rounded-full bg-blue-500 hover:bg-blue-600 text-white"
             >
-              <span className="text-xl">⭐</span>
-            </button>
-            
-            <button
+              <span className="text-2xl">⭐</span>
+            </Button>
+
+            <Button
               onClick={() => handleAction('like')}
-              className="w-12 h-12 bg-pink-500 rounded-full flex items-center justify-center hover:bg-pink-600 transition-colors"
+              variant="ghost"
+              size="icon"
+              className="w-14 h-14 rounded-full bg-primary-500 hover:bg-primary-600 text-white"
             >
-              <span className="text-xl">💖</span>
-            </button>
+              <span className="text-2xl">💖</span>
+            </Button>
           </div>
         </motion.div>
       </div>

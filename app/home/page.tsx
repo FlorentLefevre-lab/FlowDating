@@ -8,9 +8,9 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AuthGuard from '@/components/auth/AuthGuard'
 import { RecentActivity } from '@/components/profile/RecentActivity'
-import { StatsDashboard } from '@/components/profile/StatsDashboard'
 import { useStats } from '@/hooks/useStats'
 import { useQuery } from '@/hooks/useQuery'
+import { Button, Card, Badge, SimpleLoading } from '@/components/ui'
 
 // ================================
 // 🔥 TYPES POUR L'API DISCOVER
@@ -307,31 +307,28 @@ export default function HomePage() {
   const AccountStatusBanner = () => {
     if (statusLoading || !mounted) {
       return (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+        <Card className="bg-blue-50 border-blue-200 p-3 mb-4">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="spinner-sm border-blue-500"></div>
             <span className="text-sm text-blue-700">Vérification du statut du compte...</span>
           </div>
-        </div>
+        </Card>
       )
     }
 
     if (statusError) {
       return (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-          <div className="flex items-center justify-between">
+        <Card className="bg-yellow-50 border-yellow-200 p-3 mb-4">
+          <div className="flex-between">
             <div className="flex items-center gap-2">
               <span className="text-yellow-600">⚠️</span>
               <span className="text-sm text-yellow-700">Impossible de vérifier le statut du compte</span>
             </div>
-            <button
-              onClick={handleRefresh}
-              className="text-xs bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
-            >
+            <Button onClick={handleRefresh} size="sm" className="bg-yellow-500 hover:bg-yellow-600">
               Réessayer
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       )
     }
 
@@ -341,7 +338,7 @@ export default function HomePage() {
     switch (accountStatus.accountStatus) {
       case 'ACTIVE':
         return (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+          <Card className="bg-green-50 border-green-200 p-3 mb-4">
             <div className="flex items-center gap-2">
               <span className="text-green-600">✅</span>
               <span className="text-sm text-green-700 font-medium">Compte actif</span>
@@ -350,12 +347,12 @@ export default function HomePage() {
                 <span className="text-xs text-green-600">En ligne</span>
               </div>
             </div>
-          </div>
+          </Card>
         )
-      
+
       case 'SUSPENDED':
         return (
-          <div className="bg-orange-50 border-l-4 border-orange-500 rounded-r-lg p-4 mb-6">
+          <Card className="bg-orange-50 border-l-4 border-orange-500 rounded-r-lg p-4 mb-6">
             <div className="flex items-start">
               <div className="flex-shrink-0">
                 <span className="text-orange-500 text-xl">⏸️</span>
@@ -366,28 +363,27 @@ export default function HomePage() {
                   Votre compte est actuellement suspendu.
                 </p>
                 <div className="mt-3">
-                  <Link
-                    href="/profile?tab=settings"
-                    className="inline-flex items-center gap-1 bg-orange-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-orange-600 transition-colors"
-                  >
-                    ⚙️ Gérer mon compte
-                  </Link>
+                  <Button asChild size="sm" className="bg-orange-500 hover:bg-orange-600">
+                    <Link href="/profile?tab=settings">
+                      ⚙️ Gérer mon compte
+                    </Link>
+                  </Button>
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
         )
 
       default:
         return (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+          <Card className="bg-gray-50 border-gray-200 p-3 mb-4">
             <div className="flex items-center gap-2">
               <span className="text-gray-600">❓</span>
               <span className="text-sm text-gray-700">
                 Statut: {accountStatus.accountStatus || 'Inconnu'}
               </span>
             </div>
-          </div>
+          </Card>
         )
     }
   }
@@ -430,12 +426,8 @@ export default function HomePage() {
   // Loading state global
   if (status === 'loading' || !mounted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-pink-200 border-t-pink-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-gray-800">Chargement...</h2>
-          <p className="text-gray-600 mt-2">Préparation de votre tableau de bord</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex-center">
+        <SimpleLoading message="Préparation de votre tableau de bord..." size="lg" />
       </div>
     )
   }
@@ -485,17 +477,17 @@ export default function HomePage() {
               
               {/* Bouton de rafraîchissement avec indicateur */}
               <div className="text-right">
-                <button
+                <Button
                   onClick={handleRefresh}
                   disabled={!dataLoaded}
-                  className="flex items-center gap-2 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors disabled:opacity-50"
+                  variant="default"
                 >
-                  <div className={`w-2 h-2 rounded-full ${
-                    statsLoading ? 'bg-yellow-200 animate-pulse' : 
+                  <div className={`w-2 h-2 rounded-full mr-2 ${
+                    statsLoading ? 'bg-yellow-200 animate-pulse' :
                     statsError ? 'bg-red-200' : 'bg-green-200'
                   }`}></div>
-                  <span>Actualiser</span>
-                </button>
+                  Actualiser
+                </Button>
                 {statsError && (
                   <div className="text-xs text-red-500 mt-1">
                     Erreur de connexion
@@ -507,13 +499,13 @@ export default function HomePage() {
 
           {/* Section principale en 3 colonnes */}
           <div className="flex flex-col xl:flex-row gap-6 mb-8">
-            
+
             {/* Colonne 1: Stats rapides */}
-            <div className="xl:w-1/3 bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <Card className="xl:w-1/3 p-6">
+              <h3 className="text-subheading mb-4 flex items-center gap-2">
                 ⚡ En un coup d&apos;œil
                 {statsLoading && (
-                  <div className="w-4 h-4 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="spinner-sm"></div>
                 )}
               </h3>
               
@@ -587,44 +579,37 @@ export default function HomePage() {
                   </p>
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Colonne 2: Découverte */}
-            <div className="xl:w-1/3 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm flex flex-col min-h-[500px]">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <Card className="xl:w-1/3 p-4 flex flex-col min-h-[500px]">
+              <div className="flex-between mb-4">
+                <h2 className="text-subheading flex items-center gap-2">
                   🔥 Découverte
                   {discoverLoading && (
-                    <div className="w-4 h-4 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="spinner-sm"></div>
                   )}
                 </h2>
-                <Link 
-                  href="/discover" 
-                  className="text-sm text-pink-600 hover:text-pink-700 font-medium transition-colors"
-                >
-                  Voir plus →
-                </Link>
+                <Button asChild variant="link" className="text-primary-600">
+                  <Link href="/discover">
+                    Voir plus →
+                  </Link>
+                </Button>
               </div>
 
               {/* Contenu découverte */}
               {discoverLoading || !dataLoaded ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-8 h-8 border-2 border-pink-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                    <p className="text-sm text-gray-500">Recherche de profils...</p>
-                  </div>
+                <div className="flex-1 flex-center">
+                  <SimpleLoading message="Recherche de profils..." size="sm" />
                 </div>
               ) : discoverError ? (
-                <div className="flex-1 flex items-center justify-center">
+                <div className="flex-1 flex-center">
                   <div className="text-center">
                     <div className="text-2xl mb-2">😞</div>
                     <p className="text-sm text-red-600 mb-2">Erreur de chargement</p>
-                    <button 
-                      onClick={handleRefresh}
-                      className="text-xs bg-pink-500 text-white px-2 py-1 rounded hover:bg-pink-600"
-                    >
+                    <Button onClick={handleRefresh} size="sm" variant="default">
                       Réessayer
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ) : currentUser ? (
@@ -645,16 +630,16 @@ export default function HomePage() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40"></div>
                     
                     {/* Badges en haut */}
-                    <div className="relative z-10 p-4 flex justify-between items-start">
+                    <div className="relative z-10 p-4 flex-between items-start">
                       {currentUser.isOnline && (
-                        <div className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center">
+                        <Badge className="badge-online">
                           <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
                           En ligne
-                        </div>
+                        </Badge>
                       )}
-                      <div className="bg-pink-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm font-semibold">
+                      <Badge className="badge-primary glass">
                         ✨ {currentUser.compatibility}% compatible
-                      </div>
+                      </Badge>
                     </div>
 
                     {/* Contenu principal */}
@@ -708,30 +693,36 @@ export default function HomePage() {
                       </div>
 
                       {/* Actions de swipe */}
-                      <div className="flex justify-center gap-4 mb-3">
-                        <button 
+                      <div className="flex-center gap-4 mb-3">
+                        <Button
                           onClick={() => handlePass(currentUser.id)}
-                          className="w-14 h-14 bg-white/15 hover:bg-white/25 rounded-full flex items-center justify-center backdrop-blur-sm transition-all duration-200 hover:scale-110 border border-white/20"
+                          variant="ghost"
+                          size="icon"
+                          className="w-14 h-14 rounded-full glass border border-white/20 hover:scale-110"
                           title="Passer"
                         >
                           <span className="text-xl">👎</span>
-                        </button>
-                        
-                        <button 
+                        </Button>
+
+                        <Button
                           onClick={() => handleSuperLike(currentUser.id)}
-                          className="w-14 h-14 bg-blue-500/90 hover:bg-blue-600 rounded-full flex items-center justify-center backdrop-blur-sm transition-all duration-200 hover:scale-110 shadow-lg border border-white/30"
+                          variant="ghost"
+                          size="icon"
+                          className="w-14 h-14 rounded-full bg-blue-500/90 hover:bg-blue-600 text-white hover:scale-110 shadow-lg border border-white/30"
                           title="Super Like"
                         >
                           <span className="text-xl">⭐</span>
-                        </button>
-                        
-                        <button 
+                        </Button>
+
+                        <Button
                           onClick={() => handleLike(currentUser.id)}
-                          className="w-16 h-16 bg-pink-500 hover:bg-pink-600 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 shadow-xl border-2 border-white/40"
+                          variant="ghost"
+                          size="icon"
+                          className="w-16 h-16 rounded-full bg-primary-500 hover:bg-primary-600 text-white hover:scale-110 shadow-xl border-2 border-white/40"
                           title="Liker"
                         >
                           <span className="text-2xl">💖</span>
-                        </button>
+                        </Button>
                       </div>
 
                       {/* Indicateur de progression */}
@@ -761,22 +752,21 @@ export default function HomePage() {
                   <h3 className="text-sm font-semibold text-gray-800 mb-1">
                     Plus de profils !
                   </h3>
-                  <div className="text-gray-600 text-xs mb-3">
+                  <p className="text-caption mb-3">
                     Aucun nouveau profil disponible
-                  </div>
-                  <Link 
-                    href="/discover" 
-                    className="bg-pink-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-pink-600 transition-colors inline-block"
-                  >
-                    Explorer plus
-                  </Link>
+                  </p>
+                  <Button asChild size="sm" variant="default">
+                    <Link href="/discover">
+                      Explorer plus
+                    </Link>
+                  </Button>
                 </div>
               )}
-            </div>
+            </Card>
 
             {/* Colonne 3: Actions rapides */}
-            <div className="xl:w-1/3 bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <Card className="xl:w-1/3 p-6">
+              <h3 className="text-subheading mb-4 flex items-center gap-2">
                 🚀 Actions rapides
               </h3>
               
@@ -824,60 +814,54 @@ export default function HomePage() {
                       'Ajoutez plus de photos à votre profil pour augmenter vos chances de match !'
                     }
                   </div>
-                  <Link 
-                    href="/profile" 
-                    className="inline-flex items-center gap-1 bg-white text-orange-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-orange-50 transition-colors"
-                  >
-                    📷 Améliorer mon profil
-                  </Link>
+                  <Button asChild size="sm" className="bg-white text-orange-600 hover:bg-orange-50">
+                    <Link href="/profile">
+                      📷 Améliorer mon profil
+                    </Link>
+                  </Button>
                 </div>
               </div>
-            </div>
+            </Card>
           </div>
 
-          {/* Section inférieure - Statistiques détaillées */}
-          <div className="mb-8">
-            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-              <StatsDashboard 
-                showDetailedStats={true} 
-                className="h-full" 
-              />
-            </div>
-          </div>
         </div>
       </div>
 
       {/* Modal de Match */}
       {isMatch && matchUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-          <div className="bg-white rounded-2xl p-8 mx-4 text-center max-w-md">
+        <div className="modal-overlay flex-center">
+          <Card className="p-8 mx-4 text-center max-w-md">
             <div className="text-6xl mb-4">🎉</div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">C'est un Match !</h2>
-            <p className="text-gray-600 mb-6">
-              Vous et <span className="font-semibold text-pink-600">{matchUser.name}</span> vous plaisez mutuellement !
+            <h2 className="text-heading mb-2">C'est un Match !</h2>
+            <p className="text-body mb-6">
+              Vous et <span className="font-semibold text-primary-600">{matchUser.name}</span> vous plaisez mutuellement !
             </p>
             <div className="space-y-3">
-              <button
+              <Button
                 onClick={() => {
                   setIsMatch(false)
                   setMatchUser(null)
                 }}
-                className="w-full bg-pink-500 text-white px-8 py-3 rounded-full font-semibold hover:bg-pink-600 transition-all"
+                variant="gradient"
+                size="lg"
+                className="w-full rounded-full"
               >
                 Continuer à découvrir
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => {
                   router.push('/messages')
                   setIsMatch(false)
                   setMatchUser(null)
                 }}
-                className="w-full bg-white border-2 border-gray-200 text-gray-700 px-8 py-3 rounded-full font-semibold hover:bg-gray-50 transition-all"
+                variant="outline"
+                size="lg"
+                className="w-full rounded-full"
               >
                 Envoyer un message
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
     </AuthGuard>

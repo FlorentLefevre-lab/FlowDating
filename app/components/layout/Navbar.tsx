@@ -7,14 +7,37 @@ import { useState, useEffect } from 'react'
 import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline'
 import { ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconSolid } from '@heroicons/react/24/solid'
 import { ChatNavItem } from './ChatNavItem'
+import {
+  Button,
+  Skeleton,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui'
+import SettingsPanel from '@/components/profile/SettingsPanel'
+import type { MessageType, UserProfile } from '@/types/profiles'
 
 export default function Navbar() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const pathname = usePathname()
-  const [showUserMenu, setShowUserMenu] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [settingsMessage, setSettingsMessage] = useState('')
+  const [settingsMessageType, setSettingsMessageType] = useState<MessageType>('success')
+  const [matchesCount, setMatchesCount] = useState<number>(0)
 
   // Charger la photo de profil
   useEffect(() => {
@@ -26,7 +49,6 @@ export default function Navbar() {
         if (response.ok) {
           const data = await response.json()
           const photos = data.photos || []
-          // Trouver la photo principale ou prendre la première
           const primaryPhoto = photos.find((p: any) => p.isPrimary) || photos[0]
           if (primaryPhoto?.url) {
             setProfilePhoto(primaryPhoto.url)
@@ -39,7 +61,6 @@ export default function Navbar() {
 
     loadProfilePhoto()
 
-    // Écouter les événements de mise à jour de photo
     const handlePhotoUpdate = () => loadProfilePhoto()
     window.addEventListener('profile-photo-updated', handlePhotoUpdate)
 
@@ -48,79 +69,111 @@ export default function Navbar() {
     }
   }, [status])
 
-  // ✅ ROUTES SANS NAVBAR - CORRIGÉES
+  // Charger le nombre de matches
+  useEffect(() => {
+    const loadMatchesCount = async () => {
+      if (status !== 'authenticated') return
+
+      try {
+        const response = await fetch('/api/matches')
+        if (response.ok) {
+          const data = await response.json()
+          const matches = data.matches || data || []
+          setMatchesCount(Array.isArray(matches) ? matches.length : 0)
+        }
+      } catch (error) {
+        console.error('Erreur chargement matches:', error)
+      }
+    }
+
+    loadMatchesCount()
+
+    // Rafraîchir toutes les 30 secondes
+    const interval = setInterval(loadMatchesCount, 30000)
+
+    return () => clearInterval(interval)
+  }, [status])
+
+  // Charger le profil quand le drawer s'ouvre
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!settingsOpen || status !== 'authenticated') return
+
+      try {
+        const response = await fetch('/api/profile', {
+          method: 'GET',
+          credentials: 'include',
+        })
+        if (response.ok) {
+          const data = await response.json()
+          setProfile(data.profile || data)
+        }
+      } catch (error) {
+        console.error('Erreur chargement profil pour settings:', error)
+      }
+    }
+
+    loadProfile()
+  }, [settingsOpen, status])
+
+  const showSettingsMessage = (msg: string, type: MessageType = 'success') => {
+    setSettingsMessage(msg)
+    setSettingsMessageType(type)
+    setTimeout(() => setSettingsMessage(''), 5000)
+  }
+
   const routesWithoutNavbar = [
-    '/auth/login',          // Page de connexion
-    '/auth/register',       // Page d'inscription
-    '/auth/error',          // Page d'erreur auth
-    '/auth/verify-email',   // Page de vérification email
+    '/auth/login',
+    '/auth/register',
+    '/auth/error',
+    '/auth/verify-email',
   ]
 
-  // ✅ VÉRIFICATION CORRIGÉE - Exclusion spécifique de '/' uniquement
-  const shouldHideNavbar = 
-    pathname === '/' ||  // Page d'accueil publique SEULEMENT
+  const shouldHideNavbar =
+    pathname === '/' ||
     routesWithoutNavbar.some(route => pathname.startsWith(route))
 
-  console.log('🔍 NavBar Conditions CORRIGÉES:')
-  console.log('  - pathname:', pathname)
-  console.log('  - pathname === \'/\':', pathname === '/')
-  console.log('  - shouldHideNavbar:', shouldHideNavbar)
-  console.log('  - status:', status)
-
-  // Ne pas afficher la Navbar si on est sur une route sans navbar
   if (shouldHideNavbar) {
-    console.log('🚫 NavBar cachée - Route sans navbar')
     return null
   }
 
-  // Ne pas afficher la Navbar si l'utilisateur n'est pas connecté
   if (status === 'unauthenticated') {
-    console.log('🚫 NavBar cachée - Utilisateur non connecté')
     return null
   }
 
   // Afficher un placeholder pendant le chargement
   if (status === 'loading') {
-    console.log('⏳ NavBar - Chargement en cours')
     return (
       <nav className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="max-w-7xl mx-auto flex-between">
           <div className="flex items-center gap-3">
             <span className="text-2xl">💖</span>
-            <span className="text-xl font-bold text-gray-800">Flow Dating (Loading...)</span>
+            <span className="text-xl font-bold text-gray-800">Flow Dating</span>
           </div>
-          <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
+          <Skeleton className="w-10 h-10 rounded-full" />
         </div>
       </nav>
     )
   }
 
-  // ✅ FONCTION DE DÉCONNEXION SÉCURISÉE COMPLÈTE
   const handleSecureSignOut = async () => {
     setIsLoggingOut(true)
-    
+
     try {
-      console.log('🚪 Début de la déconnexion sécurisée...')
-      
-      // 1. Appel API pour nettoyer la session côté serveur
       try {
         await fetch('/api/auth/logout', {
           method: 'POST',
           credentials: 'include',
         })
-        console.log('✅ Session serveur nettoyée')
       } catch (apiError) {
-        console.warn('⚠️ Erreur nettoyage API (continuer quand même):', apiError)
+        console.warn('Erreur nettoyage API:', apiError)
       }
-  
-      // 2. Déconnexion NextAuth avec redirection vers page publique
-      await signOut({ 
+
+      await signOut({
         callbackUrl: '/',
-        redirect: false  // On gère la redirection manuellement
+        redirect: false
       })
-      console.log('✅ NextAuth signOut effectué')
-  
-      // 3. Nettoyage manuel des cookies du navigateur
+
       const cookieNames = [
         'next-auth.session-token',
         'next-auth.csrf-token',
@@ -133,41 +186,40 @@ export default function Navbar() {
         'user-preferences',
         'auth-token'
       ]
-  
+
       cookieNames.forEach(cookieName => {
         document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname}`
         document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname}`
         document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
         document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; secure; samesite=strict`
       })
-      console.log('✅ Cookies navigateur nettoyés')
-  
-      // 4. Nettoyage du stockage local et session
+
       try {
         localStorage.clear()
         sessionStorage.clear()
-        console.log('✅ Stockage local nettoyé')
       } catch (storageError) {
-        console.warn('⚠️ Erreur nettoyage stockage:', storageError)
+        console.warn('Erreur nettoyage stockage:', storageError)
       }
-  
-      // 5. Redirection forcée vers la page publique
+
       window.location.replace('/')
-  
+
     } catch (error) {
-      console.error('❌ Erreur lors de la déconnexion:', error)
+      console.error('Erreur lors de la déconnexion:', error)
       window.location.href = '/'
     } finally {
       setIsLoggingOut(false)
     }
   }
 
-  // ✅ CONDITION PRINCIPALE D'AFFICHAGE
+  const navLinkClass = (path: string) =>
+    `text-gray-600 hover:text-gray-900 transition-colors font-medium ${
+      pathname === path ? 'text-primary-600 font-semibold' : ''
+    }`
+
   if (status === 'authenticated' && session) {
-    console.log('✅ NavBar affichée - Utilisateur connecté sur', pathname)
     return (
       <nav className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="max-w-7xl mx-auto flex-between">
           {/* Logo */}
           <Link href="/home" className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
             <span className="text-2xl">💖</span>
@@ -176,169 +228,172 @@ export default function Navbar() {
 
           {/* Menu de navigation principal */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link 
-              href="/home" 
-              className={`text-gray-600 hover:text-gray-900 transition-colors font-medium ${
-                pathname === '/home' ? 'text-pink-600 font-semibold' : ''
-              }`}
-            >
+            <Link href="/home" className={navLinkClass('/home')}>
               Accueil
             </Link>
-            <Link 
-              href="/discover" 
-              className={`text-gray-600 hover:text-gray-900 transition-colors font-medium ${
-                pathname === '/discover' ? 'text-pink-600 font-semibold' : ''
-              }`}
-            >
+            <Link href="/discover" className={navLinkClass('/discover')}>
               Découverte
             </Link>
-            <Link 
-              href="/matches" 
-              className={`text-gray-600 hover:text-gray-900 transition-colors font-medium relative ${
-                pathname === '/matches' ? 'text-pink-600 font-semibold' : ''
-              }`}
-            >
+            <Link href="/matches" className={`${navLinkClass('/matches')} relative`}>
               Matchs
-              <span className="absolute -top-2 -right-2 bg-pink-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                3
-              </span>
+              {matchesCount > 0 && (
+                <span className="absolute -top-2 -right-2 badge-primary text-[10px] w-5 h-5 flex-center rounded-full">
+                  {matchesCount > 99 ? '99+' : matchesCount}
+                </span>
+              )}
             </Link>
             <ChatNavItem />
           </div>
 
-          {/* Profil utilisateur */}
-          <div className="relative">
-            <button
-              onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-all duration-200"
-            >
-              {profilePhoto ? (
-                <img
-                  src={profilePhoto}
-                  alt="Photo de profil"
-                  className="w-10 h-10 rounded-full object-cover shadow-lg border-2 border-pink-200"
-                  onError={() => setProfilePhoto(null)}
-                />
-              ) : (
-                <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                  {session.user?.name?.[0]?.toUpperCase() || 'U'}
-                </div>
-              )}
-              <span className="hidden md:block font-medium text-gray-700">
-                {session.user?.name || 'Utilisateur'}
-              </span>
-              <svg 
-                className={`w-4 h-4 text-gray-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+          {/* Profil utilisateur avec DropdownMenu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-all duration-200 outline-none">
+                {profilePhoto ? (
+                  <img
+                    src={profilePhoto}
+                    alt="Photo de profil"
+                    className="avatar-md shadow-lg border-2 border-primary-200"
+                    onError={() => setProfilePhoto(null)}
+                  />
+                ) : (
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-secondary-500 rounded-full flex-center text-white font-bold text-sm shadow-lg">
+                    {session.user?.name?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                )}
+                <span className="hidden md:block font-medium text-gray-700">
+                  {session.user?.name || 'Utilisateur'}
+                </span>
+                <svg
+                  className="w-4 h-4 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </DropdownMenuTrigger>
 
-            {/* Menu déroulant */}
-            {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-sm font-medium text-gray-900">
-                    {session.user?.name || 'Utilisateur'}
-                  </p>
-                  <p className="text-sm text-gray-500">Membre Flow Dating</p>
-                </div>
-                
-                <div className="py-2">
-                  <Link 
-                    href="/home"
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    <span className="mr-3">🏠</span>
-                    Accueil
-                  </Link>
-                  <Link 
-                    href="/profile"
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    <span className="mr-3">👤</span>
-                    Mon profil
-                  </Link>
-                  <Link 
-                    href="/settings"
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    <span className="mr-3">⚙️</span>
-                    Paramètres
-                  </Link>
-                  <Link 
-                    href="/premium"
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    <span className="mr-3">⭐</span>
-                    Premium
-                    <span className="ml-auto bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs px-2 py-1 rounded-full">
-                      Pro
-                    </span>
-                  </Link>
-                </div>
-                
-                <div className="py-2 border-t border-gray-100">
-                  <Link 
-                    href="/help"
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    <span className="mr-3">❓</span>
-                    Aide
-                  </Link>
-                  
-                  <button
-                    onClick={() => {
-                      setShowUserMenu(false)
-                      handleSecureSignOut()
-                    }}
-                    disabled={isLoggingOut}
-                    className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className="mr-3">
-                      {isLoggingOut ? '⏳' : '🚪'}
-                    </span>
-                    {isLoggingOut ? 'Déconnexion sécurisée...' : 'Se déconnecter'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <p className="font-medium">{session.user?.name || 'Utilisateur'}</p>
+                <p className="text-xs text-muted-foreground">Membre Flow Dating</p>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem asChild>
+                <Link href="/home" className="cursor-pointer">
+                  <span className="mr-3">🏠</span>
+                  Accueil
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/profile" className="cursor-pointer">
+                  <span className="mr-3">👤</span>
+                  Mon profil
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSettingsOpen(true)}
+                className="cursor-pointer"
+              >
+                <span className="mr-3">⚙️</span>
+                Paramètres
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/premium" className="cursor-pointer flex-between w-full">
+                  <span><span className="mr-3">⭐</span>Premium</span>
+                  <span className="badge bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px]">
+                    Pro
+                  </span>
+                </Link>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem asChild>
+                <Link href="/help" className="cursor-pointer">
+                  <span className="mr-3">❓</span>
+                  Aide
+                </Link>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                onClick={handleSecureSignOut}
+                disabled={isLoggingOut}
+                className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
+              >
+                <span className="mr-3">{isLoggingOut ? '⏳' : '🚪'}</span>
+                {isLoggingOut ? 'Déconnexion...' : 'Se déconnecter'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Bouton mobile */}
           <div className="md:hidden flex items-center gap-2">
-            <button 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleSecureSignOut}
               disabled={isLoggingOut}
-              className="p-2 rounded-lg hover:bg-gray-50 text-red-600 disabled:opacity-50"
+              className="text-red-600"
               title="Se déconnecter"
             >
               {isLoggingOut ? '⏳' : '🚪'}
-            </button>
+            </Button>
           </div>
         </div>
 
-        {/* Effet de fermeture du menu */}
-        {showUserMenu && (
-          <div 
-            className="fixed inset-0 z-40" 
-            onClick={() => setShowUserMenu(false)}
-          ></div>
-        )}
+        {/* Drawer des paramètres */}
+        <Drawer open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <DrawerContent className="max-h-[90vh]">
+            <DrawerHeader className="border-b border-gray-200">
+              <DrawerTitle className="text-xl font-bold flex items-center gap-2">
+                <span>⚙️</span>
+                Paramètres du compte
+              </DrawerTitle>
+              <DrawerDescription>
+                Gérez votre compte, confidentialité et notifications
+              </DrawerDescription>
+            </DrawerHeader>
+
+            <div className="overflow-y-auto max-h-[calc(90vh-180px)]">
+              {settingsMessage && (
+                <div className={`mx-4 mt-4 p-3 rounded-lg ${
+                  settingsMessageType === 'success'
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : settingsMessageType === 'info'
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                    : 'bg-red-50 text-red-700 border border-red-200'
+                }`}>
+                  {settingsMessage}
+                </div>
+              )}
+
+              <SettingsPanel
+                profile={profile}
+                photos={profile?.photos || []}
+                session={session}
+                onMessage={showSettingsMessage}
+                isPremium={profile?.isPremium || false}
+              />
+            </div>
+
+            <DrawerFooter className="border-t border-gray-200">
+              <DrawerClose asChild>
+                <Button variant="outline" className="w-full">
+                  Fermer
+                </Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
       </nav>
     )
   }
 
-  // Si on arrive ici, quelque chose ne va pas
-  console.log('❌ NavBar non affichée - Condition non remplie')
-  console.log('   Status:', status, 'Session:', !!session)
   return null
 }
