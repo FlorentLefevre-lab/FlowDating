@@ -20,6 +20,7 @@
     ],
     "baseUrl": ".",
     "paths": {
+      "@/auth": ["./auth.ts"],
       "@/*": ["./src/*"],
       "@/components/*": ["./app/components/*"],
       "@/lib/*": ["./src/lib/*"],
