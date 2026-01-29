@@ -61,6 +61,53 @@ enum MessageStatus {
 }
 
 // ================================
+// ENUMS ADMIN
+// ================================
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum PhotoModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FLAGGED
+}
+
+enum ReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum ReportCategory {
+  INAPPROPRIATE_CONTENT
+  HARASSMENT
+  FAKE_PROFILE
+  SPAM
+  UNDERAGE
+  SCAM
+  OTHER
+}
+
+enum AdminActionType {
+  USER_SUSPENDED
+  USER_BANNED
+  USER_UNBANNED
+  USER_DELETED
+  PHOTO_APPROVED
+  PHOTO_REJECTED
+  REPORT_RESOLVED
+  REPORT_DISMISSED
+  ROLE_CHANGED
+  SETTINGS_UPDATED
+}
+
+// ================================
 // MODÈLE USER PRINCIPAL
 // ================================
 
@@ -118,8 +165,11 @@ model User {
   isOnline Boolean   @default(false)
 
   // Abonnement Premium
-  isPremium       Boolean   @default(false)
+  isPremium        Boolean   @default(false)
   premiumExpiresAt DateTime?
+
+  // Rôle utilisateur (admin)
+  role UserRole @default(USER)
 
   // Données existantes
   interests         String[]
@@ -156,6 +206,14 @@ model User {
 
   // Stats dénormalisées
   stats UserStats?
+
+  // Relations Admin
+  photosModerated   Photo[]    @relation("PhotoModerator")
+  reportsSubmitted  Report[]   @relation("ReportSubmitter")
+  reportsReceived   Report[]   @relation("ReportTarget")
+  reportsResolved   Report[]   @relation("ReportResolver")
+  adminActions      AdminLog[] @relation("AdminActor")
+  actionsReceived   AdminLog[] @relation("AdminActionTarget")
 
   @@map("users")
 }
@@ -211,8 +269,19 @@ model Photo {
   isPrimary Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Champs de modération
+  moderationStatus PhotoModerationStatus @default(PENDING)
+  moderatedAt      DateTime?
+  moderatedBy      String?
+  moderationNote   String?
+  nsfwScore        Float?
+  autoFlagged      Boolean               @default(false)
 
+  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moderator User? @relation("PhotoModerator", fields: [moderatedBy], references: [id])
+
+  @@index([moderationStatus])
+  @@index([createdAt])
   @@map("photos")
 }
 
@@ -369,4 +438,101 @@ model UserStats {
 
   @@index([userId])
   @@map("user_stats")
+}
+
+// ================================
+// MODÈLES ADMIN - SIGNALEMENTS
+// ================================
+
+model Report {
+  id           String         @id @default(cuid())
+  reporterId   String
+  targetUserId String
+  category     ReportCategory
+  description  String?
+  status       ReportStatus   @default(PENDING)
+  priority     Int            @default(0) // 0=low, 1=medium, 2=high
+
+  // Evidence
+  evidenceUrls String[]
+  photoId      String?
+
+  // Resolution
+  resolvedAt DateTime?
+  resolvedBy String?
+  resolution String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reporter   User  @relation("ReportSubmitter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetUser User  @relation("ReportTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  resolver   User? @relation("ReportResolver", fields: [resolvedBy], references: [id])
+
+  @@index([status])
+  @@index([category])
+  @@index([targetUserId])
+  @@index([createdAt])
+  @@map("reports")
+}
+
+// ================================
+// MODÈLES ADMIN - LOGS D'AUDIT
+// ================================
+
+model AdminLog {
+  id           String          @id @default(cuid())
+  adminId      String
+  targetUserId String?
+  actionType   AdminActionType
+  details      Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime        @default(now())
+
+  admin      User  @relation("AdminActor", fields: [adminId], references: [id], onDelete: Cascade)
+  targetUser User? @relation("AdminActionTarget", fields: [targetUserId], references: [id])
+
+  @@index([adminId])
+  @@index([targetUserId])
+  @@index([actionType])
+  @@index([createdAt])
+  @@map("admin_logs")
+}
+
+// ================================
+// MODÈLES ADMIN - STATS GLOBALES (cache)
+// ================================
+
+model GlobalStats {
+  id String @id @default("singleton")
+
+  // User stats
+  totalUsers       Int @default(0)
+  activeUsersToday Int @default(0)
+  activeUsersWeek  Int @default(0)
+  newUsersToday    Int @default(0)
+  newUsersWeek     Int @default(0)
+  newUsersMonth    Int @default(0)
+
+  // Engagement stats
+  totalMatches Int @default(0)
+  matchesToday Int @default(0)
+  matchesWeek  Int @default(0)
+  totalLikes   Int @default(0)
+  likesToday   Int @default(0)
+
+  // Moderation stats
+  pendingPhotoReviews Int @default(0)
+  pendingReports      Int @default(0)
+
+  // Retention
+  day1Retention  Float @default(0)
+  day7Retention  Float @default(0)
+  day30Retention Float @default(0)
+
+  lastCalculated DateTime @default(now())
+
+  @@map("global_stats")
 }

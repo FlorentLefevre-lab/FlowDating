@@ -401,3 +401,152 @@ export function withAuthAndParams<P extends Record<string, string>>(
     })(req);
   };
 }
+
+// ================================
+// ADMIN AUTHORIZATION MIDDLEWARE
+// ================================
+
+// Extended context for admin handlers
+export interface AdminContext extends AuthContext {
+  role: 'ADMIN' | 'MODERATOR';
+  isAdmin: boolean;
+  isModerator: boolean;
+}
+
+/**
+ * Middleware that ensures the user has admin or moderator role
+ * Returns 403 if user doesn't have required role
+ */
+export function withAdmin(
+  handler: AuthenticatedHandler<AdminContext>,
+  options: { requireAdmin?: boolean } = {}
+): (req: NextRequest) => Promise<NextResponse> {
+  return async (req: NextRequest) => {
+    try {
+      const session = await getServerSession(authOptions);
+
+      if (!session?.user?.id) {
+        logUnauthorizedAccess('admin_access', null, 'admin', 'N/A', 'No valid session');
+        return NextResponse.json(
+          { error: 'Non authentifie' },
+          { status: 401 }
+        );
+      }
+
+      // Fetch user with role
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: {
+          accountStatus: true,
+          role: true
+        }
+      });
+
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Utilisateur non trouve' },
+          { status: 404 }
+        );
+      }
+
+      if (user.accountStatus === 'BANNED' || user.accountStatus === 'DELETED') {
+        return NextResponse.json(
+          { error: 'Compte non autorise' },
+          { status: 403 }
+        );
+      }
+
+      const isAdmin = user.role === 'ADMIN';
+      const isModerator = user.role === 'MODERATOR' || user.role === 'ADMIN';
+
+      // Check if admin role is specifically required
+      if (options.requireAdmin && !isAdmin) {
+        logUnauthorizedAccess(
+          'admin_only',
+          session.user.id,
+          'admin',
+          'N/A',
+          'User is moderator but admin required'
+        );
+        return NextResponse.json(
+          { error: 'Acces reserve aux administrateurs' },
+          { status: 403 }
+        );
+      }
+
+      // Check if user has at least moderator role
+      if (!isModerator) {
+        logUnauthorizedAccess(
+          'admin_access',
+          session.user.id,
+          'admin',
+          'N/A',
+          `User role is ${user.role}`
+        );
+        return NextResponse.json(
+          { error: 'Acces reserve aux moderateurs' },
+          { status: 403 }
+        );
+      }
+
+      const adminContext: AdminContext = {
+        session: session as AuthSession,
+        userId: session.user.id,
+        role: user.role as 'ADMIN' | 'MODERATOR',
+        isAdmin,
+        isModerator,
+      };
+
+      return handler(req, adminContext);
+    } catch (error) {
+      console.error('[AUTH] Error in withAdmin middleware:', error);
+      return NextResponse.json(
+        { error: 'Erreur d\'authentification' },
+        { status: 500 }
+      );
+    }
+  };
+}
+
+/**
+ * Middleware wrapper for admin routes with Next.js params
+ */
+export function withAdminAndParams<P extends Record<string, string>>(
+  handler: (req: NextRequest, context: AdminContext, params: P) => Promise<NextResponse>,
+  options: { requireAdmin?: boolean } = {}
+): (req: NextRequest, routeContext: { params: Promise<P> }) => Promise<NextResponse> {
+  return async (req: NextRequest, { params }: { params: Promise<P> }) => {
+    const resolvedParams = await params;
+
+    return withAdmin(async (req: NextRequest, adminContext: AdminContext) => {
+      return handler(req, adminContext, resolvedParams);
+    }, options)(req);
+  };
+}
+
+/**
+ * Helper to log admin actions to the AdminLog table
+ */
+export async function logAdminAction(
+  adminId: string,
+  actionType: string,
+  targetUserId?: string,
+  details?: Record<string, unknown>,
+  req?: NextRequest
+): Promise<void> {
+  try {
+    await prisma.adminLog.create({
+      data: {
+        adminId,
+        actionType: actionType as any,
+        targetUserId,
+        details: details ? details : undefined,
+        ipAddress: req?.headers.get('x-forwarded-for') || req?.headers.get('x-real-ip') || null,
+        userAgent: req?.headers.get('user-agent') || null,
+      }
+    });
+  } catch (error) {
+    console.error('[ADMIN] Failed to log admin action:', error);
+    // Don't throw - logging failure shouldn't break the action
+  }
+}

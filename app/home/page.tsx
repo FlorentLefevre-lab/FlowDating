@@ -24,6 +24,7 @@ interface DiscoverUser {
   location: string
   profession: string
   interests: string[]
+  role?: 'USER' | 'MODERATOR' | 'ADMIN'
   photos: Array<{
     id: string
     url: string
@@ -662,12 +663,24 @@ export default function HomePage() {
                     
                     {/* Badges en haut */}
                     <div className="relative z-10 p-4 flex-between items-start">
-                      {currentUser.isOnline && (
-                        <Badge className="badge-online">
-                          <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
-                          En ligne
-                        </Badge>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {currentUser.isOnline && (
+                          <Badge className="badge-online">
+                            <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
+                            En ligne
+                          </Badge>
+                        )}
+                        {/* Badge Admin/Moderator */}
+                        {(currentUser.role === 'ADMIN' || currentUser.role === 'MODERATOR') && (
+                          <Badge className={`${
+                            currentUser.role === 'ADMIN'
+                              ? 'bg-gradient-to-r from-purple-600 to-pink-600'
+                              : 'bg-gradient-to-r from-blue-500 to-cyan-500'
+                          } text-white border-0`}>
+                            {currentUser.role === 'ADMIN' ? '👑 Admin' : '🛡️ Mod'}
+                          </Badge>
+                        )}
+                      </div>
                       <Badge className="badge-primary glass">
                         ✨ {currentUser.compatibility}% compatible
                       </Badge>

@@ -24,12 +24,18 @@ interface CommuneData {
   };
 }
 
-const BasicInfoForm: React.FC<ProfileFormProps> = ({ 
-  profile, 
-  loading, 
-  onSubmit, 
-  onCancel 
+const BasicInfoForm: React.FC<ProfileFormProps> = ({
+  profile,
+  loading,
+  onSubmit,
+  onCancel
 }) => {
+  // DEBUG: Log profile data on init
+  console.log('🔄 [BasicInfoForm] Initialisation avec profile:', {
+    name: profile?.name,
+    location: profile?.location
+  });
+
   const [formData, setFormData] = useState({
     name: profile?.name || '',
     age: profile?.age || '',
@@ -224,21 +230,29 @@ const BasicInfoForm: React.FC<ProfileFormProps> = ({
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
+    console.log('🔍 [BasicInfoForm] Validation en cours:', {
+      name: formData.name,
+      location: formData.location,
+      cityHasBeenModified,
+      isValidCity,
+      originalCityValue
+    });
+
     if (!formData.name.trim()) {
       newErrors.name = 'Le nom est requis';
     } else if (formData.name.length > 100) {
       newErrors.name = 'Nom trop long (max 100 caractères)';
     }
-    
+
     if (formData.age && (formData.age < 18 || formData.age > 100)) {
       newErrors.age = 'Âge doit être entre 18 et 100 ans';
     }
-    
+
     if (formData.bio && formData.bio.length > 500) {
       newErrors.bio = 'Bio limitée à 500 caractères';
     }
-    
+
     // NOUVELLE LOGIQUE DE VALIDATION DE LA VILLE
     if (!formData.location.trim()) {
       newErrors.location = 'La ville est obligatoire';
@@ -255,20 +269,39 @@ const BasicInfoForm: React.FC<ProfileFormProps> = ({
       }
     }
     // Si l'utilisateur n'a pas modifié le champ, on accepte la valeur existante
-    
+
+    if (Object.keys(newErrors).length > 0) {
+      console.log('❌ [BasicInfoForm] Erreurs de validation:', newErrors);
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) return;
-    
+
+    // DEBUG: Log form data before validation
+    console.log('🔍 [BasicInfoForm] Tentative de soumission:', {
+      formData,
+      cityHasBeenModified,
+      isValidCity,
+      selectedCityData: selectedCityData?.nom,
+      shouldDisableSubmit: shouldDisableSubmit()
+    });
+
+    if (!validateForm()) {
+      console.log('❌ [BasicInfoForm] Validation échouée:', errors);
+      return;
+    }
+
+    console.log('✅ [BasicInfoForm] Validation OK, envoi des données:', formData);
+
     try {
       await onSubmit(formData);
+      console.log('✅ [BasicInfoForm] Soumission réussie');
     } catch (error) {
-      console.error('Erreur soumission:', error);
+      console.error('❌ [BasicInfoForm] Erreur soumission:', error);
     }
   };
 

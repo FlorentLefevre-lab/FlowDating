@@ -12,7 +12,10 @@
       "Bash(taskkill:*)",
       "Bash(npm run dev:*)",
       "Bash(timeout:*)",
-      "Bash(if exist .next rmdir /s /q .next)"
+      "Bash(if exist .next rmdir /s /q .next)",
+      "Bash(npx prisma generate:*)",
+      "Bash(node scripts/set-admin.js:*)",
+      "Bash(node scripts/check-status.js:*)"
     ]
   }
 }

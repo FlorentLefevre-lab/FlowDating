@@ -318,14 +318,28 @@ export default function DiscoverPageSimple() {
           className="bg-white rounded-xl shadow-lg overflow-hidden"
         >
           {/* Photo */}
-          <div 
+          <div
             className="h-96 bg-cover bg-center relative"
             style={{
               backgroundImage: `url(${currentProfile.photos?.[0]?.url || 'https://via.placeholder.com/400x600/f3f4f6/9ca3af?text=Photo'})`
             }}
           >
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-            
+
+            {/* Badge Admin/Moderator */}
+            {(currentProfile.role === 'ADMIN' || currentProfile.role === 'MODERATOR') && (
+              <div className="absolute top-4 left-4 z-10">
+                <span className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1.5 ${
+                  currentProfile.role === 'ADMIN'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+                    : 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white'
+                }`}>
+                  {currentProfile.role === 'ADMIN' ? '👑' : '🛡️'}
+                  {currentProfile.role === 'ADMIN' ? 'Admin' : 'Modérateur'}
+                </span>
+              </div>
+            )}
+
             {/* Info overlay */}
             <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
               <h2 className="text-2xl font-bold mb-1">

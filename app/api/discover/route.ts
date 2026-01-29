@@ -184,6 +184,7 @@ async function handleGetDiscover(request: NextRequest) {
         // SECURITY: Do NOT expose email in discover endpoint
         id: true, name: true, age: true, bio: true,
         location: true, profession: true, gender: true, interests: true,
+        role: true, // Pour afficher badge Admin/Moderator
         createdAt: true, lastSeen: true,
         photos: {
           select: { id: true, url: true, isPrimary: true },
@@ -241,6 +242,7 @@ async function handleGetDiscover(request: NextRequest) {
         location: user.location || 'Lieu non précisé',
         profession: user.profession || 'Profession non précisée',
         gender: user.gender,
+        role: user.role, // Pour afficher badge Admin/Moderator
         interests: user.interests || [],
         photos: user.photos.length > 0 ? user.photos : [{
           id: 'placeholder',
@@ -249,7 +251,8 @@ async function handleGetDiscover(request: NextRequest) {
         }],
         compatibility: finalScore,
         memberSince: user.createdAt.toISOString(),
-        isOnline: user.lastSeen ? (Date.now() - new Date(user.lastSeen).getTime()) < 15 * 60 * 1000 : false
+        // isOnline: actif dans les 5 dernières minutes (cohérent avec heartbeat de 30s)
+        isOnline: user.lastSeen ? (Date.now() - new Date(user.lastSeen).getTime()) < 5 * 60 * 1000 : false
       };
     });
 

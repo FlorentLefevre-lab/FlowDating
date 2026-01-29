@@ -20,6 +20,7 @@ export interface User {
   } | null;
   isOnline: boolean;
   lastSeen?: string;
+  role?: 'USER' | 'MODERATOR' | 'ADMIN';
 }
 
 export interface Conversation {

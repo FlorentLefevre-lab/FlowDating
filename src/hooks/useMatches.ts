@@ -98,15 +98,17 @@ export function useMatches(options: UseMatchesOptions = {}): UseMatchesReturn {
   // Fonction pour charger les matchs
   const loadMatches = useCallback(async (): Promise<void> => {
     if (status !== 'authenticated') return;
-    
+
     try {
       setIsLoading(true);
       setError(null);
-      
-      const response = await fetch('/api/matches', {
+
+      // Ajouter timestamp pour éviter le cache navigateur
+      const response = await fetch(`/api/matches?_t=${Date.now()}`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
         }
       });
       
@@ -137,12 +139,15 @@ export function useMatches(options: UseMatchesOptions = {}): UseMatchesReturn {
   // Fonction pour rafraîchir les matchs
   const refreshMatches = useCallback(async (): Promise<void> => {
     if (status !== 'authenticated' || isLoading) return;
-    
+
     try {
       setIsRefreshing(true);
       setError(null);
-      
-      const response = await fetch('/api/matches');
+
+      // Ajouter timestamp pour éviter le cache navigateur
+      const response = await fetch(`/api/matches?_t=${Date.now()}`, {
+        headers: { 'Cache-Control': 'no-cache' }
+      });
       if (!response.ok) throw new Error(`Erreur ${response.status}`);
       
       const data: MatchesResponse = await response.json();

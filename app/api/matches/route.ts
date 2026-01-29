@@ -94,6 +94,7 @@ export async function GET(request: NextRequest) {
               isOnline: true,
               lastSeen: true,
               createdAt: true,
+              role: true, // Pour afficher badge Admin/Moderator
               preferences: { select: { gender: true } },
               photos: {
                 where: { isPrimary: true },
@@ -118,6 +119,7 @@ export async function GET(request: NextRequest) {
               isOnline: true,
               lastSeen: true,
               createdAt: true,
+              role: true, // Pour afficher badge Admin/Moderator
               preferences: { select: { gender: true } },
               photos: {
                 where: { isPrimary: true },
@@ -191,7 +193,21 @@ export async function GET(request: NextRequest) {
       };
 
       // 5. Formater les données pour le frontend
+      // Fonction pour calculer isOnline dynamiquement (cohérent avec discover API)
+      const calculateIsOnline = (user: any): boolean => {
+        // Si lastSeen est dans les 5 dernières minutes, considéré comme en ligne
+        // (correspond à l'intervalle de heartbeat de 30s avec marge)
+        if (user.lastSeen) {
+          const lastSeenTime = new Date(user.lastSeen).getTime();
+          const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+          return lastSeenTime > fiveMinutesAgo;
+        }
+        // Fallback sur le champ isOnline de la BDD
+        return user.isOnline || false;
+      };
+
       const formattedMatches: Match[] = filteredUsers.map(user => {
+        const isOnline = calculateIsOnline(user);
         return {
           id: user.matchId,
           createdAt: user.matchedAt.toISOString(),
@@ -207,8 +223,9 @@ export async function GET(request: NextRequest) {
             gender: user.gender || null,
             interests: Array.isArray(user.interests) ? user.interests : [],
             photo: user.photos[0] || null,
-            isOnline: user.isOnline || false,
-            lastSeen: user.lastSeen?.toISOString()
+            isOnline: isOnline,
+            lastSeen: user.lastSeen?.toISOString(),
+            role: (user as any).role || 'USER' // Pour afficher badge Admin/Moderator
           },
           conversation: {
             hasStarted: false, // Par défaut, pas de conversation démarrée
@@ -249,13 +266,22 @@ export async function GET(request: NextRequest) {
 
       console.log('✅ [MATCHES] Données formatées:', {
         matches: formattedMatches.length,
-        stats
+        stats,
+        timestamp: new Date().toISOString()
       });
 
+      // Ajouter headers anti-cache pour forcer le rafraîchissement
       return NextResponse.json({
         matches: formattedMatches,
-        stats
-      } as MatchesResponse);
+        stats,
+        _timestamp: Date.now() // Pour debug
+      } as MatchesResponse, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
 
     } catch (prismaError) {
       console.error('❌ [MATCHES] Erreur Prisma:', prismaError);

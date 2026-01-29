@@ -68,7 +68,8 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    console.log('📝 Données reçues pour PUT:', body);
+    console.log('📝 [API Profile] Données reçues pour PUT:', body);
+    console.log('📝 [API Profile] Champ name reçu:', body.name);
 
     // 🔄 MAPPING ET VALIDATION des enums
     const updateData: any = {};
@@ -91,6 +92,9 @@ export async function PUT(request: NextRequest) {
         updateData[field] = body[field];
       }
     });
+
+    console.log('📝 [API Profile] updateData construit:', updateData);
+    console.log('📝 [API Profile] name dans updateData:', updateData.name);
 
     // 🔄 MAPPING pour gender
     if (body.gender && body.gender.trim()) {
@@ -131,7 +135,8 @@ export async function PUT(request: NextRequest) {
       }
     });
 
-    console.log('✅ Utilisateur mis à jour avec succès');
+    console.log('✅ [API Profile] Utilisateur mis à jour avec succès');
+    console.log('✅ [API Profile] Nouveau name en BDD:', updatedUser.name);
 
     // ✅ CORRECTION : Retourner les données avec accountStatus inclus
     const responseData = {

@@ -516,18 +516,40 @@ const MatchCard = ({ match, onOpenChat, onOpenProfile, isOpeningChat }: {
   onOpenProfile: (match: Match) => void;
   isOpeningChat: boolean;
 }) => {
-  const getTimeAgo = (dateString: string) => {
+  const getTimeAgo = (dateString: string | undefined | null) => {
+    if (!dateString) return 'Inconnu';
+
     const now = new Date();
     const date = new Date(dateString);
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
 
-    if (diffDays > 0) return `il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
-    if (diffHours > 0) return `il y a ${diffHours}h`;
-    if (diffMinutes > 0) return `il y a ${diffMinutes}min`;
-    return 'À l\'instant';
+    // Vérifier si la date est valide
+    if (isNaN(date.getTime())) return 'Inconnu';
+
+    const diffMs = now.getTime() - date.getTime();
+
+    // Si dans le futur (problème de synchronisation), afficher "À l'instant"
+    if (diffMs < 0) return 'À l\'instant';
+
+    const diffSeconds = Math.floor(diffMs / 1000);
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffWeeks = Math.floor(diffDays / 7);
+    const diffMonths = Math.floor(diffDays / 30);
+
+    if (diffSeconds < 60) return 'À l\'instant';
+    if (diffMinutes === 1) return 'il y a 1 min';
+    if (diffMinutes < 60) return `il y a ${diffMinutes} min`;
+    if (diffHours === 1) return 'il y a 1h';
+    if (diffHours < 24) return `il y a ${diffHours}h`;
+    if (diffDays === 1) return 'Hier';
+    if (diffDays < 7) return `il y a ${diffDays} jours`;
+    if (diffWeeks === 1) return 'il y a 1 semaine';
+    if (diffWeeks < 4) return `il y a ${diffWeeks} semaines`;
+    if (diffMonths === 1) return 'il y a 1 mois';
+    if (diffMonths < 12) return `il y a ${diffMonths} mois`;
+
+    return 'il y a longtemps';
   };
 
   const getStatusBadge = (match: Match) => {
@@ -589,6 +611,16 @@ const MatchCard = ({ match, onOpenChat, onOpenProfile, isOpeningChat }: {
         </button>
 
         <div className="absolute top-3 left-3 flex flex-col space-y-2 pointer-events-none">
+          {/* Badge Admin/Moderator */}
+          {(match.user.role === 'ADMIN' || match.user.role === 'MODERATOR') && (
+            <Badge className={`${
+              match.user.role === 'ADMIN'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600'
+                : 'bg-gradient-to-r from-blue-500 to-cyan-500'
+            } text-white border-0 shadow-lg`}>
+              {match.user.role === 'ADMIN' ? '👑 Admin' : '🛡️ Mod'}
+            </Badge>
+          )}
           {match.isNew && (
             <Badge className="bg-yellow-500 text-white animate-bounce-gentle">
               Nouveau
@@ -645,12 +677,18 @@ const MatchCard = ({ match, onOpenChat, onOpenProfile, isOpeningChat }: {
             </div>
           )}
 
-          {match.user.lastSeen && !match.user.isOnline && (
+          {/* Statut de connexion */}
+          {match.user.isOnline ? (
+            <div className="flex items-center text-sm text-green-600">
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" />
+              <span>En ligne maintenant</span>
+            </div>
+          ) : match.user.lastSeen ? (
             <div className="flex items-center text-sm text-gray-500">
               <Clock size={14} className="mr-2 flex-shrink-0" />
               <span className="truncate">Vu {getTimeAgo(match.user.lastSeen)}</span>
             </div>
-          )}
+          ) : null}
         </div>
 
         {match.user.bio && (
@@ -703,7 +741,7 @@ const MatchCard = ({ match, onOpenChat, onOpenProfile, isOpeningChat }: {
 export default function MatchesPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  
+
   const {
     matches,
     stats,
@@ -717,14 +755,25 @@ export default function MatchesPage() {
     updateFilters,
     clearFilters,
     getFilteredStats
-  } = useMatches({ 
-    autoRefresh: true, 
-    refreshInterval: 60000 // 1 minute
+  } = useMatches({
+    autoRefresh: true,
+    refreshInterval: 30000 // 30 secondes pour rafraîchir les statuts
   });
 
   const [showFilters, setShowFilters] = useState(false);
   const [openingChatMatchId, setOpeningChatMatchId] = useState<string | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+
+  // État pour forcer le re-render des temps relatifs
+  const [, setTimeUpdate] = useState(0);
+
+  // Rafraîchir l'affichage des temps toutes les 30 secondes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeUpdate(prev => prev + 1);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Ouvrir le modal de profil
   const openProfile = (match: Match) => {

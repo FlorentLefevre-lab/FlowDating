@@ -56,7 +56,7 @@ const LifestyleForm = dynamic(() => import('./LifestyleForm'), {
 });
 
 const ProfileManager: React.FC = () => {
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -245,8 +245,9 @@ const ProfileManager: React.FC = () => {
   const handleBasicInfoSubmit = async (data: any) => {
     setSaving(true);
     try {
-      console.log('💾 Sauvegarde des infos de base:', data);
-      
+      console.log('💾 [ProfileManager] Sauvegarde des infos de base:', data);
+      console.log('💾 [ProfileManager] Ancien nom:', profile?.name, '-> Nouveau nom:', data.name);
+
       const response = await fetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -255,16 +256,29 @@ const ProfileManager: React.FC = () => {
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ [ProfileManager] Réponse API erreur:', response.status, errorText);
         throw new Error(`HTTP ${response.status}`);
       }
 
       const updatedData = await response.json();
-      setProfile(prev => prev ? { ...prev, ...updatedData } : null);
-      
+      console.log('✅ [ProfileManager] Réponse API succès:', updatedData);
+      console.log('✅ [ProfileManager] Nom mis à jour:', updatedData.name);
+
+      setProfile(prev => {
+        const newProfile = prev ? { ...prev, ...updatedData } : null;
+        console.log('✅ [ProfileManager] Nouveau profil state:', newProfile?.name);
+        return newProfile;
+      });
+
+      // 🔄 Rafraîchir la session NextAuth pour mettre à jour le nom dans la navbar
+      await updateSession();
+      console.log('✅ [ProfileManager] Session NextAuth rafraîchie');
+
       showMessage('✅ Informations de base sauvegardées !', 'success');
       setActiveTab('overview');
     } catch (error) {
-      console.error('❌ Erreur sauvegarde:', error);
+      console.error('❌ [ProfileManager] Erreur sauvegarde:', error);
       showMessage('❌ Erreur lors de la sauvegarde', 'error');
     } finally {
       setSaving(false);

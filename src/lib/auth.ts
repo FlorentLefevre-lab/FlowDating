@@ -49,7 +49,9 @@ export const authOptions: NextAuthOptions = {
               name: true,
               image: true,
               hashedPassword: true,
-              emailVerified: true
+              emailVerified: true,
+              role: true,
+              accountStatus: true
             }
           })
 
@@ -70,6 +72,14 @@ export const authOptions: NextAuthOptions = {
             return null
           }
 
+          // Check if account is banned or suspended
+          if (user.accountStatus === 'BANNED') {
+            throw new Error('Ce compte a ete banni.')
+          }
+          if (user.accountStatus === 'SUSPENDED') {
+            throw new Error('Ce compte est temporairement suspendu.')
+          }
+
           // Successful login - reset failed attempts counter
           await resetFailedLoginAttempts(email)
 
@@ -78,10 +88,14 @@ export const authOptions: NextAuthOptions = {
             email: user.email,
             name: user.name,
             image: user.image,
+            role: user.role,
           }
         } catch (error) {
-          // Re-throw custom errors (like blocked account)
-          if (error instanceof Error && error.message.includes('bloque')) {
+          // Re-throw custom errors (blocked, banned, suspended)
+          if (error instanceof Error &&
+              (error.message.includes('bloque') ||
+               error.message.includes('banni') ||
+               error.message.includes('suspendu'))) {
             throw error
           }
           console.error('Erreur authentification:', error)
@@ -107,9 +121,24 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id
+        token.name = user.name
+        token.image = user.image
+        token.role = (user as any).role || 'USER'
+      }
+      // Refresh user data from database on session update
+      if (trigger === 'update' && token.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { name: true, image: true, role: true }
+        })
+        if (dbUser) {
+          token.name = dbUser.name
+          token.image = dbUser.image
+          token.role = dbUser.role
+        }
       }
       return token
     },
@@ -117,6 +146,9 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (token && session.user) {
         (session.user as any).id = token.id as string
+        session.user.name = token.name as string | null
+        session.user.image = token.image as string | null
+        ;(session.user as any).role = token.role || 'USER'
       }
       return session
     },
