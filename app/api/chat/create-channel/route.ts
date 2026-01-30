@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { StreamChat } from 'stream-chat'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   try {

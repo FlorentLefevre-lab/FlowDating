@@ -45,6 +45,7 @@ export function AdminLayoutClient({
         <AdminSidebar
           pendingReports={pendingReports}
           pendingPhotos={pendingPhotos}
+          userRole={user?.role}
         />
       </div>
 

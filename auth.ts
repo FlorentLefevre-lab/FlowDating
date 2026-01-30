@@ -158,5 +158,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     error: '/auth/error',
   },
 
-  debug: process.env.NODE_ENV === "development",
+  // Utiliser AUTH_DEBUG=true pour activer le mode debug
+  debug: process.env.AUTH_DEBUG === "true",
 })

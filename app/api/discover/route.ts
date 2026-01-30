@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server';
 import { apiCache } from '@/lib/cache';
 import { withRateLimit } from '@/lib/middleware/rateLimit';
+import { filterByDistance } from '@/lib/geo';
 
 // ================================
 // GET - RÉCUPÉRER LES PROFILS
@@ -256,12 +257,17 @@ async function handleGetDiscover(request: NextRequest) {
       };
     });
 
-    // 6. Mettre en cache et retourner
-    const sortedUsers = enrichedUsers.sort((a, b) => b.compatibility - a.compatibility);
-    
-    await apiCache.discover.set(currentUser.id, { filters, offset, limit }, sortedUsers);
+    // 6. Filtrer par distance géographique (utilise l'API Geo du gouvernement)
+    const maxDistance = filters.maxDistance || currentUser.preferences?.maxDistance || 100;
+    const usersWithDistance = await filterByDistance(enrichedUsers, currentUser.location, maxDistance);
 
-    console.log(`⚡ ${sortedUsers.length} utilisateurs découvrables | ${Date.now() - startTime}ms`);
+    // 7. Trier par compatibilité (cache désactivé pour le filtrage dynamique par distance)
+    const sortedUsers = usersWithDistance.sort((a, b) => b.compatibility - a.compatibility);
+
+    // Cache désactivé car le filtrage par distance est dynamique
+    // await apiCache.discover.set(currentUser.id, { filters, offset, limit }, sortedUsers);
+
+    console.log(`⚡ ${sortedUsers.length} utilisateurs découvrables (distance max: ${maxDistance}km, location: ${currentUser.location}) | ${Date.now() - startTime}ms`);
 
     return NextResponse.json({
       success: true,
@@ -269,7 +275,9 @@ async function handleGetDiscover(request: NextRequest) {
       meta: {
         responseTime: Date.now() - startTime,
         cacheHit: false,
-        source: 'database'
+        source: 'database',
+        maxDistance,
+        userLocation: currentUser.location
       }
     });
 
@@ -436,17 +444,39 @@ async function handlePostDiscover(request: NextRequest) {
         });
 
         result.isMatch = !!reciprocalLike;
+
+        // 🔥 CRÉER LE MATCH EN BASE SI LIKE MUTUEL
+        if (result.isMatch) {
+          // user1Id doit être < user2Id pour éviter les doublons
+          const [user1Id, user2Id] = [currentUser.id, targetUser.id].sort();
+
+          // Créer le match s'il n'existe pas déjà
+          await prisma.match.upsert({
+            where: {
+              user1Id_user2Id: { user1Id, user2Id }
+            },
+            update: {}, // Ne rien faire si existe déjà
+            create: {
+              user1Id,
+              user2Id,
+              status: 'ACTIVE'
+            }
+          });
+
+          console.log(`🎉 Match créé: ${currentUser.name} <-> ${targetUser.name}`);
+        }
+
         result.message = result.isMatch ? '🎉 C\'est un match !' : `${action === 'super_like' ? 'Super Like' : 'Like'} envoyé`;
-        
+
         // Note: Pour l'instant, les super likes sont traités comme des likes normaux
         if (action === 'super_like') {
           result.message += ' (traité comme un like standard)';
         }
-        
+
         // Mettre à jour le compteur
         actionCounts[action === 'super_like' ? 'super_likes' : 'likes']++;
         await apiCache.userBasic.set(limitKey, actionCounts);
-        
+
         break;
 
       case 'dislike':

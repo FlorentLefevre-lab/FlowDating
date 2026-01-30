@@ -23,6 +23,7 @@ interface NavItem {
   href: string;
   icon: React.ElementType;
   badge?: number;
+  adminOnly?: boolean; // Si true, visible uniquement pour ADMIN (pas MODERATOR)
 }
 
 const navItems: NavItem[] = [
@@ -35,6 +36,7 @@ const navItems: NavItem[] = [
     title: "Utilisateurs",
     href: "/admin/users",
     icon: Users,
+    adminOnly: true,
   },
   {
     title: "Photos",
@@ -50,29 +52,38 @@ const navItems: NavItem[] = [
     title: "Activite",
     href: "/admin/activity",
     icon: Activity,
+    adminOnly: true,
   },
   {
     title: "Logs",
     href: "/admin/logs",
     icon: FileText,
+    adminOnly: true,
   },
   {
     title: "Parametres",
     href: "/admin/settings",
     icon: Settings,
+    adminOnly: true,
   },
 ];
 
 interface AdminSidebarProps {
   pendingReports?: number;
   pendingPhotos?: number;
+  userRole?: string;
 }
 
-export function AdminSidebar({ pendingReports = 0, pendingPhotos = 0 }: AdminSidebarProps) {
+export function AdminSidebar({ pendingReports = 0, pendingPhotos = 0, userRole = 'MODERATOR' }: AdminSidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = React.useState(false);
 
-  const itemsWithBadges = navItems.map((item) => {
+  const isAdmin = userRole === 'ADMIN';
+
+  // Filtrer les items selon le rôle (MODERATOR n'a pas accès aux items adminOnly)
+  const filteredItems = navItems.filter(item => !item.adminOnly || isAdmin);
+
+  const itemsWithBadges = filteredItems.map((item) => {
     if (item.href === "/admin/reports" && pendingReports > 0) {
       return { ...item, badge: pendingReports };
     }
@@ -158,19 +169,6 @@ export function AdminSidebar({ pendingReports = 0, pendingPhotos = 0 }: AdminSid
         </Button>
       </div>
 
-      {/* Back to App */}
-      <div className="border-t p-2">
-        <Link
-          href="/discover"
-          className={cn(
-            "flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors",
-            collapsed && "justify-center"
-          )}
-        >
-          <ChevronLeft className="h-4 w-4" />
-          {!collapsed && <span>Retour a l'app</span>}
-        </Link>
-      </div>
     </aside>
   );
 }

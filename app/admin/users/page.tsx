@@ -1,12 +1,9 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -14,56 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Search, ChevronLeft, ChevronRight, Eye, Crown, Shield, User as UserIcon } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
-import { fr } from 'date-fns/locale'
-
-interface User {
-  id: string
-  email: string
-  name: string | null
-  image: string | null
-  age: number | null
-  gender: string | null
-  location: string | null
-  accountStatus: string
-  role: string
-  isPremium: boolean
-  isOnline: boolean
-  lastSeen: string | null
-  createdAt: string
-  matchesCount: number
-  photosCount: number
-  reportsCount: number
-}
+import { DataTable } from '@/components/ui/data-table'
+import { columns, User } from './columns'
+import { Search } from 'lucide-react'
 
 interface Pagination {
   page: number
   limit: number
   total: number
   totalPages: number
-}
-
-const statusColors: Record<string, string> = {
-  ACTIVE: 'bg-green-100 text-green-800',
-  SUSPENDED: 'bg-yellow-100 text-yellow-800',
-  BANNED: 'bg-red-100 text-red-800',
-  DELETED: 'bg-gray-100 text-gray-800',
-  PENDING_VERIFICATION: 'bg-blue-100 text-blue-800'
-}
-
-const roleIcons: Record<string, React.ReactNode> = {
-  ADMIN: <Shield className="h-4 w-4 text-purple-600" />,
-  MODERATOR: <Shield className="h-4 w-4 text-blue-600" />,
-  USER: <UserIcon className="h-4 w-4 text-gray-400" />
 }
 
 function UsersContent() {
@@ -79,13 +35,14 @@ function UsersContent() {
   const [status, setStatus] = useState(searchParams.get('status') || 'all')
   const [role, setRole] = useState(searchParams.get('role') || 'all')
   const [page, setPage] = useState(parseInt(searchParams.get('page') || '1'))
+  const [pageSize, setPageSize] = useState(20)
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
       params.set('page', page.toString())
-      params.set('limit', '20')
+      params.set('limit', pageSize.toString())
       if (search) params.set('search', search)
       if (status && status !== 'all') params.set('status', status)
       if (role && role !== 'all') params.set('role', role)
@@ -100,16 +57,20 @@ function UsersContent() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [page, pageSize, search, status, role])
 
   useEffect(() => {
     fetchUsers()
-  }, [page, status, role])
+  }, [fetchUsers])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     setPage(1)
     fetchUsers()
+  }
+
+  const handleRowClick = (user: User) => {
+    router.push(`/admin/users/${user.id}`)
   }
 
   return (
@@ -165,133 +126,32 @@ function UsersContent() {
         </CardContent>
       </Card>
 
-      {/* Users Table */}
+      {/* Users DataTable */}
       <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Utilisateur</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Stats</TableHead>
-                <TableHead>Inscription</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto" />
-                  </TableCell>
-                </TableRow>
-              ) : users.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    Aucun utilisateur trouve
-                  </TableCell>
-                </TableRow>
-              ) : (
-                users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          {user.image ? (
-                            <img
-                              src={user.image}
-                              alt={user.name || 'User'}
-                              className="h-10 w-10 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                              <UserIcon className="h-5 w-5 text-muted-foreground" />
-                            </div>
-                          )}
-                          {user.isOnline && (
-                            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="font-medium flex items-center gap-2">
-                            {user.name || 'Sans nom'}
-                            {user.isPremium && <Crown className="h-4 w-4 text-yellow-500" />}
-                          </div>
-                          <div className="text-sm text-muted-foreground">{user.email}</div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={statusColors[user.accountStatus] || 'bg-gray-100'}>
-                        {user.accountStatus}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {roleIcons[user.role]}
-                        <span className="text-sm">{user.role}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div>{user.matchesCount} matches</div>
-                        <div className="text-muted-foreground">
-                          {user.reportsCount > 0 && (
-                            <span className="text-destructive">{user.reportsCount} signalements</span>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {formatDistanceToNow(new Date(user.createdAt), { addSuffix: true, locale: fr })}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/admin/users/${user.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+        <CardContent className="p-6">
+          <DataTable
+            columns={columns}
+            data={users}
+            loading={loading}
+            loadingRows={10}
+            showColumnToggle
+            showPagination
+            emptyMessage="Aucun utilisateur trouve"
+            onRowClick={handleRowClick}
+            serverPagination={pagination ? {
+              page: pagination.page,
+              pageSize: pagination.limit,
+              total: pagination.total,
+              totalPages: pagination.totalPages,
+              onPageChange: setPage,
+              onPageSizeChange: (size) => {
+                setPageSize(size)
+                setPage(1)
+              },
+            } : undefined}
+          />
         </CardContent>
       </Card>
-
-      {/* Pagination */}
-      {pagination && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            {pagination.total} utilisateurs au total
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-sm">
-              Page {page} / {pagination.totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
-              disabled={page === pagination.totalPages}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

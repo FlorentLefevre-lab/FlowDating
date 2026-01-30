@@ -203,6 +203,8 @@ export default function HomePage() {
           setMatchUser({ id: userId, name: currentUser.name })
           setIsMatch(true)
           refetchStats() // Mettre à jour les stats
+          // Notifier la Navbar pour mettre à jour le compteur
+          window.dispatchEvent(new Event('match-updated'))
         }
         nextUser()
       } else {
@@ -259,6 +261,8 @@ export default function HomePage() {
         setMatchUser({ id: userId, name: currentUser.name })
         setIsMatch(true)
         refetchStats()
+        // Notifier la Navbar pour mettre à jour le compteur
+        window.dispatchEvent(new Event('match-updated'))
       }
       nextUser()
     } catch (error) {

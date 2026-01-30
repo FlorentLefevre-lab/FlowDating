@@ -69,7 +69,7 @@ export default function Navbar() {
     }
   }, [status])
 
-  // Charger le nombre de matches
+  // Charger le nombre de matches (une seule fois au montage, pas de polling)
   useEffect(() => {
     const loadMatchesCount = async () => {
       if (status !== 'authenticated') return
@@ -88,10 +88,13 @@ export default function Navbar() {
 
     loadMatchesCount()
 
-    // Rafraîchir toutes les 30 secondes
-    const interval = setInterval(loadMatchesCount, 30000)
+    // Écouter les événements de mise à jour des matches
+    const handleMatchUpdate = () => loadMatchesCount()
+    window.addEventListener('match-updated', handleMatchUpdate)
 
-    return () => clearInterval(interval)
+    return () => {
+      window.removeEventListener('match-updated', handleMatchUpdate)
+    }
   }, [status])
 
   // Charger le profil quand le drawer s'ouvre
@@ -309,6 +312,25 @@ export default function Navbar() {
                   </span>
                 </Link>
               </DropdownMenuItem>
+
+              {/* Lien Admin pour ADMIN et MODERATOR */}
+              {((session.user as any)?.role === 'ADMIN' || (session.user as any)?.role === 'MODERATOR') && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin" className="cursor-pointer flex-between w-full">
+                      <span><span className="mr-3">🛡️</span>Administration</span>
+                      <span className={`badge text-white text-[10px] ${
+                        (session.user as any)?.role === 'ADMIN'
+                          ? 'bg-gradient-to-r from-purple-600 to-pink-600'
+                          : 'bg-gradient-to-r from-blue-500 to-cyan-500'
+                      }`}>
+                        {(session.user as any)?.role === 'ADMIN' ? 'Admin' : 'Mod'}
+                      </span>
+                    </Link>
+                  </DropdownMenuItem>
+                </>
+              )}
 
               <DropdownMenuSeparator />
 

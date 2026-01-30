@@ -50,7 +50,8 @@ import {
   Input,
   Skeleton,
   SimpleLoading,
-  SimpleError
+  SimpleError,
+  PhotoCarousel
 } from '@/components/ui';
 import './matches.css';
 
@@ -227,20 +228,41 @@ const ProfileModal = ({
         className="max-w-2xl w-full max-h-[95vh] overflow-hidden modal-content"
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
-        {/* Header avec photo */}
+        {/* Header avec carousel de photos */}
         <div className="relative">
           {isLoading ? (
-            <div className="w-full h-48 bg-gradient-to-br from-pink-200 to-purple-200 flex-center">
+            <div className="w-full h-64 bg-gradient-to-br from-pink-200 to-purple-200 flex-center">
               <div className="spinner-lg"></div>
             </div>
-          ) : profile?.image || (profile?.photos && profile.photos.length > 0) ? (
+          ) : profile?.photos && profile.photos.length > 0 ? (
+            <PhotoCarousel
+              photos={profile.photos}
+              height="h-64"
+              objectFit="contain"
+              showArrows={profile.photos.length > 1}
+              showIndicators={profile.photos.length > 1}
+              counterPosition="top-left"
+              overlay={
+                <>
+                  {/* Gradient en bas pour la lisibilité */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                  {/* Badge genre */}
+                  {profile?.gender && (
+                    <Badge variant="secondary" className="absolute bottom-4 left-4 bg-white/90 pointer-events-auto">
+                      {getGenderLabel(profile.gender)}
+                    </Badge>
+                  )}
+                </>
+              }
+            />
+          ) : profile?.image ? (
             <img
-              src={profile.image || profile.photos?.[0]?.url}
+              src={profile.image}
               alt={profile?.name || userName}
-              className="w-full h-48 object-contain"
+              className="w-full h-64 object-contain"
             />
           ) : (
-            <div className="w-full h-48 bg-gradient-to-br from-pink-400 to-purple-600 flex-center">
+            <div className="w-full h-64 bg-gradient-to-br from-pink-400 to-purple-600 flex-center">
               <span className="text-white text-5xl font-bold">
                 {(profile?.name || userName)?.charAt(0) || '?'}
               </span>
@@ -252,17 +274,10 @@ const ProfileModal = ({
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="absolute top-4 right-4 bg-white/90 hover:bg-white rounded-full shadow-lg"
+            className="absolute top-4 right-4 z-30 bg-white/90 hover:bg-white rounded-full shadow-lg"
           >
             <X className="w-5 h-5 text-gray-700" />
           </Button>
-
-          {/* Badge genre */}
-          {profile?.gender && (
-            <Badge variant="secondary" className="absolute bottom-4 left-4 bg-white/90">
-              {getGenderLabel(profile.gender)}
-            </Badge>
-          )}
         </div>
 
         {/* Contenu du profil */}
@@ -450,24 +465,6 @@ const ProfileModal = ({
                 </div>
               )}
 
-              {/* Photos supplementaires */}
-              {profile.photos && profile.photos.length > 1 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                    Photos
-                  </h3>
-                  <div className="profile-photo-grid">
-                    {profile.photos.map((photo, index) => (
-                      <img
-                        key={index}
-                        src={photo.url}
-                        alt={`Photo ${index + 1}`}
-                        className="w-full h-24 object-contain rounded-lg"
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           ) : null}
         </CardContent>

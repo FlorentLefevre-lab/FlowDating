@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import {
   CheckIcon,
   ExclamationTriangleIcon,
@@ -57,7 +58,16 @@ const LifestyleForm = dynamic(() => import('./LifestyleForm'), {
 
 const ProfileManager: React.FC = () => {
   const { data: session, update: updateSession } = useSession();
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    // Lire le paramètre tab de l'URL au chargement
+    const tabParam = searchParams?.get('tab');
+    const validTabs: TabType[] = ['overview', 'edit', 'personal', 'physical', 'lifestyle', 'photos', 'preferences', 'stats'];
+    if (tabParam && validTabs.includes(tabParam as TabType)) {
+      return tabParam as TabType;
+    }
+    return 'overview';
+  });
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

@@ -6,9 +6,10 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({
-  log: process.env.NODE_ENV === 'development'
+  // Utiliser PRISMA_DEBUG=true pour activer les logs de requêtes
+  log: process.env.PRISMA_DEBUG === 'true'
     ? ['query', 'error', 'warn']
-    : ['error'],
+    : ['error', 'warn'],
 })
 
 if (process.env.NODE_ENV !== 'production') {
