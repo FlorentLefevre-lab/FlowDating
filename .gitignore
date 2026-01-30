@@ -344,3 +344,4 @@ ehthumbs.db
 # - Données utilisateurs réelles
 # - Backups de production
 nul
+".env.production" 
