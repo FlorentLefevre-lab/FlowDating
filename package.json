@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
-    "start": "(prisma migrate resolve --rolled-back 20260130000000_init || true) && prisma migrate deploy && (npx tsx prisma/seed.ts || echo 'Seed skipped') && HOSTNAME=0.0.0.0 node .next/standalone/server.js",
+    "start": "(prisma migrate resolve --rolled-back 20260130000000_init || true) && prisma migrate deploy && npx tsx prisma/seed-5000.ts && HOSTNAME=0.0.0.0 node .next/standalone/server.js",
     "lint": "next lint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -13,6 +13,7 @@
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:seed:100": "npx tsx prisma/seed-100-users.ts",
+    "db:seed:5000": "npx tsx prisma/seed-5000.ts",
     "db:reset": "prisma migrate reset",
     "db:studio": "prisma studio",
     "db:fresh": "prisma migrate reset --force",
