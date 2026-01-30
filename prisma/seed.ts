@@ -1,33 +1,68 @@
 // prisma/seed.ts - Script simplifié avec 4 utilisateurs
-import { config } from 'dotenv';
-import path from 'path';
-
-const envPath = path.join(process.cwd(), '.env.local');
-config({ path: envPath });
-
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+
+// Chargement conditionnel de dotenv (uniquement en local)
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    const { config } = require('dotenv');
+    const path = require('path');
+    config({ path: path.join(process.cwd(), '.env.local') });
+  } catch (e) {
+    // Ignore if dotenv not available
+  }
+}
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seed de la base de données avec 4 utilisateurs...');
+  console.log('Seed de la base de données...');
+
+  // Vérifier si le seed a déjà été exécuté
+  const existingUsers = await prisma.user.count();
+  if (existingUsers > 0) {
+    console.log(`Base déjà peuplée (${existingUsers} utilisateurs). Seed ignoré.`);
+    return;
+  }
+
+  console.log('Création des données initiales...');
 
   const hashedPassword = await bcrypt.hash('password123', 12);
 
-  // Nettoyage
-  console.log('Nettoyage...');
-  await prisma.match.deleteMany();
-  await prisma.profileView.deleteMany();
-  await prisma.dislike.deleteMany();
-  await prisma.like.deleteMany();
-  await prisma.block.deleteMany();
-  await prisma.photo.deleteMany();
-  await prisma.userPreferences.deleteMany();
-  await prisma.notificationSettings.deleteMany();
-  await prisma.session.deleteMany();
-  await prisma.account.deleteMany();
-  await prisma.user.deleteMany();
+  // Création des paramètres de l'application
+  console.log('Création des paramètres application...');
+  await prisma.appSettings.upsert({
+    where: { id: 'singleton' },
+    update: {},
+    create: {
+      id: 'singleton',
+      nsfwThreshold: 0.7,
+      reportsBeforeAutoSuspend: 5,
+      autoApprovePhotos: false,
+      dailyLikesLimit: 50,
+      dailyLikesLimitPremium: 999,
+      maxPhotosPerUser: 6,
+      minAge: 18,
+      maxAge: 99,
+      emailVerificationRequired: true,
+      registrationOpen: true,
+      maintenanceMode: false,
+      premiumEnabled: true,
+    }
+  });
+
+  // Création des stats globales
+  console.log('Création des stats globales...');
+  await prisma.globalStats.upsert({
+    where: { id: 'singleton' },
+    update: {},
+    create: {
+      id: 'singleton',
+      totalUsers: 0,
+      totalMatches: 0,
+      totalLikes: 0,
+    }
+  });
 
   // Création des 4 utilisateurs
   console.log('Création des utilisateurs...');
