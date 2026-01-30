@@ -9,6 +9,7 @@ import { isEmailBlocked, trackFailedLogin, resetFailedLoginAttempts } from "./sr
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
+  trustHost: true,
 
   providers: [
     Credentials({

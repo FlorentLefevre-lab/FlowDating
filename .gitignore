@@ -170,6 +170,8 @@ config/master.key
 # Backups de base de données (peuvent contenir données utilisateurs)
 backups/
 *.sql
+# Exception for Prisma migrations
+!prisma/migrations/**/*.sql
 *.dump
 *.bak
 *.backup
