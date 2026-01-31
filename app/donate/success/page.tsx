@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircleIcon, HeartIcon, SparklesIcon } from '@heroicons/react/24/outline';
@@ -8,7 +8,7 @@ import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import { Card, Button } from '@/components/ui';
 import Link from 'next/link';
 
-export default function DonateSuccessPage() {
+function DonateSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isCapturing, setIsCapturing] = useState(false);
@@ -196,5 +196,27 @@ export default function DonateSuccessPage() {
         </motion.p>
       </motion.div>
     </div>
+  );
+}
+
+// Loading fallback pour Suspense
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 flex items-center justify-center p-4">
+      <Card className="max-w-md w-full p-8 text-center">
+        <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+          <HeartIconSolid className="w-8 h-8 text-pink-500" />
+        </div>
+        <h1 className="text-xl font-bold text-gray-800 mb-2">Chargement...</h1>
+      </Card>
+    </div>
+  );
+}
+
+export default function DonateSuccessPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <DonateSuccessContent />
+    </Suspense>
   );
 }
