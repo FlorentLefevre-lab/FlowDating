@@ -402,6 +402,27 @@ export default function DiscoverPage() {
   const distanceDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // ================================
+  // ENREGISTREMENT DES VUES
+  // ================================
+
+  const recordProfileView = useCallback(async (profileId: string) => {
+    try {
+      await fetch(`/api/users/${profileId}/view`, {
+        method: 'POST',
+      });
+    } catch (error) {
+      // Silently fail - recording views is not critical
+      console.warn('Failed to record profile view:', error);
+    }
+  }, []);
+
+  const handleViewProfile = useCallback((profile: Profile) => {
+    setSelectedProfile(profile);
+    // Record the view asynchronously (fire and forget)
+    recordProfileView(profile.id);
+  }, [recordProfileView]);
+
+  // ================================
   // CHARGEMENT DES PRÉFÉRENCES
   // ================================
 
@@ -898,7 +919,7 @@ export default function DiscoverPage() {
                     key={profile.id}
                     profile={profile}
                     onAction={(action) => handleAction(profile.id, action)}
-                    onViewProfile={() => setSelectedProfile(profile)}
+                    onViewProfile={() => handleViewProfile(profile)}
                     isProcessing={processingIds.has(profile.id)}
                   />
                 ))}
