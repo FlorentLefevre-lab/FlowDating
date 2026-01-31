@@ -772,10 +772,24 @@ export default function MatchesPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Enregistrer une vue de profil
+  const recordProfileView = async (userId: string) => {
+    try {
+      await fetch(`/api/users/${userId}/view`, {
+        method: 'POST',
+      });
+    } catch (error) {
+      // Silently fail - recording views is not critical
+      console.warn('Failed to record profile view:', error);
+    }
+  };
+
   // Ouvrir le modal de profil
   const openProfile = (match: Match) => {
     console.log('Opening profile for:', match.user.name, match.user.id);
     setSelectedMatch(match);
+    // Record the view asynchronously (fire and forget)
+    recordProfileView(match.user.id);
   };
 
   // Fermer le modal de profil
