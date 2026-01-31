@@ -9,7 +9,7 @@ export default async function RegisterPage() {
   const session = await auth()
 
   if (session) {
-    redirect('/discover')
+    redirect('/home')
   }
 
   return (

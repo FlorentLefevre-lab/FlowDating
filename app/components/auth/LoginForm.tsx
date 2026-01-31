@@ -78,7 +78,7 @@ export default function LoginForm() {
       if (result?.error) {
         setError('Email ou mot de passe incorrect')
       } else if (result?.ok) {
-        router.push('/discover')
+        router.push('/home')
         router.refresh()
       }
     } catch (error) {
@@ -95,7 +95,7 @@ export default function LoginForm() {
     
     setIsLoading(true)
     try {
-      await signIn(provider, { callbackUrl: '/profile' })
+      await signIn(provider, { callbackUrl: '/home' })
     } catch (error) {
       setError('Erreur de connexion')
     } finally {

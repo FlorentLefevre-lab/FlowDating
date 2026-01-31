@@ -80,7 +80,7 @@ export default function RegisterForm() {
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {
     setIsLoading(true)
     try {
-      await signIn(provider, { callbackUrl: '/profile' })
+      await signIn(provider, { callbackUrl: '/home' })
     } catch (error) {
       setError('Erreur de connexion')
     } finally {
