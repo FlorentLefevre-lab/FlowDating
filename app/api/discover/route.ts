@@ -66,20 +66,23 @@ async function handleGetDiscover(request: NextRequest) {
     });
     console.log('🔍 Filtres reçus de l\'URL:', filters);
 
-    // 2. CACHE DÉSACTIVÉ TEMPORAIREMENT pour debug du filtrage gender
-    // const cachedResults = await apiCache.discover.get(currentUser.id, { filters, offset, limit });
-    // if (cachedResults && cachedResults.length > 0) {
-    //   console.log(`📦 Cache HIT - ${cachedResults.length} profils depuis le cache`);
-    //   return NextResponse.json({
-    //     success: true,
-    //     users: cachedResults,
-    //     meta: {
-    //       responseTime: Date.now() - startTime,
-    //       cacheHit: true,
-    //       source: 'cache'
-    //     }
-    //   });
-    // }
+    // 2. Vérifier le cache (réactivé)
+    const cacheKey = { filters, offset, limit };
+    const cachedResults = await apiCache.discover.get(currentUser.id, cacheKey);
+    if (cachedResults && Array.isArray(cachedResults) && cachedResults.length > 0) {
+      console.log(`📦 Cache HIT - ${cachedResults.length} profils depuis le cache (${Date.now() - startTime}ms)`);
+      const response = NextResponse.json({
+        success: true,
+        users: cachedResults,
+        meta: {
+          responseTime: Date.now() - startTime,
+          cacheHit: true,
+          source: 'cache'
+        }
+      });
+      response.headers.set('X-Cache', 'HIT');
+      return response;
+    }
 
     // 3. Récupérer les exclusions avec cache
     let exclusions = await apiCache.exclusions.get(currentUser.id);
@@ -261,13 +264,13 @@ async function handleGetDiscover(request: NextRequest) {
     const maxDistance = filters.maxDistance || currentUser.preferences?.maxDistance || 100;
     const usersWithDistance = await filterByDistance(enrichedUsers, currentUser.location, maxDistance);
 
-    // 7. Trier par compatibilité (cache désactivé pour le filtrage dynamique par distance)
+    // 7. Trier par compatibilité
     const sortedUsers = usersWithDistance.sort((a, b) => b.compatibility - a.compatibility);
 
-    // Cache désactivé car le filtrage par distance est dynamique
-    // await apiCache.discover.set(currentUser.id, { filters, offset, limit }, sortedUsers);
+    // Mettre en cache les résultats (3 minutes TTL)
+    await apiCache.discover.set(currentUser.id, cacheKey, sortedUsers);
 
-    console.log(`⚡ ${sortedUsers.length} utilisateurs découvrables (distance max: ${maxDistance}km, location: ${currentUser.location}) | ${Date.now() - startTime}ms`);
+    console.log(`⚡ ${sortedUsers.length} utilisateurs découvrables (distance max: ${maxDistance}km, location: ${currentUser.location}) | ${Date.now() - startTime}ms - cached`);
 
     return NextResponse.json({
       success: true,

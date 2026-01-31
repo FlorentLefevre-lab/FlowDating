@@ -1,8 +1,9 @@
-// src/app/api/profile/route.ts - Version corrigée avec accountStatus
+// src/app/api/profile/route.ts - Version corrigée avec accountStatus et cache Redis
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { PrismaClient } from '@prisma/client';
+import { apiCache } from '@/lib/cache';
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -138,6 +139,10 @@ export async function PUT(request: NextRequest) {
     console.log('✅ [API Profile] Utilisateur mis à jour avec succès');
     console.log('✅ [API Profile] Nouveau name en BDD:', updatedUser.name);
 
+    // Invalider le cache après mise à jour
+    await apiCache.invalidateUser(session.user.id);
+    console.log('🗑️ Cache invalidé pour user:', session.user.id);
+
     // ✅ CORRECTION : Retourner les données avec accountStatus inclus
     const responseData = {
       id: updatedUser.id,
@@ -195,17 +200,31 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+
   try {
     console.log('📝 API GET Profile - Début');
-    
+
     const session = await auth();
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
+    const userId = session.user.id;
+
+    // Vérifier le cache d'abord
+    const cachedProfile = await apiCache.profile.get(userId);
+    if (cachedProfile) {
+      console.log(`✅ Profile cache HIT for user ${userId} (${Date.now() - startTime}ms)`);
+      const response = NextResponse.json(cachedProfile);
+      response.headers.set('X-Cache', 'HIT');
+      response.headers.set('X-Processing-Time', `${Date.now() - startTime}ms`);
+      return response;
+    }
+
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
       include: {
         photos: {
           orderBy: [
@@ -221,7 +240,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
     }
 
-    console.log('✅ Profil récupéré avec succès');
+    console.log(`✅ Profil récupéré depuis DB (${Date.now() - startTime}ms)`);
 
     // ✅ CORRECTION : Retourner les données avec accountStatus inclus
     const responseData = {
@@ -263,15 +282,21 @@ export async function GET(request: NextRequest) {
       updatedAt: user.updatedAt
     };
 
+    // Mettre en cache pour les prochaines requêtes (10 minutes)
+    await apiCache.profile.set(userId, responseData);
+
     // 🔍 LOG pour debugging
     console.log('📤 Données renvoyées au frontend (GET):', {
       userId: responseData.id,
       accountStatus: responseData.accountStatus,
-      typeAccountStatus: typeof responseData.accountStatus,
-      rawAccountStatusFromDB: user.accountStatus
+      cacheStatus: 'MISS',
+      processingTime: `${Date.now() - startTime}ms`
     });
 
-    return NextResponse.json(responseData);
+    const response = NextResponse.json(responseData);
+    response.headers.set('X-Cache', 'MISS');
+    response.headers.set('X-Processing-Time', `${Date.now() - startTime}ms`);
+    return response;
 
   } catch (error) {
     console.error('❌ Erreur lors de la récupération du profil:', error);
