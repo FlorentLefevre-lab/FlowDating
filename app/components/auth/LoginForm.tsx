@@ -78,7 +78,7 @@ export default function LoginForm() {
       if (result?.error) {
         setError('Email ou mot de passe incorrect')
       } else if (result?.ok) {
-        router.push('/dashboard')
+        router.push('/discover')
         router.refresh()
       }
     } catch (error) {
