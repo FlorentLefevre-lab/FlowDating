@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -62,9 +62,23 @@ interface PaymentConfig {
   lightning: boolean;
 }
 
-export default function DonatePage() {
-  const router = useRouter();
+// Composant qui gère les searchParams (doit être dans Suspense)
+function CanceledPaymentHandler({ onCanceled }: { onCanceled: () => void }) {
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('canceled') === 'true') {
+      onCanceled();
+      // Nettoyer l'URL
+      window.history.replaceState({}, '', '/donate');
+    }
+  }, [searchParams, onCanceled]);
+
+  return null;
+}
+
+function DonatePageContent() {
+  const router = useRouter();
   const [selectedAmount, setSelectedAmount] = useState<number | null>(25);
   const [customAmount, setCustomAmount] = useState<string>('');
   const [selectedMethod, setSelectedMethod] = useState<'stripe' | 'paypal' | 'lightning'>('stripe');
@@ -99,14 +113,9 @@ export default function DonatePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Afficher un message si le paiement a ete annule
-  useEffect(() => {
-    if (searchParams.get('canceled') === 'true') {
-      setError('Paiement annule. Vous pouvez reessayer quand vous voulez.');
-      // Nettoyer l'URL
-      window.history.replaceState({}, '', '/donate');
-    }
-  }, [searchParams]);
+  const handleCanceledPayment = React.useCallback(() => {
+    setError('Paiement annule. Vous pouvez reessayer quand vous voulez.');
+  }, []);
 
   const handleDonate = async () => {
     if (!finalAmount || finalAmount < 1) return;
@@ -180,6 +189,11 @@ export default function DonatePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
+      {/* Suspense boundary pour useSearchParams */}
+      <Suspense fallback={null}>
+        <CanceledPaymentHandler onCanceled={handleCanceledPayment} />
+      </Suspense>
+
       <div className="max-w-4xl mx-auto p-4 md:p-6 pb-20">
         {/* Header */}
         <motion.div
@@ -544,4 +558,8 @@ export default function DonatePage() {
       </div>
     </div>
   );
+}
+
+export default function DonatePage() {
+  return <DonatePageContent />;
 }
