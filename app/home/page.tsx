@@ -396,6 +396,21 @@ export default function HomePage() {
   // 🔥 Actions rapides avec données réelles
   const quickActions = [
     {
+      icon: '🔥',
+      label: 'Découverte',
+      href: '/discover',
+      color: 'from-orange-500 to-red-500',
+      description: 'Explorer les profils'
+    },
+    {
+      icon: '💖',
+      label: 'Matchs',
+      href: '/matches',
+      count: stats?.matchStats?.totalMatches || stats?.matchesCount || 0,
+      color: 'from-pink-500 to-pink-600',
+      description: `${stats?.matchStats?.newMatches || 0} nouveau(x)`
+    },
+    {
       icon: '💬',
       label: 'Messages',
       href: '/chat',
@@ -404,27 +419,25 @@ export default function HomePage() {
       description: 'Conversations actives'
     },
     {
-      icon: '💖',
-      label: 'Matchs',
-      href: '/matches',
-      count: stats?.matchStats?.totalMatches || stats?.matchesCount || 0,
-      color: 'from-pink-500 to-pink-600',
-      description: `${stats?.matchStats?.newMatches || 0} nouveau(x) aujourd'hui`
+      icon: '🐛',
+      label: 'Support',
+      href: '/help',
+      color: 'from-red-500 to-orange-500',
+      description: 'Aide & signaler un bug'
     },
     {
-      icon: '👀',
-      label: 'Visites',
-      href: '/profile',
-      count: stats?.dailyStats?.profileViews || 0,
-      color: 'from-purple-500 to-purple-600',
-      description: 'Vues aujourd\'hui'
+      icon: '👑',
+      label: 'Premium',
+      href: '/premium',
+      color: 'from-amber-500 to-yellow-500',
+      description: 'Fonctionnalités exclusives'
     },
     {
-      icon: '⚙️',
-      label: 'Profil',
-      href: '/profile',
-      color: 'from-gray-500 to-gray-600',
-      description: 'Gérer mon profil'
+      icon: '🪙',
+      label: 'Don',
+      href: '/donate',
+      color: 'from-yellow-500 to-amber-500',
+      description: 'Soutenir Flow Dating'
     }
   ]
 

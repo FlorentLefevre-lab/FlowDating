@@ -347,3 +347,4 @@ ehthumbs.db
 # - Backups de production
 nul
 ".env.production" 
+.claude/settings.local.json

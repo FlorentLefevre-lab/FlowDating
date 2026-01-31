@@ -121,10 +121,11 @@ model User {
   image          String?
 
   // Informations de base
-  name     String?
-  age      Int?
-  bio      String?
-  location String?
+  name      String?
+  age       Int?
+  birthDate DateTime?
+  bio       String?
+  location  String?
 
   // Informations détaillées
   profession    String?
@@ -169,6 +170,10 @@ model User {
   // Abonnement Premium
   isPremium        Boolean   @default(false)
   premiumExpiresAt DateTime?
+
+  // Donateur (supporter)
+  hasDonated       Boolean   @default(false)
+  firstDonationAt  DateTime?
 
   // Rôle utilisateur (admin)
   role UserRole @default(USER)
@@ -223,6 +228,9 @@ model User {
   assignedTickets   Ticket[]        @relation("AssignedTickets")
   resolvedTickets   Ticket[]        @relation("ResolvedTickets")
   ticketMessages    TicketMessage[] @relation("TicketMessages")
+
+  // Relations Donations
+  donations         Donation[]
 
   @@map("users")
 }
@@ -759,4 +767,58 @@ model TicketMessage {
   @@index([ticketId])
   @@index([createdAt])
   @@map("ticket_messages")
+}
+
+// ================================
+// MODÈLE DONATIONS
+// ================================
+
+enum DonationStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum DonationProvider {
+  STRIPE
+  PAYPAL
+  LIGHTNING
+}
+
+model Donation {
+  id              String           @id @default(cuid())
+
+  // Donateur (optionnel si anonyme)
+  userId          String?
+  email           String?
+  name            String?
+
+  // Montant
+  amount          Float            // Montant en euros
+  currency        String           @default("EUR")
+
+  // Provider et transaction
+  provider        DonationProvider
+  providerOrderId String?          // ID Stripe/PayPal
+  status          DonationStatus   @default(PENDING)
+
+  // Message du donateur
+  message         String?
+
+  // Métadonnées
+  metadata        Json?
+
+  // Timestamps
+  createdAt       DateTime         @default(now())
+  completedAt     DateTime?
+
+  // Relation optionnelle avec User
+  user            User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([provider])
+  @@index([createdAt])
+  @@map("donations")
 }

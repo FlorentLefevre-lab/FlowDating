@@ -26,6 +26,7 @@ interface Profile {
   bodyType?: string;
   eyeColor?: string;
   hairColor?: string;
+  hasDonated?: boolean; // Badge Supporter
   distance?: number; // Distance en km depuis l'utilisateur connecté
 }
 
@@ -88,6 +89,15 @@ const ProfileModal = ({
                   : 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white'
               }`}>
                 {profile.role === 'ADMIN' ? '👑 Admin' : '🛡️ Mod'}
+              </span>
+            </div>
+          )}
+
+          {/* Badge Supporter (donateur) */}
+          {profile.hasDonated && (
+            <div className={`absolute top-3 z-20 ${(profile.role === 'ADMIN' || profile.role === 'MODERATOR') ? 'left-32' : 'left-14'}`}>
+              <span className="px-3 py-1.5 rounded-full text-xs font-bold shadow-lg bg-gradient-to-r from-yellow-500 to-amber-500 text-white">
+                🪙 Supporter
               </span>
             </div>
           )}
@@ -260,9 +270,10 @@ const ProfileCard = ({
         {/* Overlay gradient - z-20 pour être au-dessus du carousel */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none z-20" />
 
-        {/* Badge Admin/Moderator */}
-        {(profile.role === 'ADMIN' || profile.role === 'MODERATOR') && (
-          <div className="absolute top-2 left-2 z-30">
+        {/* Badges en haut à gauche */}
+        <div className="absolute top-2 left-2 z-30 flex gap-1">
+          {/* Badge Admin/Moderator */}
+          {(profile.role === 'ADMIN' || profile.role === 'MODERATOR') && (
             <span className={`px-2 py-1 rounded-full text-xs font-bold shadow ${
               profile.role === 'ADMIN'
                 ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
@@ -270,8 +281,15 @@ const ProfileCard = ({
             }`}>
               {profile.role === 'ADMIN' ? '👑' : '🛡️'}
             </span>
-          </div>
-        )}
+          )}
+
+          {/* Badge Supporter (donateur) */}
+          {profile.hasDonated && (
+            <span className="px-2 py-1 rounded-full text-xs font-bold shadow bg-gradient-to-r from-yellow-500 to-amber-500 text-white">
+              🪙
+            </span>
+          )}
+        </div>
 
         {/* Online badge */}
         {profile.isOnline && (

@@ -618,6 +618,12 @@ const MatchCard = ({ match, onOpenChat, onOpenProfile, isOpeningChat }: {
               {match.user.role === 'ADMIN' ? '👑 Admin' : '🛡️ Mod'}
             </Badge>
           )}
+          {/* Badge Supporter (donateur) */}
+          {match.user.hasDonated && (
+            <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-0 shadow-lg">
+              🪙 Supporter
+            </Badge>
+          )}
           {match.isNew && (
             <Badge className="bg-yellow-500 text-white animate-bounce-gentle">
               Nouveau

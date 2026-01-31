@@ -436,3 +436,196 @@ export async function verifySmtpConnection(): Promise<boolean> {
     return false;
   }
 }
+
+// ==========================================
+// Donation Notifications
+// ==========================================
+
+interface DonationNotificationData {
+  donorName?: string;
+  donorEmail?: string;
+  amount: number;
+  currency?: string;
+  provider: 'stripe' | 'paypal' | 'lightning';
+  message?: string;
+  donationId: string;
+}
+
+/**
+ * Send donation notification email to admins
+ */
+export async function sendDonationNotificationEmail(data: DonationNotificationData): Promise<EmailResult> {
+  const adminEmails = process.env.ADMIN_NOTIFICATION_EMAILS?.split(',').map(e => e.trim()) || [];
+
+  if (adminEmails.length === 0) {
+    console.warn('[Email] No admin emails configured for donation notifications');
+    return { success: false, error: 'Aucun email admin configure' };
+  }
+
+  const providerLabel = {
+    stripe: 'Carte bancaire (Stripe)',
+    paypal: 'PayPal',
+    lightning: 'Bitcoin Lightning',
+  }[data.provider];
+
+  const formattedAmount = new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: data.currency || 'EUR',
+  }).format(data.amount);
+
+  try {
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: adminEmails.join(', '),
+      subject: `Nouveau don de ${formattedAmount} sur Flow Dating`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">Nouveau don recu !</h1>
+          </div>
+
+          <div style="background: #fdf2f8; padding: 30px; border-radius: 0 0 10px 10px;">
+            <div style="background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+
+              <div style="text-align: center; margin-bottom: 25px;">
+                <span style="font-size: 48px;">💖</span>
+                <h2 style="color: #ec4899; margin: 10px 0;">${formattedAmount}</h2>
+              </div>
+
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f3e8ff; color: #666;">Donateur</td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f3e8ff; text-align: right; font-weight: bold;">
+                    ${data.donorName || 'Anonyme'}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f3e8ff; color: #666;">Email</td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f3e8ff; text-align: right;">
+                    ${data.donorEmail || 'Non renseigne'}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f3e8ff; color: #666;">Methode</td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f3e8ff; text-align: right;">
+                    ${providerLabel}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f3e8ff; color: #666;">ID Don</td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f3e8ff; text-align: right; font-family: monospace; font-size: 12px;">
+                    ${data.donationId}
+                  </td>
+                </tr>
+              </table>
+
+              ${data.message ? `
+                <div style="margin-top: 20px; padding: 15px; background: #fdf2f8; border-radius: 8px; border-left: 4px solid #ec4899;">
+                  <p style="margin: 0; color: #666; font-size: 12px;">Message du donateur :</p>
+                  <p style="margin: 5px 0 0 0; color: #333;">"${data.message}"</p>
+                </div>
+              ` : ''}
+
+              <div style="text-align: center; margin-top: 25px;">
+                <a href="${process.env.NEXTAUTH_URL}/admin/donations"
+                   style="display: inline-block; background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%); color: white; padding: 12px 25px; text-decoration: none; border-radius: 25px; font-weight: bold;">
+                  Voir dans l'admin
+                </a>
+              </div>
+            </div>
+
+            <p style="text-align: center; color: #999; font-size: 11px; margin-top: 20px;">
+              Email automatique - Flow Dating Admin
+            </p>
+          </div>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`[Email] Donation notification sent for ${formattedAmount}`);
+    return { success: true, message: 'Notification envoyee' };
+  } catch (error) {
+    console.error('[Email] Failed to send donation notification:', error instanceof Error ? error.message : 'Unknown error');
+    return { success: false, error: 'Erreur lors de l\'envoi de la notification' };
+  }
+}
+
+/**
+ * Send thank you email to donor
+ */
+export async function sendDonationThankYouEmail(
+  email: string,
+  name: string | undefined,
+  amount: number,
+  currency: string = 'EUR'
+): Promise<EmailResult> {
+  if (!isValidEmail(email)) {
+    return { success: false, error: 'Email invalide' };
+  }
+
+  const formattedAmount = new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency,
+  }).format(amount);
+
+  try {
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: `Merci pour votre don de ${formattedAmount} - Flow Dating`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0;">Merci infiniment !</h1>
+          </div>
+
+          <div style="background: #fdf2f8; padding: 30px; border-radius: 0 0 10px 10px;">
+            <div style="background: white; padding: 25px; border-radius: 10px;">
+
+              <p style="font-size: 16px; color: #333;">
+                Bonjour${name ? ` ${name}` : ''} !
+              </p>
+
+              <p style="color: #666;">
+                Nous avons bien recu votre don de <strong style="color: #ec4899;">${formattedAmount}</strong>.
+              </p>
+
+              <p style="color: #666;">
+                Votre soutien est precieux et nous permet de continuer a developper Flow Dating
+                en restant independants et focuses sur ce qui compte vraiment : vous aider a
+                faire de vraies rencontres.
+              </p>
+
+              <div style="text-align: center; margin: 30px 0;">
+                <span style="font-size: 64px;">💖</span>
+              </div>
+
+              <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 0; color: #92400e; font-size: 14px;">
+                  <strong>Avantages donateurs :</strong><br>
+                  Un badge special sera bientot ajoute a votre profil pour vous remercier !
+                </p>
+              </div>
+
+              <p style="color: #666;">
+                L'equipe Flow Dating
+              </p>
+            </div>
+
+            <p style="text-align: center; color: #999; font-size: 11px; margin-top: 20px;">
+              Cet email a ete envoye automatiquement. Ne repondez pas a ce message.
+            </p>
+          </div>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`[Email] Thank you email sent to donor: ${sanitizeEmailForLog(email)}`);
+    return { success: true, message: 'Email de remerciement envoye' };
+  } catch (error) {
+    console.error('[Email] Failed to send thank you email:', error instanceof Error ? error.message : 'Unknown error');
+    return { success: false, error: 'Erreur lors de l\'envoi du remerciement' };
+  }
+}

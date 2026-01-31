@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { PrismaClient } from '@prisma/client';
 import { apiCache } from '@/lib/cache';
+import { calculateAgeAndZodiac, isOldEnough } from '@/lib/zodiac';
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -75,10 +76,38 @@ export async function PUT(request: NextRequest) {
     // 🔄 MAPPING ET VALIDATION des enums
     const updateData: any = {};
 
+    // Traitement de birthDate - calcul automatique de age et zodiacSign
+    if (body.birthDate) {
+      const birthDate = new Date(body.birthDate);
+
+      // Valider que la date est correcte
+      if (isNaN(birthDate.getTime())) {
+        return NextResponse.json({
+          error: 'Date de naissance invalide. Format attendu: YYYY-MM-DD'
+        }, { status: 400 });
+      }
+
+      // Vérifier l'âge minimum (18 ans)
+      if (!isOldEnough(birthDate, 18)) {
+        return NextResponse.json({
+          error: 'Vous devez avoir au moins 18 ans pour utiliser ce service'
+        }, { status: 400 });
+      }
+
+      // Calculer age et zodiacSign automatiquement
+      const { age, zodiacSign } = calculateAgeAndZodiac(birthDate);
+      updateData.birthDate = birthDate;
+      updateData.age = age;
+      updateData.zodiacSign = zodiacSign;
+
+      console.log('🎂 birthDate traité:', { birthDate: body.birthDate, age, zodiacSign });
+    }
+
     // Traitement de chaque champ avec mapping si nécessaire
+    // Note: age et zodiacSign sont exclus car calculés automatiquement depuis birthDate
     const fieldsToUpdate = [
-      'name', 'age', 'bio', 'location', 'profession',
-      'zodiacSign', 'dietType', 'religion', 'ethnicity', 'interests',
+      'name', 'bio', 'location', 'profession',
+      'dietType', 'religion', 'ethnicity', 'interests',
       // Caractéristiques physiques
       'height', 'weight', 'bodyType', 'eyeColor', 'hairColor',
       // Style de vie
@@ -148,6 +177,7 @@ export async function PUT(request: NextRequest) {
       id: updatedUser.id,
       email: updatedUser.email,
       name: updatedUser.name,
+      birthDate: updatedUser.birthDate,
       age: updatedUser.age,
       bio: updatedUser.bio,
       location: updatedUser.location,
@@ -247,6 +277,7 @@ export async function GET(request: NextRequest) {
       id: user.id,
       email: user.email,
       name: user.name,
+      birthDate: user.birthDate,
       age: user.age,
       bio: user.bio,
       location: user.location,

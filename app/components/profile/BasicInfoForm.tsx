@@ -1,9 +1,10 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDownIcon, MapPinIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { UserProfile, ProfileFormProps } from '@/types/profiles';
 import { PROFESSIONS } from '@/constants/profileData';
+import { calculateAgeAndZodiac, getMaxBirthDate } from '@/lib/zodiac';
 
 
 // Type pour les données de l'API data.gouv.fr
@@ -38,7 +39,7 @@ const BasicInfoForm: React.FC<ProfileFormProps> = ({
 
   const [formData, setFormData] = useState({
     name: profile?.name || '',
-    age: profile?.age || '',
+    birthDate: profile?.birthDate ? profile.birthDate.split('T')[0] : '',
     bio: profile?.bio || '',
     location: profile?.location || '',
     department: profile?.department || '',
@@ -46,6 +47,16 @@ const BasicInfoForm: React.FC<ProfileFormProps> = ({
     postcode: profile?.postcode || '',
     profession: profile?.profession || ''
   });
+
+  // Calcul de l'âge et du zodiaque à partir de la date de naissance
+  const birthDateInfo = useMemo(() => {
+    if (!formData.birthDate) return null;
+    try {
+      return calculateAgeAndZodiac(formData.birthDate);
+    } catch {
+      return null;
+    }
+  }, [formData.birthDate]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   
@@ -245,8 +256,19 @@ const BasicInfoForm: React.FC<ProfileFormProps> = ({
       newErrors.name = 'Nom trop long (max 100 caractères)';
     }
 
-    if (formData.age && (formData.age < 18 || formData.age > 100)) {
-      newErrors.age = 'Âge doit être entre 18 et 100 ans';
+    if (formData.birthDate) {
+      const birthDate = new Date(formData.birthDate);
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())
+        ? age - 1
+        : age;
+      if (actualAge < 18) {
+        newErrors.birthDate = 'Vous devez avoir au moins 18 ans';
+      } else if (actualAge > 120) {
+        newErrors.birthDate = 'Date de naissance invalide';
+      }
     }
 
     if (formData.bio && formData.bio.length > 500) {
@@ -422,21 +444,24 @@ const BasicInfoForm: React.FC<ProfileFormProps> = ({
 
           <div className="form-group">
             <label className="form-label">
-              Âge
+              Date de naissance
             </label>
             <input
-              type="number"
-              min="18"
-              max="100"
-              value={formData.age}
-              onChange={(e) => handleInputChange('age', parseInt(e.target.value) || '')}
-              className={`input-field ${errors.age ? 'error' : ''}`}
-              placeholder="Votre âge"
+              type="date"
+              max={getMaxBirthDate(18)}
+              value={formData.birthDate}
+              onChange={(e) => handleInputChange('birthDate', e.target.value)}
+              className={`input-field ${errors.birthDate ? 'error' : ''}`}
             />
-            {errors.age && (
+            {birthDateInfo && (
+              <p className="mt-1 text-sm text-purple-600 font-medium">
+                {birthDateInfo.age} ans - {birthDateInfo.zodiacLabel}
+              </p>
+            )}
+            {errors.birthDate && (
               <p className="form-error">
                 <span>⚠️</span>
-                {errors.age}
+                {errors.birthDate}
               </p>
             )}
           </div>

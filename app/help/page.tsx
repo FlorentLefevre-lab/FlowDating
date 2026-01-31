@@ -12,7 +12,8 @@ import {
   CreditCardIcon,
   BellIcon,
   QuestionMarkCircleIcon,
-  EnvelopeIcon
+  EnvelopeIcon,
+  BugAntIcon
 } from '@heroicons/react/24/outline';
 import { Card, Button } from '@/components/ui';
 
@@ -296,51 +297,30 @@ export default function HelpPage() {
                 <p className="text-xs text-gray-600 mb-3">
                   Notre équipe support est là pour vous aider.
                 </p>
-                <Button
-                  variant="gradient"
-                  size="sm"
-                  onClick={() => window.location.href = 'mailto:support@flowdating.com'}
-                >
-                  <EnvelopeIcon className="w-4 h-4 mr-2" />
-                  Contacter le support
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="gradient"
+                    size="sm"
+                    onClick={() => window.location.href = 'mailto:support@flowdating.com'}
+                  >
+                    <EnvelopeIcon className="w-4 h-4 mr-2" />
+                    Contacter le support
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push('/support')}
+                    className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                  >
+                    <BugAntIcon className="w-4 h-4 mr-2" />
+                    Signaler un bug
+                  </Button>
+                </div>
               </div>
             </div>
           </Card>
         </motion.div>
 
-        {/* Quick Links */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="mt-6 grid grid-cols-2 gap-3"
-        >
-          <Card
-            className="p-3 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => router.push('/premium')}
-          >
-            <div className="flex items-center gap-2">
-              <CreditCardIcon className="w-5 h-5 text-yellow-500" />
-              <div>
-                <p className="text-sm font-medium text-gray-800">Découvrir Premium</p>
-                <p className="text-xs text-gray-500">Débloquez toutes les fonctionnalités</p>
-              </div>
-            </div>
-          </Card>
-          <Card
-            className="p-3 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => router.push('/profile')}
-          >
-            <div className="flex items-center gap-2">
-              <UserCircleIcon className="w-5 h-5 text-primary-500" />
-              <div>
-                <p className="text-sm font-medium text-gray-800">Mon profil</p>
-                <p className="text-xs text-gray-500">Gérer mes informations</p>
-              </div>
-            </div>
-          </Card>
-        </motion.div>
       </div>
     </div>
   );

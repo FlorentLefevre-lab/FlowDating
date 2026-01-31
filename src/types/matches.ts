@@ -21,6 +21,7 @@ export interface User {
   isOnline: boolean;
   lastSeen?: string;
   role?: 'USER' | 'MODERATOR' | 'ADMIN';
+  hasDonated?: boolean; // Badge Supporter
 }
 
 export interface Conversation {

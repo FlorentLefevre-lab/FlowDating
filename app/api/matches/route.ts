@@ -95,6 +95,7 @@ export async function GET(request: NextRequest) {
               lastSeen: true,
               createdAt: true,
               role: true, // Pour afficher badge Admin/Moderator
+              hasDonated: true, // Pour afficher badge Supporter
               preferences: { select: { gender: true } },
               photos: {
                 where: { isPrimary: true },
@@ -120,6 +121,7 @@ export async function GET(request: NextRequest) {
               lastSeen: true,
               createdAt: true,
               role: true, // Pour afficher badge Admin/Moderator
+              hasDonated: true, // Pour afficher badge Supporter
               preferences: { select: { gender: true } },
               photos: {
                 where: { isPrimary: true },
@@ -225,7 +227,8 @@ export async function GET(request: NextRequest) {
             photo: user.photos[0] || null,
             isOnline: isOnline,
             lastSeen: user.lastSeen?.toISOString(),
-            role: (user as any).role || 'USER' // Pour afficher badge Admin/Moderator
+            role: (user as any).role || 'USER', // Pour afficher badge Admin/Moderator
+            hasDonated: (user as any).hasDonated || false // Pour afficher badge Supporter
           },
           conversation: {
             hasStarted: false, // Par défaut, pas de conversation démarrée

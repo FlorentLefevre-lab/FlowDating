@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { useState, useEffect } from 'react'
-import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline'
+import { ChatBubbleLeftRightIcon, BugAntIcon } from '@heroicons/react/24/outline'
 import { ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconSolid } from '@heroicons/react/24/solid'
 import { ChatNavItem } from './ChatNavItem'
 import {
@@ -230,22 +230,32 @@ export default function Navbar() {
           </Link>
 
           {/* Menu de navigation principal */}
-          <div className="hidden md:flex items-center space-x-8">
-            <Link href="/home" className={navLinkClass('/home')}>
-              Accueil
-            </Link>
+          <div className="hidden md:flex items-center space-x-6">
             <Link href="/discover" className={navLinkClass('/discover')}>
-              Découverte
+              🔥 Découverte
             </Link>
             <Link href="/matches" className={`${navLinkClass('/matches')} relative`}>
-              Matchs
+              💖 Matchs
               {matchesCount > 0 && (
-                <span className="absolute -top-2 -right-2 badge-primary text-[10px] w-5 h-5 flex-center rounded-full">
+                <span className="absolute -top-2 -right-4 badge-primary text-[10px] w-5 h-5 flex-center rounded-full">
                   {matchesCount > 99 ? '99+' : matchesCount}
                 </span>
               )}
             </Link>
             <ChatNavItem />
+            <Link href="/help" className={`${navLinkClass('/help')} flex items-center gap-1`}>
+              <BugAntIcon className="w-4 h-4" />
+              Support
+            </Link>
+            <Link href="/premium" className={`${navLinkClass('/premium')} flex items-center gap-1`}>
+              👑 Premium
+              <span className="badge bg-gradient-to-r from-amber-400 to-yellow-500 text-white text-[9px] px-1.5 py-0.5">
+                Pro
+              </span>
+            </Link>
+            <Link href="/donate" className={`${navLinkClass('/donate')} flex items-center gap-1`}>
+              🪙 Don
+            </Link>
           </div>
 
           {/* Profil utilisateur avec DropdownMenu */}
@@ -335,15 +345,17 @@ export default function Navbar() {
               <DropdownMenuSeparator />
 
               <DropdownMenuItem asChild>
-                <Link href="/support" className="cursor-pointer">
-                  <span className="mr-3">🎫</span>
-                  Support / Signaler un bug
+                <Link href="/help" className="cursor-pointer flex items-center">
+                  <BugAntIcon className="w-4 h-4 mr-3" />
+                  Support / Bug
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/help" className="cursor-pointer">
-                  <span className="mr-3">❓</span>
-                  Aide
+                <Link href="/donate" className="cursor-pointer flex-between w-full">
+                  <span><span className="mr-3">🪙</span>Faire un don</span>
+                  <span className="badge bg-gradient-to-r from-yellow-500 to-amber-500 text-white text-[10px]">
+                    Soutenir
+                  </span>
                 </Link>
               </DropdownMenuItem>
 
@@ -360,18 +372,110 @@ export default function Navbar() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Bouton mobile */}
-          <div className="md:hidden flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleSecureSignOut}
-              disabled={isLoggingOut}
-              className="text-red-600"
-              title="Se déconnecter"
-            >
-              {isLoggingOut ? '⏳' : '🚪'}
-            </Button>
+          {/* Menu mobile hamburger */}
+          <div className="md:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                  {matchesCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary-500 text-white text-[10px] rounded-full flex-center">
+                      {matchesCount > 9 ? '9+' : matchesCount}
+                    </span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex items-center gap-3">
+                    {profilePhoto ? (
+                      <img src={profilePhoto} alt="" className="w-8 h-8 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-8 h-8 bg-gradient-to-br from-primary-400 to-secondary-500 rounded-full flex-center text-white font-bold text-xs">
+                        {session.user?.name?.[0]?.toUpperCase() || 'U'}
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-medium text-sm">{session.user?.name || 'Utilisateur'}</p>
+                      <p className="text-xs text-muted-foreground">Flow Dating</p>
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+
+                {/* Navigation principale */}
+                <DropdownMenuItem asChild>
+                  <Link href="/discover" className="cursor-pointer">
+                    <span className="mr-3">🔥</span>Découverte
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/matches" className="cursor-pointer flex-between w-full">
+                    <span><span className="mr-3">💖</span>Matchs</span>
+                    {matchesCount > 0 && (
+                      <span className="badge-primary text-[10px] px-1.5 py-0.5 rounded-full">
+                        {matchesCount}
+                      </span>
+                    )}
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/chat" className="cursor-pointer">
+                    <span className="mr-3">💬</span>Messages
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/help" className="cursor-pointer flex items-center">
+                    <BugAntIcon className="w-4 h-4 mr-3" />
+                    Support / Bug
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/premium" className="cursor-pointer flex-between w-full">
+                    <span><span className="mr-3">👑</span>Premium</span>
+                    <span className="badge bg-gradient-to-r from-amber-400 to-yellow-500 text-white text-[10px]">
+                      Pro
+                    </span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/donate" className="cursor-pointer flex-between w-full">
+                    <span><span className="mr-3">🪙</span>Don</span>
+                    <span className="badge bg-gradient-to-r from-yellow-500 to-amber-500 text-white text-[10px]">
+                      Soutenir
+                    </span>
+                  </Link>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                {/* Profil & Paramètres */}
+                <DropdownMenuItem asChild>
+                  <Link href="/profile" className="cursor-pointer">
+                    <span className="mr-3">👤</span>Mon profil
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSettingsOpen(true)}
+                  className="cursor-pointer"
+                >
+                  <span className="mr-3">⚙️</span>Paramètres
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                  onClick={handleSecureSignOut}
+                  disabled={isLoggingOut}
+                  className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
+                >
+                  <span className="mr-3">{isLoggingOut ? '⏳' : '🚪'}</span>
+                  {isLoggingOut ? 'Deconnexion...' : 'Se deconnecter'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 

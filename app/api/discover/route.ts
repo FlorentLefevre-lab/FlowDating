@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { apiCache } from '@/lib/cache';
 import { withRateLimit } from '@/lib/middleware/rateLimit';
 import { filterByDistance } from '@/lib/geo';
+import { calculateAge } from '@/lib/zodiac';
 
 // ================================
 // GET - RÉCUPÉRER LES PROFILS
@@ -40,6 +41,7 @@ async function handleGetDiscover(request: NextRequest) {
       select: {
         id: true,
         interests: true,
+        birthDate: true,
         age: true,
         location: true,
         name: true,
@@ -126,15 +128,43 @@ async function handleGetDiscover(request: NextRequest) {
     };
 
     // Appliquer les filtres d'âge (depuis URL ou préférences utilisateur)
+    // Calcul basé sur birthDate pour un filtrage précis
     const minAge = filters.minAge || currentUser.preferences?.minAge;
     const maxAge = filters.maxAge || currentUser.preferences?.maxAge;
 
     if (minAge || maxAge) {
+      const today = new Date();
+      // Pour minAge ans, la birthDate doit être <= à aujourd'hui - minAge ans
+      // Pour maxAge ans, la birthDate doit être >= à aujourd'hui - maxAge ans - 1 jour
+      const maxBirthDate = minAge
+        ? new Date(today.getFullYear() - minAge, today.getMonth(), today.getDate())
+        : undefined;
+      const minBirthDate = maxAge
+        ? new Date(today.getFullYear() - maxAge - 1, today.getMonth(), today.getDate() + 1)
+        : undefined;
+
       whereConditions.AND.push({
-        age: {
-          ...(minAge && { gte: minAge }),
-          ...(maxAge && { lte: maxAge })
-        }
+        OR: [
+          // Filtrer par birthDate si disponible
+          {
+            birthDate: {
+              ...(minBirthDate && { gte: minBirthDate }),
+              ...(maxBirthDate && { lte: maxBirthDate })
+            }
+          },
+          // Fallback sur age pour les anciens profils sans birthDate
+          {
+            AND: [
+              { birthDate: null },
+              {
+                age: {
+                  ...(minAge && { gte: minAge }),
+                  ...(maxAge && { lte: maxAge })
+                }
+              }
+            ]
+          }
+        ]
       });
     }
 
@@ -186,9 +216,10 @@ async function handleGetDiscover(request: NextRequest) {
       where: whereConditions,
       select: {
         // SECURITY: Do NOT expose email in discover endpoint
-        id: true, name: true, age: true, bio: true,
+        id: true, name: true, birthDate: true, age: true, bio: true,
         location: true, profession: true, gender: true, interests: true,
         role: true, // Pour afficher badge Admin/Moderator
+        hasDonated: true, // Pour afficher badge Supporter
         createdAt: true, lastSeen: true,
         photos: {
           select: { id: true, url: true, isPrimary: true },
@@ -208,21 +239,31 @@ async function handleGetDiscover(request: NextRequest) {
     console.log('📊 Genres retournés:', genderCounts, `(Total: ${users.length})`);
 
     // 5. Calculer la compatibilité
+    // Calculer l'âge de l'utilisateur actuel (depuis birthDate ou age)
+    const currentUserAge = currentUser.birthDate
+      ? calculateAge(new Date(currentUser.birthDate))
+      : currentUser.age;
+
     const enrichedUsers = users.map(user => {
+      // Calculer l'âge dynamiquement depuis birthDate si disponible
+      const userAge = user.birthDate
+        ? calculateAge(new Date(user.birthDate))
+        : user.age;
+
       let compatibilityScore = 40;
 
       // Centres d'intérêt communs
       if (user.interests?.length && currentUser.interests?.length) {
-        const commonInterests = user.interests.filter(interest => 
+        const commonInterests = user.interests.filter(interest =>
           currentUser.interests.includes(interest)
         );
         const interestScore = (commonInterests.length / Math.max(user.interests.length, currentUser.interests.length)) * 40;
         compatibilityScore += interestScore;
       }
 
-      // Différence d'âge
-      if (user.age && currentUser.age) {
-        const ageDiff = Math.abs(user.age - currentUser.age);
+      // Différence d'âge (utilise l'âge calculé dynamiquement)
+      if (userAge && currentUserAge) {
+        const ageDiff = Math.abs(userAge - currentUserAge);
         const ageScore = Math.max(0, (10 - ageDiff) / 10) * 30;
         compatibilityScore += ageScore;
       }
@@ -241,7 +282,8 @@ async function handleGetDiscover(request: NextRequest) {
         id: user.id,
         name: user.name || 'Utilisateur',
         // SECURITY: email removed - not needed for discover
-        age: user.age || 25,
+        // Retourne l'âge calculé dynamiquement
+        age: userAge || 25,
         bio: user.bio,
         location: user.location || 'Lieu non précisé',
         profession: user.profession || 'Profession non précisée',
