@@ -162,38 +162,60 @@ export async function sendPasswordResetEmail(email: string): Promise<EmailResult
     const mailOptions = {
       from: process.env.EMAIL_FROM,
       to: normalizedEmail,
-      subject: 'Reinitialisation de votre mot de passe - LoveApp',
+      subject: 'Reinitialisation de votre mot de passe - Flow Dating',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #e91e63;">Reinitialisation de mot de passe</h2>
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2px; border-radius: 16px;">
+          <div style="background: #ffffff; border-radius: 14px; overflow: hidden;">
 
-          <p>Bonjour,</p>
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%); padding: 40px 30px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">Flow Dating</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">Securite de votre compte</p>
+            </div>
 
-          <p>Vous avez demande la reinitialisation de votre mot de passe sur <strong>LoveApp</strong>.</p>
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <span style="font-size: 50px;">🔐</span>
+              </div>
 
-          <p>Cliquez sur le bouton ci-dessous pour creer un nouveau mot de passe :</p>
+              <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 22px; text-align: center;">Reinitialiser votre mot de passe</h2>
 
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetUrl}"
-               style="background-color: #e91e63; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
-              Reinitialiser mon mot de passe
-            </a>
+              <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 15px 0;">
+                Bonjour,
+              </p>
+
+              <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+                Vous avez demande la reinitialisation de votre mot de passe sur <strong style="color: #7c3aed;">Flow Dating</strong>. Cliquez sur le bouton ci-dessous pour creer un nouveau mot de passe :
+              </p>
+
+              <div style="text-align: center; margin: 35px 0;">
+                <a href="${resetUrl}"
+                   style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 30px; display: inline-block; font-weight: 600; font-size: 16px; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);">
+                  Reinitialiser mon mot de passe
+                </a>
+              </div>
+
+              <div style="background: #faf5ff; border-radius: 12px; padding: 20px; margin: 30px 0; border-left: 4px solid #7c3aed;">
+                <p style="margin: 0; color: #6b21a8; font-size: 14px;">
+                  <strong>Ce lien expire dans 15 minutes.</strong><br>
+                  Si vous n'avez pas fait cette demande, ignorez cet email. Votre compte reste securise.
+                </p>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="background: #f9fafb; padding: 25px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="color: #9ca3af; font-size: 12px; margin: 0 0 10px 0;">
+                Si le bouton ne fonctionne pas, copiez ce lien :<br>
+                <a href="${resetUrl}" style="color: #7c3aed; word-break: break-all;">${resetUrl}</a>
+              </p>
+              <p style="color: #d1d5db; font-size: 11px; margin: 15px 0 0 0;">
+                Flow Dating - L'amour au fil de l'eau
+              </p>
+            </div>
+
           </div>
-
-          <p><strong>Ce lien expire dans 15 minutes.</strong></p>
-
-          <p>Si vous n'avez pas demande cette reinitialisation, vous pouvez ignorer cet email. Votre compte reste securise.</p>
-
-          <hr style="margin: 30px 0; border: 1px solid #eee;">
-
-          <p style="color: #666; font-size: 12px;">
-            Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :<br>
-            <a href="${resetUrl}">${resetUrl}</a>
-          </p>
-
-          <p style="color: #999; font-size: 11px; margin-top: 20px;">
-            Cet email a ete envoye automatiquement. Ne repondez pas a ce message.
-          </p>
         </div>
       `,
     };
@@ -207,6 +229,38 @@ export async function sendPasswordResetEmail(email: string): Promise<EmailResult
   } catch (error) {
     console.error('[Email] Failed to send password reset email:', error instanceof Error ? error.message : 'Unknown error');
     return { success: false, error: 'Erreur lors de l\'envoi de l\'email. Veuillez reessayer.' };
+  }
+}
+
+/**
+ * Check if password reset token is valid (without consuming it)
+ * - Hashes the received token and looks up in Redis
+ * - Verifies email matches stored email
+ * - Does NOT delete the token (use validatePasswordResetToken for that)
+ */
+export async function checkPasswordResetToken(email: string, token: string): Promise<boolean> {
+  if (!email || !token) {
+    return false;
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+  const hashedToken = hashToken(token);
+
+  try {
+    const redis = getRedisClient();
+    const data = await redis.get(`password-reset:${hashedToken}`);
+
+    if (!data) {
+      return false;
+    }
+
+    const { email: storedEmail } = JSON.parse(data);
+
+    // Verify email matches (case-insensitive)
+    return storedEmail.toLowerCase() === normalizedEmail;
+  } catch (error) {
+    console.error('[Email] Error checking password reset token:', error instanceof Error ? error.message : 'Unknown error');
+    return false;
   }
 }
 
@@ -305,38 +359,60 @@ export async function sendEmailVerification(email: string): Promise<EmailResult>
     const mailOptions = {
       from: process.env.EMAIL_FROM,
       to: normalizedEmail,
-      subject: 'Confirmez votre adresse email - LoveApp',
+      subject: 'Confirmez votre adresse email - Flow Dating',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #e91e63;">Bienvenue sur LoveApp !</h2>
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2px; border-radius: 16px;">
+          <div style="background: #ffffff; border-radius: 14px; overflow: hidden;">
 
-          <p>Bonjour,</p>
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #ec4899 0%, #f43f5e 50%, #fb7185 100%); padding: 40px 30px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">Flow Dating</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">Bienvenue dans l'aventure</p>
+            </div>
 
-          <p>Merci de vous etre inscrit(e) sur <strong>LoveApp</strong> !</p>
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <span style="font-size: 50px;">💖</span>
+              </div>
 
-          <p>Pour commencer a utiliser votre compte, veuillez confirmer votre adresse email en cliquant sur le bouton ci-dessous :</p>
+              <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 22px; text-align: center;">Confirmez votre email</h2>
 
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${verifyUrl}"
-               style="background-color: #e91e63; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
-              Confirmer mon email
-            </a>
+              <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 15px 0;">
+                Bonjour,
+              </p>
+
+              <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+                Merci de vous etre inscrit(e) sur <strong style="color: #ec4899;">Flow Dating</strong> ! Pour commencer a faire de belles rencontres, confirmez votre adresse email :
+              </p>
+
+              <div style="text-align: center; margin: 35px 0;">
+                <a href="${verifyUrl}"
+                   style="background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 30px; display: inline-block; font-weight: 600; font-size: 16px; box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4);">
+                  Confirmer mon email
+                </a>
+              </div>
+
+              <div style="background: #fdf2f8; border-radius: 12px; padding: 20px; margin: 30px 0; border-left: 4px solid #ec4899;">
+                <p style="margin: 0; color: #9d174d; font-size: 14px;">
+                  <strong>Ce lien expire dans 24 heures.</strong><br>
+                  Si vous n'avez pas cree de compte, ignorez simplement cet email.
+                </p>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="background: #f9fafb; padding: 25px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="color: #9ca3af; font-size: 12px; margin: 0 0 10px 0;">
+                Si le bouton ne fonctionne pas, copiez ce lien :<br>
+                <a href="${verifyUrl}" style="color: #ec4899; word-break: break-all;">${verifyUrl}</a>
+              </p>
+              <p style="color: #d1d5db; font-size: 11px; margin: 15px 0 0 0;">
+                Flow Dating - L'amour au fil de l'eau
+              </p>
+            </div>
+
           </div>
-
-          <p><strong>Ce lien expire dans 24 heures.</strong></p>
-
-          <p>Si vous n'avez pas cree de compte sur LoveApp, vous pouvez ignorer cet email.</p>
-
-          <hr style="margin: 30px 0; border: 1px solid #eee;">
-
-          <p style="color: #666; font-size: 12px;">
-            Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :<br>
-            <a href="${verifyUrl}">${verifyUrl}</a>
-          </p>
-
-          <p style="color: #999; font-size: 11px; margin-top: 20px;">
-            Cet email a ete envoye automatiquement. Ne repondez pas a ce message.
-          </p>
         </div>
       `,
     };

@@ -26,6 +26,7 @@ function ResetPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
+  const email = searchParams.get('email')
 
   const {
     register,
@@ -37,8 +38,8 @@ function ResetPasswordContent() {
 
   useEffect(() => {
     const verifyToken = async () => {
-      if (!token) {
-        setError('Token manquant dans l\'URL')
+      if (!token || !email) {
+        setError('Lien invalide - paramètres manquants')
         setTokenValid(false)
         return
       }
@@ -47,7 +48,7 @@ function ResetPasswordContent() {
         const response = await fetch('/api/auth/verify-reset-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token }),
+          body: JSON.stringify({ token, email }),
         })
 
         if (response.ok) {
@@ -64,11 +65,11 @@ function ResetPasswordContent() {
     }
 
     verifyToken()
-  }, [token])
+  }, [token, email])
 
   const onSubmit = async (data: ResetPasswordFormData) => {
-    if (!token) {
-      setError('Token manquant')
+    if (!token || !email) {
+      setError('Paramètres manquants')
       return
     }
 
@@ -80,7 +81,7 @@ function ResetPasswordContent() {
       const response = await fetch('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password: data.password }),
+        body: JSON.stringify({ token, email, password: data.password }),
       })
 
       const result = await response.json()

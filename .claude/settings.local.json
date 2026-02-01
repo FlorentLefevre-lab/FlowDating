@@ -34,7 +34,8 @@
       "Bash(node -e:*)",
       "Bash(npx ts-node --compiler-options '{\"\"module\"\":\"\"CommonJS\"\"}' scripts/generate-birthdates.ts)",
       "Bash(npx next build:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(npm run db:seed:5000:*)"
     ]
   }
 }

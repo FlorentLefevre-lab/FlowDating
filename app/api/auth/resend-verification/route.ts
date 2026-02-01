@@ -1,25 +1,24 @@
-
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { sendEmailVerification } from '@/lib/email'
-import crypto from 'crypto'
-import { z } from 'zod'
+import { z, ZodError } from 'zod'
+import { withRateLimit } from '@/lib/middleware/rateLimit'
 
 const resendSchema = z.object({
   email: z.string().email("Email invalide"),
 })
 
-export async function POST(request: NextRequest) {
-  console.log('🔄 API resend-verification appelée')
-  
+async function handleResendVerification(request: NextRequest) {
+  console.log('[ResendVerification] API appelée')
+
   try {
     const body = await request.json()
     const { email } = resendSchema.parse(body)
-    console.log('📧 Renvoi pour:', email)
+    console.log('[ResendVerification] Renvoi pour:', email)
 
     // Chercher l'utilisateur
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email: email.toLowerCase().trim() }
     })
 
     if (!user) {
@@ -36,50 +35,37 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Supprimer les anciens tokens de vérification
-    await prisma.emailVerificationToken.deleteMany({
-      where: { email }
-    })
+    // Envoyer l'email via Redis (token généré et stocké automatiquement, anciens tokens expirés par TTL)
+    const emailResult = await sendEmailVerification(email)
 
-    // Générer un nouveau token
-    const verificationToken = crypto.randomBytes(32).toString('hex')
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 heures
-
-    // Enregistrer le nouveau token
-    await prisma.emailVerificationToken.create({
-      data: {
-        email,
-        token: verificationToken,
-        expires,
-      }
-    })
-
-    // Envoyer l'email
-    const emailSent = await sendEmailVerification(email, verificationToken)
-
-    if (!emailSent) {
+    if (!emailResult.success) {
+      console.error('[ResendVerification] Erreur:', emailResult.error)
       return NextResponse.json(
-        { error: "Erreur lors de l'envoi de l'email" },
+        { error: emailResult.error || "Erreur lors de l'envoi de l'email" },
         { status: 500 }
       )
     }
 
+    console.log('[ResendVerification] Email envoyé avec succès')
     return NextResponse.json({
       message: "Un nouveau lien de vérification a été envoyé à votre adresse email."
     })
 
   } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: error.errors[0].message },
+        { error: error.issues[0].message },
         { status: 400 }
       )
     }
 
-    console.error("Erreur resend-verification:", error)
+    console.error('[ResendVerification] Erreur:', error)
     return NextResponse.json(
       { error: "Erreur interne du serveur" },
       { status: 500 }
     )
   }
 }
+
+// Export with rate limiting (auth type: 5 requests/minute)
+export const POST = withRateLimit('auth')(handleResendVerification)

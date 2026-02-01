@@ -1,4 +1,7 @@
 // prisma/seed-5000.ts - Seed avec 5000 utilisateurs répartis en France
+import { config } from 'dotenv';
+config({ path: '.env.local' });
+
 import { PrismaClient, Gender, AccountStatus, AuthMethod, MaritalStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 

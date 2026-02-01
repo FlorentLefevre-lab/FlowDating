@@ -1,51 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { validatePasswordResetToken } from '@/lib/email'
 import bcrypt from 'bcryptjs'
-import { z } from 'zod'
+import { z, ZodError } from 'zod'
 import { withRateLimit } from '@/lib/middleware/rateLimit'
 
 const resetPasswordSchema = z.object({
   token: z.string().min(1, "Token requis"),
+  email: z.string().email("Email requis"),
   password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
 })
 
 // Rate limited: 5 requests per minute per IP
 async function handleResetPassword(request: NextRequest) {
+  console.log('[ResetPassword] API appelée')
+
   try {
     const body = await request.json()
-    const { token, password } = resetPasswordSchema.parse(body)
+    const { token, email, password } = resetPasswordSchema.parse(body)
+    console.log('[ResetPassword] Réinitialisation pour:', email)
 
-    // Chercher le token dans la base
-    const resetToken = await prisma.passwordResetToken.findUnique({
-      where: { token }
-    })
+    // Valider le token via Redis (hashé, avec TTL auto, single-use)
+    const isValid = await validatePasswordResetToken(email, token)
 
-    if (!resetToken) {
+    if (!isValid) {
+      console.log('[ResetPassword] Token invalide ou expiré')
       return NextResponse.json(
-        { error: "Token invalide" },
-        { status: 400 }
-      )
-    }
-
-    // Vérifier si le token n'a pas expiré
-    if (resetToken.expires < new Date()) {
-      // Supprimer le token expiré
-      await prisma.passwordResetToken.delete({
-        where: { id: resetToken.id }
-      })
-
-      return NextResponse.json(
-        { error: "Ce lien a expiré. Demandez un nouveau lien de réinitialisation." },
+        { error: "Lien invalide ou expiré. Demandez un nouveau lien de réinitialisation." },
         { status: 400 }
       )
     }
 
     // Chercher l'utilisateur
     const user = await prisma.user.findUnique({
-      where: { email: resetToken.email }
+      where: { email: email.toLowerCase().trim() }
     })
 
     if (!user) {
+      console.log('[ResetPassword] Utilisateur non trouvé:', email)
       return NextResponse.json(
         { error: "Utilisateur non trouvé" },
         { status: 400 }
@@ -61,26 +53,21 @@ async function handleResetPassword(request: NextRequest) {
       data: { hashedPassword }
     })
 
-    // Supprimer le token utilisé
-    await prisma.passwordResetToken.delete({
-      where: { id: resetToken.id }
-    })
-
-    console.log(`✅ Mot de passe réinitialisé pour: ${user.email}`)
+    console.log('[ResetPassword] Mot de passe réinitialisé pour:', email)
 
     return NextResponse.json({
-      message: "Mot de passe réinitialisé avec succès"
+      message: "Mot de passe réinitialisé avec succès ! Vous pouvez maintenant vous connecter."
     })
 
   } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: error.errors[0].message },
+        { error: error.issues[0].message },
         { status: 400 }
       )
     }
 
-    console.error("Erreur reset-password:", error)
+    console.error('[ResetPassword] Erreur:', error)
     return NextResponse.json(
       { error: "Erreur interne du serveur" },
       { status: 500 }

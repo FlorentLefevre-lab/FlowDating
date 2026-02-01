@@ -113,9 +113,14 @@ function LoginContent() {
             </div>
 
             <div>
-              <label htmlFor="password" className="text-caption block mb-2">
-                Mot de passe
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label htmlFor="password" className="text-caption">
+                  Mot de passe
+                </label>
+                <Link href="/auth/forgot-password" className="text-sm text-primary-600 hover:text-primary-500">
+                  Mot de passe oublié ?
+                </Link>
+              </div>
               <Input
                 id="password"
                 name="password"

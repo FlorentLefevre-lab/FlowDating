@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/db'
 import { sendEmailVerification } from '@/lib/email'
-import crypto from 'crypto'
-import { z } from 'zod'
+import { z, ZodError } from 'zod'
 import { withRateLimit } from '@/lib/middleware/rateLimit'
 
 const registerSchema = z.object({
@@ -14,14 +13,13 @@ const registerSchema = z.object({
 
 // Rate limited: 5 requests per minute per IP
 async function handleRegister(request: NextRequest) {
-  console.log('🔥 API register appelée avec vérification email')
-  
+  console.log('[Register] API appelée')
+
   try {
     const body = await request.json()
-    console.log('📨 Body reçu:', body)
-    
+
     const { name, email, password } = registerSchema.parse(body)
-    console.log('✅ Données validées:', { name, email })
+    console.log('[Register] Données validées pour:', email)
 
     // Vérifier si l'utilisateur existe déjà
     const existingUser = await prisma.user.findUnique({
@@ -37,7 +35,6 @@ async function handleRegister(request: NextRequest) {
 
     // Hacher le mot de passe
     const hashedPassword = await bcrypt.hash(password, 12)
-    console.log('🔐 Mot de passe haché')
 
     // Créer l'utilisateur (emailVerified = null = non vérifié)
     const user = await prisma.user.create({
@@ -49,31 +46,17 @@ async function handleRegister(request: NextRequest) {
         emailVerified: null, // Pas encore vérifié
       }
     })
-    console.log('✅ Utilisateur créé:', user.id)
+    console.log('[Register] Utilisateur créé:', user.id)
 
-    // Générer un token de vérification
-    const verificationToken = crypto.randomBytes(32).toString('hex')
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 heures
-    console.log('🔑 Token généré:', verificationToken.substring(0, 8) + '...')
+    // Envoyer l'email de vérification via Redis (token généré et stocké automatiquement)
+    console.log('[Register] Envoi email de vérification...')
+    const emailResult = await sendEmailVerification(email)
 
-    // Enregistrer le token (utilise VerificationToken avec identifier = email)
-    await prisma.verificationToken.create({
-      data: {
-        identifier: email,
-        token: verificationToken,
-        expires,
-      }
-    })
-    console.log('💾 Token enregistré en base pour:', email)
-
-    // Envoyer l'email de vérification
-    console.log('📧 Envoi de l\'email de vérification...')
-    const emailSent = await sendEmailVerification(email, verificationToken)
-    console.log('📬 Email envoyé:', emailSent)
-
-    if (!emailSent) {
-      console.error('❌ Erreur envoi email vérification pour:', email)
-      // On ne fait pas échouer l'inscription pour ça
+    if (!emailResult.success) {
+      console.error('[Register] Erreur envoi email:', emailResult.error)
+      // On ne fait pas échouer l'inscription pour ça, l'utilisateur peut renvoyer
+    } else {
+      console.log('[Register] Email envoyé avec succès')
     }
 
     // Retourner l'utilisateur sans le mot de passe
@@ -82,15 +65,15 @@ async function handleRegister(request: NextRequest) {
     return NextResponse.json({
       message: "Compte créé avec succès ! Vérifiez votre email pour activer votre compte.",
       user: userWithoutPassword,
-      emailSent
+      emailSent: emailResult.success
     })
 
   } catch (error) {
-    console.error('💥 ERREUR dans register:', error)
-    
-    if (error instanceof z.ZodError) {
+    console.error('[Register] Erreur:', error)
+
+    if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: error.errors[0].message },
+        { error: error.issues[0].message },
         { status: 400 }
       )
     }

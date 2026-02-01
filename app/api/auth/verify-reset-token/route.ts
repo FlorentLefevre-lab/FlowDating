@@ -1,55 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
-import { z } from 'zod'
+import { checkPasswordResetToken } from '@/lib/email'
+import { z, ZodError } from 'zod'
+import { withRateLimit } from '@/lib/middleware/rateLimit'
 
 const verifyTokenSchema = z.object({
   token: z.string().min(1, "Token requis"),
+  email: z.string().email("Email requis"),
 })
 
-export async function POST(request: NextRequest) {
+async function handleVerifyResetToken(request: NextRequest) {
+  console.log('[VerifyResetToken] API appelée')
+
   try {
     const body = await request.json()
-    const { token } = verifyTokenSchema.parse(body)
+    const { token, email } = verifyTokenSchema.parse(body)
 
-    // Chercher le token dans la base
-    const resetToken = await prisma.passwordResetToken.findUnique({
-      where: { token }
-    })
+    // Vérifier le token via Redis (sans le consommer)
+    const isValid = await checkPasswordResetToken(email, token)
 
-    if (!resetToken) {
+    if (!isValid) {
+      console.log('[VerifyResetToken] Token invalide ou expiré pour:', email)
       return NextResponse.json(
-        { error: "Token invalide" },
+        { error: "Lien invalide ou expiré. Demandez un nouveau lien de réinitialisation." },
         { status: 400 }
       )
     }
 
-    // Vérifier si le token n'a pas expiré
-    if (resetToken.expires < new Date()) {
-      // Supprimer le token expiré
-      await prisma.passwordResetToken.delete({
-        where: { id: resetToken.id }
-      })
-
-      return NextResponse.json(
-        { error: "Ce lien a expiré. Demandez un nouveau lien de réinitialisation." },
-        { status: 400 }
-      )
-    }
-
+    console.log('[VerifyResetToken] Token valide pour:', email)
     return NextResponse.json({ valid: true })
 
   } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: error.errors[0].message },
+        { error: error.issues[0].message },
         { status: 400 }
       )
     }
 
-    console.error("Erreur verify-reset-token:", error)
+    console.error('[VerifyResetToken] Erreur:', error)
     return NextResponse.json(
       { error: "Erreur interne du serveur" },
       { status: 500 }
     )
   }
 }
+
+// Export with rate limiting
+export const POST = withRateLimit('auth')(handleVerifyResetToken)
