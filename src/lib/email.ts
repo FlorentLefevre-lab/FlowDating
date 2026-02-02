@@ -10,19 +10,23 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // SMTP Transporter with TLS configuration (lazy initialization for build compatibility)
 let _transporter: Transporter | null = null;
 
+// Dynamic env access to avoid Railway's static analysis detecting secrets at build time
+const getEnv = (key: string): string | undefined => process.env[key];
+
 function getTransporter(): Transporter {
   if (!_transporter) {
+    const port = getEnv('EMAIL_SERVER_PORT') || '587';
     _transporter = createTransport({
-      host: process.env.EMAIL_SERVER_HOST,
-      port: parseInt(process.env.EMAIL_SERVER_PORT || '587'),
-      secure: process.env.EMAIL_SERVER_PORT === '465', // TLS for port 465
+      host: getEnv('EMAIL_SERVER_HOST'),
+      port: parseInt(port),
+      secure: port === '465', // TLS for port 465
       auth: {
-        user: process.env.EMAIL_SERVER_USER,
-        pass: process.env.EMAIL_SERVER_PASSWORD,
+        user: getEnv('EMAIL_SERVER_USER'),
+        pass: getEnv('EMAIL_SERVER_PASSWORD'),
       },
       tls: {
         // Verify certificates only in production
-        rejectUnauthorized: process.env.NODE_ENV === 'production',
+        rejectUnauthorized: getEnv('NODE_ENV') === 'production',
       },
     });
   }
@@ -164,10 +168,10 @@ export async function sendPasswordResetEmail(email: string): Promise<EmailResult
     );
 
     // Build reset URL - token is sent in URL, NOT the hash
-    const resetUrl = `${process.env.NEXTAUTH_URL}/auth/reset-password?token=${token}&email=${encodeURIComponent(normalizedEmail)}`;
+    const resetUrl = `${getEnv('NEXTAUTH_URL')}/auth/reset-password?token=${token}&email=${encodeURIComponent(normalizedEmail)}`;
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM,
+      from: getEnv('EMAIL_FROM'),
       to: normalizedEmail,
       subject: 'Reinitialisation de votre mot de passe - Flow Dating',
       html: `
@@ -361,10 +365,10 @@ export async function sendEmailVerification(email: string): Promise<EmailResult>
     );
 
     // Build verification URL
-    const verifyUrl = `${process.env.NEXTAUTH_URL}/auth/verify-email?token=${token}&email=${encodeURIComponent(normalizedEmail)}`;
+    const verifyUrl = `${getEnv('NEXTAUTH_URL')}/auth/verify-email?token=${token}&email=${encodeURIComponent(normalizedEmail)}`;
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM,
+      from: getEnv('EMAIL_FROM'),
       to: normalizedEmail,
       subject: 'Confirmez votre adresse email - Flow Dating',
       html: `
@@ -538,7 +542,7 @@ interface DonationNotificationData {
  * Send donation notification email to admins
  */
 export async function sendDonationNotificationEmail(data: DonationNotificationData): Promise<EmailResult> {
-  const adminEmails = process.env.ADMIN_NOTIFICATION_EMAILS?.split(',').map(e => e.trim()) || [];
+  const adminEmails = getEnv('ADMIN_NOTIFICATION_EMAILS')?.split(',').map(e => e.trim()) || [];
 
   if (adminEmails.length === 0) {
     console.warn('[Email] No admin emails configured for donation notifications');
@@ -558,7 +562,7 @@ export async function sendDonationNotificationEmail(data: DonationNotificationDa
 
   try {
     const mailOptions = {
-      from: process.env.EMAIL_FROM,
+      from: getEnv('EMAIL_FROM'),
       to: adminEmails.join(', '),
       subject: `Nouveau don de ${formattedAmount} sur Flow Dating`,
       html: `
@@ -610,7 +614,7 @@ export async function sendDonationNotificationEmail(data: DonationNotificationDa
               ` : ''}
 
               <div style="text-align: center; margin-top: 25px;">
-                <a href="${process.env.NEXTAUTH_URL}/admin/donations"
+                <a href="${getEnv('NEXTAUTH_URL')}/admin/donations"
                    style="display: inline-block; background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%); color: white; padding: 12px 25px; text-decoration: none; border-radius: 25px; font-weight: bold;">
                   Voir dans l'admin
                 </a>
@@ -654,7 +658,7 @@ export async function sendDonationThankYouEmail(
 
   try {
     const mailOptions = {
-      from: process.env.EMAIL_FROM,
+      from: getEnv('EMAIL_FROM'),
       to: email,
       subject: `Merci pour votre don de ${formattedAmount} - Flow Dating`,
       html: `
