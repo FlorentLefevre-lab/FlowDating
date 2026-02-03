@@ -4,10 +4,18 @@ import { createTransport } from 'nodemailer'
 import { getRedisClient, isRedisHealthy } from '@/lib/redis'
 
 export async function GET(request: NextRequest) {
-  // Vérifier l'authentification admin
-  const session = await auth()
-  if (!session?.user || (session.user as any).role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
+  // Vérifier l'authentification admin OU clé secrète
+  const secretKey = request.headers.get('x-admin-key') || request.nextUrl.searchParams.get('key')
+  const validSecret = process.env.ADMIN_SECRET_KEY
+
+  if (secretKey && validSecret && secretKey === validSecret) {
+    // Accès via clé secrète OK
+  } else {
+    // Sinon vérifier session admin
+    const session = await auth()
+    if (!session?.user || (session.user as any).role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
+    }
   }
 
   const diagnostics: Record<string, any> = {
@@ -97,10 +105,18 @@ export async function GET(request: NextRequest) {
 
 // Endpoint POST pour envoyer un email de test
 export async function POST(request: NextRequest) {
-  // Vérifier l'authentification admin
-  const session = await auth()
-  if (!session?.user || (session.user as any).role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
+  // Vérifier l'authentification admin OU clé secrète
+  const secretKey = request.headers.get('x-admin-key') || request.nextUrl.searchParams.get('key')
+  const validSecret = process.env.ADMIN_SECRET_KEY
+
+  if (secretKey && validSecret && secretKey === validSecret) {
+    // Accès via clé secrète OK
+  } else {
+    // Sinon vérifier session admin
+    const session = await auth()
+    if (!session?.user || (session.user as any).role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
+    }
   }
 
   const { email } = await request.json()
