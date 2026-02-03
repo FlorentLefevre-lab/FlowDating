@@ -110,6 +110,29 @@ export default function HomePage() {
     setMounted(true)
   }, [])
 
+  // 🔥 Vérification onboarding directe
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      if (status !== 'authenticated') return;
+
+      try {
+        const response = await fetch('/api/auth/onboarding/status');
+        if (response.ok) {
+          const result = await response.json();
+          console.log('[HOME] Onboarding status:', result);
+          if (!result.completed) {
+            console.log('[HOME] Redirecting to onboarding...');
+            router.push('/auth/onboarding');
+          }
+        }
+      } catch (error) {
+        console.error('[HOME] Onboarding check failed:', error);
+      }
+    };
+
+    checkOnboarding();
+  }, [status, router])
+
   // 🔥 CORRECTION: Chargement forcé des données quand tout est prêt
   useEffect(() => {
     if (status === 'authenticated' && mounted && !dataLoaded) {
