@@ -74,6 +74,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return null
           }
 
+          // Check if email is verified - MANDATORY
+          if (!user.emailVerified) {
+            throw new Error('EMAIL_NOT_VERIFIED:Veuillez confirmer votre adresse email avant de vous connecter. Verifiez votre boite de reception.')
+          }
+
           // Check if account is banned or suspended
           if (user.accountStatus === 'BANNED') {
             throw new Error('BANNED:Ce compte a ete definitivement banni pour violation des regles.')
@@ -122,11 +127,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             accountStatus: user.accountStatus,
           }
         } catch (error) {
-          // Re-throw custom errors (blocked, banned, suspended)
+          // Re-throw custom errors (blocked, banned, suspended, email not verified)
           if (error instanceof Error &&
               (error.message.includes('bloque') ||
                error.message.startsWith('BANNED:') ||
-               error.message.startsWith('SUSPENDED:'))) {
+               error.message.startsWith('SUSPENDED:') ||
+               error.message.startsWith('EMAIL_NOT_VERIFIED:'))) {
             throw error
           }
           console.error('Erreur authentification:', error)

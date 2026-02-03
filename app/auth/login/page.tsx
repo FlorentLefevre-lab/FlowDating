@@ -11,6 +11,9 @@ function LoginContent() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showResendVerification, setShowResendVerification] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || '/home'
@@ -37,10 +40,15 @@ function LoginContent() {
 
       if (result?.error) {
         // Parse specific error messages from auth
+        setShowResendVerification(false)
+        setResendSuccess(false)
         if (result.error.includes('BANNED:')) {
           setError(result.error.replace('BANNED:', ''))
         } else if (result.error.includes('SUSPENDED:')) {
           setError(result.error.replace('SUSPENDED:', ''))
+        } else if (result.error.includes('EMAIL_NOT_VERIFIED:')) {
+          setError(result.error.replace('EMAIL_NOT_VERIFIED:', ''))
+          setShowResendVerification(true)
         } else if (result.error.includes('bloque')) {
           setError('Compte temporairement bloque suite a plusieurs tentatives echouees. Reessayez dans 15 minutes.')
         } else {
@@ -77,6 +85,32 @@ function LoginContent() {
       console.error('Erreur Facebook Sign-In:', error)
       setError('Erreur avec Facebook Sign-In')
       setLoading(false)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    if (!email) {
+      setError('Veuillez entrer votre adresse email')
+      return
+    }
+    setResendLoading(true)
+    try {
+      const res = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setResendSuccess(true)
+        setError('')
+      } else {
+        setError(data.error || 'Erreur lors de l\'envoi')
+      }
+    } catch {
+      setError('Erreur lors de l\'envoi de l\'email')
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -136,6 +170,28 @@ function LoginContent() {
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
               {error}
+            </div>
+          )}
+
+          {showResendVerification && !resendSuccess && (
+            <div className="bg-amber-50 border border-amber-200 px-4 py-3 rounded-lg">
+              <p className="text-amber-800 text-sm mb-2">Vous n'avez pas recu l'email ?</p>
+              <Button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resendLoading}
+                variant="outline"
+                size="sm"
+                className="text-amber-700 border-amber-300 hover:bg-amber-100"
+              >
+                {resendLoading ? 'Envoi...' : 'Renvoyer l\'email de verification'}
+              </Button>
+            </div>
+          )}
+
+          {resendSuccess && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+              Email de verification envoye ! Verifiez votre boite de reception (et les spams).
             </div>
           )}
 
