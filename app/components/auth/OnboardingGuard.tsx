@@ -23,7 +23,7 @@ export default function OnboardingGuard({ children }: OnboardingGuardProps) {
       if (checkInProgress.current) return;
 
       // Ne pas vérifier si pas authentifié
-      if (status !== 'authenticated' || !session?.user?.id) {
+      if (status !== 'authenticated') {
         setIsChecking(false);
         setShouldShowContent(true);
         return;
@@ -69,13 +69,13 @@ export default function OnboardingGuard({ children }: OnboardingGuardProps) {
       }
     };
 
-    if (status === 'authenticated' && session?.user?.id) {
+    if (status === 'authenticated') {
       checkOnboarding();
     } else if (status === 'unauthenticated') {
       setIsChecking(false);
       setShouldShowContent(true);
     }
-  }, [status, session?.user?.id, router, pathname]);
+  }, [status, router, pathname]);
 
   // Pendant le loading de la session ou la vérification
   if (status === 'loading' || (status === 'authenticated' && isChecking && !shouldShowContent)) {
