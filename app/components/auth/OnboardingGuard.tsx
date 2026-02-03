@@ -17,8 +17,14 @@ export default function OnboardingGuard({ children }: OnboardingGuardProps) {
   const [shouldShowContent, setShouldShowContent] = useState(false);
   const checkInProgress = useRef(false);
 
+  // DEBUG LOG
+  console.log('[OnboardingGuard] status:', status, 'isChecking:', isChecking, 'shouldShowContent:', shouldShowContent);
+
   useEffect(() => {
+    console.log('[OnboardingGuard] useEffect triggered, status:', status);
+
     const checkOnboarding = async () => {
+      console.log('[OnboardingGuard] checkOnboarding called');
       // Éviter les appels multiples simultanés
       if (checkInProgress.current) return;
 
@@ -50,9 +56,11 @@ export default function OnboardingGuard({ children }: OnboardingGuardProps) {
         }
 
         const result = await response.json();
+        console.log('[OnboardingGuard] API response:', result);
 
         // Si onboarding pas encore fait, rediriger UNE SEULE FOIS
         if (!result.completed) {
+          console.log('[OnboardingGuard] Redirecting to onboarding...');
           router.replace('/auth/onboarding');
           return;
         }
