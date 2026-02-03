@@ -324,3 +324,4 @@ ehthumbs.db
 nul
 ".env.production" 
 .claude/settings.local.json
+.env.production
