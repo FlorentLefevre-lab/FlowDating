@@ -32,7 +32,18 @@ export function CustomAttachment({ attachments, actionHandler }: CustomAttachmen
           attachment.asset_url?.match(/\.(mp4|webm|mov|avi|mkv)$/i) ||
           attachment.title?.match(/\.(mp4|webm|mov|avi|mkv)$/i);
 
-        // Lecteur audio personnalisé
+        // Message vocal : déléguer au composant par défaut (waveform + contrôle vitesse)
+        if (attachment.type === 'voiceRecording') {
+          return (
+            <Attachment
+              key={attachment.asset_url || index}
+              attachments={[attachment]}
+              actionHandler={actionHandler}
+            />
+          );
+        }
+
+        // Lecteur audio personnalisé (fichiers audio classiques, pas les messages vocaux)
         if (isAudio && attachment.asset_url) {
           return (
             <div key={attachment.asset_url || index} className="custom-audio-attachment p-3 bg-gray-100 rounded-lg max-w-xs">

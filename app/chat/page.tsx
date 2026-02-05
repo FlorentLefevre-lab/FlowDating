@@ -8,8 +8,7 @@ import {
   Window,
   MessageList,
   MessageInput,
-  ChannelHeader,
-  Thread
+  ChannelHeader
 } from 'stream-chat-react'
 import { useSearchParams } from 'next/navigation'
 import { useStreamChat } from '@/hooks/useStreamChat'
@@ -18,6 +17,8 @@ import type { Channel as StreamChannel } from 'stream-chat'
 import { SimpleLoading, SimpleError, Button } from '@/components/ui'
 import { NotificationSettings } from '@/components/chat/NotificationSettings'
 import { CustomAttachment } from '@/components/chat/CustomAttachment'
+import { CustomEmojiPicker } from '@/components/chat/EmojiPickerWrapper'
+import { encodeToMp3 } from 'stream-chat-react/mp3-encoder'
 import { Bell, BellOff, Volume2, VolumeX } from 'lucide-react'
 
 function ChatContent() {
@@ -143,15 +144,15 @@ function ChatContent() {
           sort={{ last_message_at: -1 }}
           options={{ presence: true, watch: true, limit: 30 }}
         />
-        <Channel channel={activeChannel || undefined} Attachment={CustomAttachment}>
+        <Channel channel={activeChannel || undefined} Attachment={CustomAttachment} EmojiPicker={CustomEmojiPicker}>
           <Window>
             <ChannelHeader />
             <MessageList
               disableDateSeparator={false}
+              messageActions={['edit', 'delete', 'flag', 'pin', 'markUnread', 'react']}
             />
-            <MessageInput focus />
+            <MessageInput focus audioRecordingEnabled audioRecordingConfig={{ transcoderConfig: { encoder: encodeToMp3 } }} />
           </Window>
-          <Thread />
         </Channel>
       </Chat>
     </div>

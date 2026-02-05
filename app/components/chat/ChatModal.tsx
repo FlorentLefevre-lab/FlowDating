@@ -7,10 +7,10 @@ import { Fragment, useEffect, useState } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { 
-  Chat, 
-  Channel, 
-  ChannelList, 
-  MessageList, 
+  Chat,
+  Channel,
+  ChannelList,
+  MessageList,
   MessageInput,
   Window,
   ChannelHeader,
@@ -22,6 +22,8 @@ import { CustomChannelPreview } from './CustomChannelPreview'
 import { CustomMessage } from './CustomMessage'
 import { CustomAttachment } from './CustomAttachment'
 import { EmptyStateIndicator } from './EmptyStateIndicator'
+import { CustomEmojiPicker } from './EmojiPickerWrapper'
+import { encodeToMp3 } from 'stream-chat-react/mp3-encoder'
 
 interface ChatModalProps {
   isOpen: boolean
@@ -193,11 +195,11 @@ export function ChatModal({ isOpen, onClose, channelId, targetUserName, isCreati
                         {/* Zone de conversation */}
                         <div className={`${isMobile && !selectedChannel ? 'hidden' : 'flex'} flex-1 flex-col min-w-0`}>
                           {selectedChannel ? (
-                            <Channel channel={selectedChannel} Message={CustomMessage} Attachment={CustomAttachment}>
+                            <Channel channel={selectedChannel} Message={CustomMessage} Attachment={CustomAttachment} EmojiPicker={CustomEmojiPicker}>
                               <Window>
                                 <ChannelHeader />
-                                <MessageList />
-                                <MessageInput />
+                                <MessageList messageActions={['edit', 'delete', 'flag', 'pin', 'markUnread', 'react']} />
+                                <MessageInput audioRecordingEnabled audioRecordingConfig={{ transcoderConfig: { encoder: encodeToMp3 } }} />
                               </Window>
                             </Channel>
                           ) : (
