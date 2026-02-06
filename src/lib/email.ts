@@ -3,20 +3,51 @@
 import { createTransport, Transporter } from 'nodemailer';
 import { getRedisClient } from './redis';
 import crypto from 'crypto';
+import dns from 'dns';
+import { promisify } from 'util';
 
 // Email validation regex (RFC 5322 compliant simplified)
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Promisified DNS lookup
+const dnsLookup = promisify(dns.lookup);
+
+// Cache for resolved IPv4 address
+let _resolvedHost: string | null = null;
+let _resolvedHostname: string | null = null;
+
 // SMTP Transporter with TLS configuration (lazy initialization for build compatibility)
 let _transporter: Transporter | null = null;
 
-function getTransporter(): Transporter {
+async function resolveHostToIPv4(hostname: string): Promise<string> {
+  // Return cached result if same hostname
+  if (_resolvedHost && _resolvedHostname === hostname) {
+    return _resolvedHost;
+  }
+
+  try {
+    const result = await dnsLookup(hostname, { family: 4 });
+    _resolvedHost = result.address;
+    _resolvedHostname = hostname;
+    console.log(`[EMAIL] Resolved ${hostname} to IPv4: ${_resolvedHost}`);
+    return _resolvedHost;
+  } catch (error) {
+    console.warn(`[EMAIL] Failed to resolve ${hostname} to IPv4, using hostname directly:`, error);
+    return hostname;
+  }
+}
+
+async function getTransporter(): Promise<Transporter> {
   if (!_transporter) {
     const port = parseInt(process.env.SMTP_PORT || '587');
     const useImplicitTLS = port === 465;
+    const smtpHost = process.env.SMTP_HOST || 'localhost';
+
+    // Resolve hostname to IPv4 to avoid IPv6 timeout issues
+    const resolvedHost = await resolveHostToIPv4(smtpHost);
 
     _transporter = createTransport({
-      host: process.env.SMTP_HOST,
+      host: resolvedHost,
       port: port,
       secure: useImplicitTLS, // true for 465 (implicit TLS), false for 587 (STARTTLS)
       auth: {
@@ -25,11 +56,10 @@ function getTransporter(): Transporter {
       },
       tls: {
         rejectUnauthorized: false,
+        servername: smtpHost, // Use original hostname for TLS verification
       },
       connectionTimeout: 30000,
       greetingTimeout: 15000,
-      // Force IPv4 to avoid IPv6 timeout issues with some SMTP servers
-      family: 4,
     });
   }
   return _transporter;
@@ -233,7 +263,7 @@ export async function sendPasswordResetEmail(email: string): Promise<EmailResult
       `,
     };
 
-    await getTransporter().sendMail(mailOptions);
+    await (await getTransporter()).sendMail(mailOptions);
 
     // Log success without exposing sensitive data
     console.log(`[Email] Password reset email sent to: ${sanitizeEmailForLog(normalizedEmail)}`);
@@ -439,7 +469,7 @@ export async function sendEmailVerification(email: string): Promise<EmailResult>
     };
 
     console.log('[Email] Sending email via SMTP...');
-    await getTransporter().sendMail(mailOptions);
+    await (await getTransporter()).sendMail(mailOptions);
 
     // Log success without exposing sensitive data
     console.log(`[Email] Verification email sent to: ${sanitizeEmailForLog(normalizedEmail)}`);
@@ -533,7 +563,7 @@ export async function getRateLimitStatus(
  */
 export async function verifySmtpConnection(): Promise<boolean> {
   try {
-    await getTransporter().verify();
+    await (await getTransporter()).verify();
     console.log('[Email] SMTP connection verified');
     return true;
   } catch (error) {
@@ -647,7 +677,7 @@ export async function sendDonationNotificationEmail(data: DonationNotificationDa
       `,
     };
 
-    await getTransporter().sendMail(mailOptions);
+    await (await getTransporter()).sendMail(mailOptions);
     console.log(`[Email] Donation notification sent for ${formattedAmount}`);
     return { success: true, message: 'Notification envoyee' };
   } catch (error) {
@@ -726,7 +756,7 @@ export async function sendDonationThankYouEmail(
       `,
     };
 
-    await getTransporter().sendMail(mailOptions);
+    await (await getTransporter()).sendMail(mailOptions);
     console.log(`[Email] Thank you email sent to donor: ${sanitizeEmailForLog(email)}`);
     return { success: true, message: 'Email de remerciement envoye' };
   } catch (error) {
