@@ -27,6 +27,7 @@ enum MaritalStatus {
   DIVORCED
   WIDOWED
   SEPARATED
+  COMPLICATED
 }
 
 enum LookingFor {

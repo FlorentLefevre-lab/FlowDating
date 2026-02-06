@@ -3,15 +3,13 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckIcon, TagIcon, Bars3Icon } from '@heroicons/react/24/outline';
 import { UserProfile, ProfileFormProps } from '@/types/profiles';
-import { 
-  GENDERS, 
-  PROFESSIONS, 
-  MARITAL_STATUS, 
-  ZODIAC_SIGNS, 
-  DIET_TYPES, 
-  RELIGIONS, 
+import {
+  GENDERS,
+  MARITAL_STATUS,
+  DIET_TYPES,
+  RELIGIONS,
   ETHNICITIES,
-  INTEREST_OPTIONS 
+  INTEREST_OPTIONS
 } from '@/constants/profileData';
 
 const PersonalInfoForm: React.FC<ProfileFormProps> = ({ 
@@ -22,9 +20,7 @@ const PersonalInfoForm: React.FC<ProfileFormProps> = ({
 }) => {
   const [formData, setFormData] = useState({
     gender: profile?.gender || '',
-    profession: profile?.profession || '',
     maritalStatus: profile?.maritalStatus || '',
-    zodiacSign: profile?.zodiacSign || '',
     dietType: profile?.dietType || '',
     religion: profile?.religion || '',
     ethnicity: profile?.ethnicity || '',
@@ -161,25 +157,6 @@ const PersonalInfoForm: React.FC<ProfileFormProps> = ({
             </select>
           </div>
 
-          {/* Profession */}
-          <div className="form-group">
-            <label className="form-label">
-              Profession
-            </label>
-            <select
-              value={formData.profession}
-              onChange={(e) => handleInputChange('profession', e.target.value)}
-              className="input-field"
-            >
-              <option value="">Sélectionnez votre profession</option>
-              {PROFESSIONS.map(profession => (
-                <option key={profession.value} value={profession.value}>
-                  {profession.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
           {/* Statut marital */}
           <div className="form-group">
             <label className="form-label">
@@ -194,25 +171,6 @@ const PersonalInfoForm: React.FC<ProfileFormProps> = ({
               {MARITAL_STATUS.map(status => (
                 <option key={status.value} value={status.value}>
                   {status.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Signe astrologique */}
-          <div className="form-group">
-            <label className="form-label">
-              Signe astrologique
-            </label>
-            <select
-              value={formData.zodiacSign}
-              onChange={(e) => handleInputChange('zodiacSign', e.target.value)}
-              className="input-field"
-            >
-              <option value="">Sélectionnez votre signe</option>
-              {ZODIAC_SIGNS.map(sign => (
-                <option key={sign.value} value={sign.value}>
-                  {sign.label}
                 </option>
               ))}
             </select>

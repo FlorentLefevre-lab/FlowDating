@@ -24,10 +24,9 @@ const genderMapping = {
 
 const maritalStatusMapping = {
   'celibataire': 'SINGLE',
-  'en-couple': 'IN_RELATIONSHIP',
-  'marie': 'MARRIED',
   'divorce': 'DIVORCED',
   'veuf': 'WIDOWED',
+  'separe': 'SEPARATED',
   'complique': 'COMPLICATED'
 } as const;
 
@@ -41,10 +40,9 @@ const genderMappingReverse = {
 
 const maritalStatusMappingReverse = {
   'SINGLE': 'celibataire',
-  'IN_RELATIONSHIP': 'en-couple',
-  'MARRIED': 'marie',
   'DIVORCED': 'divorce',
   'WIDOWED': 'veuf',
+  'SEPARATED': 'separe',
   'COMPLICATED': 'complique'
 } as const;
 

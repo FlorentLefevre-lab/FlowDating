@@ -93,9 +93,7 @@ export interface BasicInfoFormData {
 
 export interface PersonalInfoFormData {
   gender: string;
-  profession: string;
   maritalStatus: string;
-  zodiacSign: string;
   dietType: string;
   religion: string;
   ethnicity: string;
