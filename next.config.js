@@ -278,13 +278,14 @@ const nextConfig = {
           key: 'Content-Security-Policy',
           value: [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://widget.cloudinary.com https://upload-widget.cloudinary.com https://cdn.jsdelivr.net",
+            "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://widget.cloudinary.com https://upload-widget.cloudinary.com https://cdn.jsdelivr.net https://static.cloudflareinsights.com",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-            "img-src 'self' data: blob: https: ",
+            "img-src 'self' data: blob: https:",
             "font-src 'self' data: https://fonts.gstatic.com",
             "connect-src 'self' https: wss:",
             "frame-src 'self' https://widget.cloudinary.com https://upload-widget.cloudinary.com",
             "worker-src 'self' blob:",
+            "media-src 'self' blob: https://*.stream-io-cdn.com https://dublin.stream-io-cdn.com https://us-east.stream-io-cdn.com https://singapore.stream-io-cdn.com https://sydney.stream-io-cdn.com",
           ].join('; ')
         }
       );
