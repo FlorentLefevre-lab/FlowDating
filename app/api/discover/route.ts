@@ -69,7 +69,8 @@ async function handleGetDiscover(request: NextRequest) {
     console.log('🔍 Filtres reçus de l\'URL:', filters);
 
     // 2. Vérifier le cache (réactivé)
-    const cacheKey = { filters, offset, limit };
+    // La clé de cache inclut les préférences utilisateur pour gérer les changements
+    const cacheKey = { filters, offset, limit, userPrefs: currentUser.preferences };
     const cachedResults = await apiCache.discover.get(currentUser.id, cacheKey);
     if (cachedResults && Array.isArray(cachedResults) && cachedResults.length > 0) {
       console.log(`📦 Cache HIT - ${cachedResults.length} profils depuis le cache (${Date.now() - startTime}ms)`);

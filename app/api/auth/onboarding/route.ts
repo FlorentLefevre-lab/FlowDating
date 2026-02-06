@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { apiCache } from '@/lib/cache';
 import { z } from 'zod';
 
 // Schéma de validation
@@ -99,6 +100,9 @@ export async function POST(request: Request) {
         lookingFor: data.lookingFor
       }
     });
+
+    // Invalider le cache discover pour que les nouveaux filtres de genre soient appliqués
+    await apiCache.invalidateUser(session.user.id);
 
     console.log('✅ Onboarding complété pour:', session.user.email);
 
