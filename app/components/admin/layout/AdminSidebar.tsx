@@ -17,6 +17,7 @@ import {
   FileText,
   Ticket,
   Heart,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -59,6 +60,12 @@ const navItems: NavItem[] = [
     title: "Dons",
     href: "/admin/donations",
     icon: Heart,
+    adminOnly: true,
+  },
+  {
+    title: "Email Marketing",
+    href: "/admin/email-marketing",
+    icon: Mail,
     adminOnly: true,
   },
   {

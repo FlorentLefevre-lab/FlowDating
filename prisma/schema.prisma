@@ -140,20 +140,20 @@ model User {
   ethnicity     String?
 
   // Caracteristiques physiques
-  height        Int?      // en cm
-  weight        Int?      // en kg
-  bodyType      String?   // Mince, Athletique, Normal, Quelques kilos en plus, etc.
-  eyeColor      String?
-  hairColor     String?
+  height    Int? // en cm
+  weight    Int? // en kg
+  bodyType  String? // Mince, Athletique, Normal, Quelques kilos en plus, etc.
+  eyeColor  String?
+  hairColor String?
 
   // Style de vie
-  smoking       String?   // Non-fumeur, Fumeur occasionnel, Fumeur
-  drinking      String?   // Jamais, Occasionnellement, Regulierement
-  drugs         String?   // Jamais, Occasionnellement, Sociales
-  children      String?   // N'en a pas, En a, N'en veut pas, En veut
-  pets          String?   // Aucun, Chien, Chat, Autres
-  education     String?   // Niveau d'etudes
-  languages     String[]  // Langues parlees
+  smoking   String? // Non-fumeur, Fumeur occasionnel, Fumeur
+  drinking  String? // Jamais, Occasionnellement, Regulierement
+  drugs     String? // Jamais, Occasionnellement, Sociales
+  children  String? // N'en a pas, En a, N'en veut pas, En veut
+  pets      String? // Aucun, Chien, Chat, Autres
+  education String? // Niveau d'etudes
+  languages String[] // Langues parlees
 
   // Champs géographiques
   department String?
@@ -175,8 +175,8 @@ model User {
   premiumExpiresAt DateTime?
 
   // Donateur (supporter)
-  hasDonated       Boolean   @default(false)
-  firstDonationAt  DateTime?
+  hasDonated      Boolean   @default(false)
+  firstDonationAt DateTime?
 
   // Rôle utilisateur (admin)
   role UserRole @default(USER)
@@ -222,21 +222,21 @@ model User {
   stats UserStats?
 
   // Relations Admin
-  photosModerated   Photo[]    @relation("PhotoModerator")
-  reportsSubmitted  Report[]   @relation("ReportSubmitter")
-  reportsReceived   Report[]   @relation("ReportTarget")
-  reportsResolved   Report[]   @relation("ReportResolver")
-  adminActions      AdminLog[] @relation("AdminActor")
-  actionsReceived   AdminLog[] @relation("AdminActionTarget")
+  photosModerated  Photo[]    @relation("PhotoModerator")
+  reportsSubmitted Report[]   @relation("ReportSubmitter")
+  reportsReceived  Report[]   @relation("ReportTarget")
+  reportsResolved  Report[]   @relation("ReportResolver")
+  adminActions     AdminLog[] @relation("AdminActor")
+  actionsReceived  AdminLog[] @relation("AdminActionTarget")
 
   // Relations Tickets
-  tickets           Ticket[]        @relation("UserTickets")
-  assignedTickets   Ticket[]        @relation("AssignedTickets")
-  resolvedTickets   Ticket[]        @relation("ResolvedTickets")
-  ticketMessages    TicketMessage[] @relation("TicketMessages")
+  tickets         Ticket[]        @relation("UserTickets")
+  assignedTickets Ticket[]        @relation("AssignedTickets")
+  resolvedTickets Ticket[]        @relation("ResolvedTickets")
+  ticketMessages  TicketMessage[] @relation("TicketMessages")
 
   // Relations Donations
-  donations         Donation[]
+  donations Donation[]
 
   @@map("users")
 }
@@ -460,8 +460,8 @@ model Match {
 // ================================
 
 model UserStats {
-  id        String   @id @default(cuid())
-  userId    String   @unique
+  id     String @id @default(cuid())
+  userId String @unique
 
   // Stats totales
   totalProfileViews  Int @default(0)
@@ -596,87 +596,87 @@ model AppSettings {
 
   // === MODÉRATION ===
   // Seuil de score NSFW pour auto-flag (0.0 à 1.0)
-  nsfwThreshold Float @default(0.7)
+  nsfwThreshold            Float   @default(0.7)
   // Nombre de signalements avant auto-suspension
-  reportsBeforeAutoSuspend Int @default(5)
+  reportsBeforeAutoSuspend Int     @default(5)
   // Durées de suspension par défaut (en jours, -1 = permanent)
-  suspensionDurations Int[] @default([1, 7, 30, -1])
+  suspensionDurations      Int[]   @default([1, 7, 30, -1])
   // Auto-approuver les photos (désactive la modération manuelle)
-  autoApprovePhotos Boolean @default(false)
+  autoApprovePhotos        Boolean @default(false)
 
   // === LIMITES UTILISATEURS ===
   // Likes par jour (gratuit)
-  dailyLikesLimit Int @default(50)
+  dailyLikesLimit             Int @default(50)
   // Likes par jour (premium)
-  dailyLikesLimitPremium Int @default(999)
+  dailyLikesLimitPremium      Int @default(999)
   // Super likes par jour (gratuit)
-  dailySuperLikesLimit Int @default(1)
+  dailySuperLikesLimit        Int @default(1)
   // Super likes par jour (premium)
   dailySuperLikesLimitPremium Int @default(5)
   // Nombre max de photos par profil
-  maxPhotosPerUser Int @default(6)
+  maxPhotosPerUser            Int @default(6)
   // Messages par jour pour nouveaux comptes (< 7 jours)
-  dailyMessagesLimitNewUsers Int @default(20)
+  dailyMessagesLimitNewUsers  Int @default(20)
   // Rewinds par jour (gratuit)
-  dailyRewindsLimit Int @default(0)
+  dailyRewindsLimit           Int @default(0)
   // Rewinds par jour (premium)
-  dailyRewindsLimitPremium Int @default(5)
+  dailyRewindsLimitPremium    Int @default(5)
 
   // === INSCRIPTION ===
   // Âge minimum
-  minAge Int @default(18)
+  minAge                    Int      @default(18)
   // Âge maximum
-  maxAge Int @default(99)
+  maxAge                    Int      @default(99)
   // Vérification email obligatoire
-  emailVerificationRequired Boolean @default(true)
+  emailVerificationRequired Boolean  @default(true)
   // Inscriptions ouvertes
-  registrationOpen Boolean @default(true)
+  registrationOpen          Boolean  @default(true)
   // Régions autorisées (vide = toutes)
-  allowedRegions String[] @default([])
+  allowedRegions            String[] @default([])
 
   // === MATCHING ===
   // Distance max par défaut (km)
   defaultMaxDistance Int @default(100)
   // Distance max autorisée (km)
-  maxDistanceLimit Int @default(500)
+  maxDistanceLimit   Int @default(500)
   // Écart d'âge par défaut
-  defaultAgeRange Int @default(10)
+  defaultAgeRange    Int @default(10)
 
   // === FEATURE FLAGS ===
   // Mode maintenance
-  maintenanceMode Boolean @default(false)
+  maintenanceMode    Boolean @default(false)
   // Message de maintenance
-  maintenanceMessage String @default("L'application est en maintenance. Veuillez réessayer plus tard.")
+  maintenanceMessage String  @default("L'application est en maintenance. Veuillez réessayer plus tard.")
   // Fonctionnalité premium active
-  premiumEnabled Boolean @default(true)
+  premiumEnabled     Boolean @default(true)
   // Vidéo-chat actif
-  videoChatEnabled Boolean @default(false)
+  videoChatEnabled   Boolean @default(false)
   // Stories actives
-  storiesEnabled Boolean @default(false)
+  storiesEnabled     Boolean @default(false)
   // Boost de profil actif
-  boostEnabled Boolean @default(true)
+  boostEnabled       Boolean @default(true)
 
   // === MESSAGES SYSTÈME ===
   // Annonce globale (vide = pas d'annonce)
   globalAnnouncement String @default("")
   // Type d'annonce (info, warning, success, error)
-  announcementType String @default("info")
+  announcementType   String @default("info")
   // Message de bienvenue
-  welcomeMessage String @default("Bienvenue sur FlowDating ! Complétez votre profil pour commencer.")
+  welcomeMessage     String @default("Bienvenue sur FlowDating ! Complétez votre profil pour commencer.")
   // Conditions d'utilisation (URL)
-  termsUrl String @default("/terms")
+  termsUrl           String @default("/terms")
   // Politique de confidentialité (URL)
-  privacyUrl String @default("/privacy")
+  privacyUrl         String @default("/privacy")
 
   // === SÉCURITÉ ===
   // Tentatives de connexion max avant blocage
-  maxLoginAttempts Int @default(5)
+  maxLoginAttempts       Int     @default(5)
   // Durée de blocage après échecs (minutes)
-  loginBlockDuration Int @default(15)
+  loginBlockDuration     Int     @default(15)
   // Session expiration (heures)
-  sessionExpirationHours Int @default(168)
+  sessionExpirationHours Int     @default(168)
   // Forcer HTTPS
-  forceHttps Boolean @default(true)
+  forceHttps             Boolean @default(true)
 
   // === MÉTADONNÉES ===
   updatedAt DateTime @updatedAt
@@ -715,8 +715,8 @@ enum TicketCategory {
 }
 
 model Ticket {
-  id          String         @id @default(cuid())
-  userId      String
+  id     String @id @default(cuid())
+  userId String
 
   // Contenu du ticket
   subject     String
@@ -726,29 +726,29 @@ model Ticket {
   status      TicketStatus   @default(OPEN)
 
   // Informations techniques (auto-collectées)
-  userAgent   String?
-  appVersion  String?
-  screenSize  String?
-  currentUrl  String?
+  userAgent  String?
+  appVersion String?
+  screenSize String?
+  currentUrl String?
 
   // Pièces jointes (URLs des screenshots)
   attachments String[]
 
   // Gestion admin
-  assignedTo  String?
-  resolvedAt  DateTime?
-  resolvedBy  String?
-  resolution  String?
+  assignedTo String?
+  resolvedAt DateTime?
+  resolvedBy String?
+  resolution String?
 
   // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  user        User     @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
-  assignee    User?    @relation("AssignedTickets", fields: [assignedTo], references: [id])
-  resolver    User?    @relation("ResolvedTickets", fields: [resolvedBy], references: [id])
-  messages    TicketMessage[]
+  user     User            @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
+  assignee User?           @relation("AssignedTickets", fields: [assignedTo], references: [id])
+  resolver User?           @relation("ResolvedTickets", fields: [resolvedBy], references: [id])
+  messages TicketMessage[]
 
   @@index([userId])
   @@index([status])
@@ -767,8 +767,8 @@ model TicketMessage {
   isAdmin   Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  user      User     @relation("TicketMessages", fields: [userId], references: [id], onDelete: Cascade)
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User   @relation("TicketMessages", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([ticketId])
   @@index([createdAt])
@@ -793,38 +793,209 @@ enum DonationProvider {
 }
 
 model Donation {
-  id              String           @id @default(cuid())
+  id String @id @default(cuid())
 
   // Donateur (optionnel si anonyme)
-  userId          String?
-  email           String?
-  name            String?
+  userId String?
+  email  String?
+  name   String?
 
   // Montant
-  amount          Float            // Montant en euros
-  currency        String           @default("EUR")
+  amount   Float // Montant en euros
+  currency String @default("EUR")
 
   // Provider et transaction
   provider        DonationProvider
-  providerOrderId String?          // ID Stripe/PayPal
+  providerOrderId String? // ID Stripe/PayPal
   status          DonationStatus   @default(PENDING)
 
   // Message du donateur
-  message         String?
+  message String?
 
   // Métadonnées
-  metadata        Json?
+  metadata Json?
 
   // Timestamps
-  createdAt       DateTime         @default(now())
-  completedAt     DateTime?
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
 
   // Relation optionnelle avec User
-  user            User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([status])
   @@index([provider])
   @@index([createdAt])
   @@map("donations")
+}
+
+// ================================
+// ENUMS EMAIL MARKETING
+// ================================
+
+enum EmailCampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  PAUSED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum EmailSendStatus {
+  PENDING
+  QUEUED
+  SENT
+  DELIVERED
+  BOUNCED
+  FAILED
+}
+
+enum EmailEventType {
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  UNSUBSCRIBED
+}
+
+// ================================
+// MODÈLES EMAIL MARKETING
+// ================================
+
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  subject     String
+  htmlContent String   @db.Text
+  textContent String?  @db.Text
+  variables   String[] @default(["firstName", "email"])
+  previewText String?
+  category    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?
+
+  campaigns EmailCampaign[]
+
+  @@index([isActive, category])
+  @@map("email_templates")
+}
+
+model EmailSegment {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  conditions  Json // Structure: { operator: "AND"|"OR", conditions: [...] }
+  cachedCount Int       @default(0)
+  lastCountAt DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdBy   String?
+
+  campaigns EmailCampaign[]
+
+  @@index([isActive])
+  @@map("email_segments")
+}
+
+model EmailCampaign {
+  id               String              @id @default(cuid())
+  name             String
+  subject          String
+  templateId       String?
+  htmlContent      String?             @db.Text
+  textContent      String?             @db.Text
+  previewText      String?
+  segmentId        String?
+  excludeSegmentId String?
+  status           EmailCampaignStatus @default(DRAFT)
+  scheduledAt      DateTime?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  sendRate         Int                 @default(100) // emails/minute
+
+  // Stats dénormalisées
+  totalRecipients  Int @default(0)
+  sentCount        Int @default(0)
+  deliveredCount   Int @default(0)
+  openCount        Int @default(0)
+  clickCount       Int @default(0)
+  bounceCount      Int @default(0)
+  unsubscribeCount Int @default(0)
+  uniqueOpens      Int @default(0)
+  uniqueClicks     Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  template EmailTemplate? @relation(fields: [templateId], references: [id])
+  segment  EmailSegment?  @relation(fields: [segmentId], references: [id])
+  sends    EmailSend[]
+
+  @@index([status, scheduledAt, createdAt])
+  @@map("email_campaigns")
+}
+
+model EmailSend {
+  id         String          @id @default(cuid())
+  campaignId String
+  userId     String
+  email      String
+  status     EmailSendStatus @default(PENDING)
+  attempts   Int             @default(0)
+  lastError  String?
+  trackingId String          @unique @default(cuid())
+  queuedAt   DateTime?
+  sentAt     DateTime?
+  openedAt   DateTime?
+  clickedAt  DateTime?
+  bouncedAt  DateTime?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  campaign EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  events   EmailEvent[]
+
+  @@unique([campaignId, userId])
+  @@index([campaignId, status, trackingId])
+  @@map("email_sends")
+}
+
+model EmailEvent {
+  id        String         @id @default(cuid())
+  sendId    String
+  eventType EmailEventType
+  metadata  Json? // IP, user agent, lien cliqué, etc.
+  createdAt DateTime       @default(now())
+
+  send EmailSend @relation(fields: [sendId], references: [id], onDelete: Cascade)
+
+  @@index([sendId, eventType, createdAt])
+  @@map("email_events")
+}
+
+model EmailPreference {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  email             String
+  marketingConsent  Boolean   @default(false)
+  consentGivenAt    DateTime?
+  consentSource     String?
+  unsubscribedAt    DateTime?
+  unsubscribeReason String?
+  bounceCount       Int       @default(0)
+  lastBounceAt      DateTime?
+  isHardBounce      Boolean   @default(false)
+  unsubscribeToken  String    @unique @default(cuid())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([email, marketingConsent, unsubscribeToken])
+  @@map("email_preferences")
 }
