@@ -180,7 +180,7 @@ export async function PUT(
   }
 }
 
-// DELETE - Delete a campaign (only if DRAFT)
+// DELETE - Delete a campaign (DRAFT, FAILED, or CANCELLED)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -203,12 +203,20 @@ export async function DELETE(
       return NextResponse.json({ error: 'Campagne non trouvee' }, { status: 404 });
     }
 
-    // Can only delete DRAFT campaigns
-    if (campaign.status !== 'DRAFT') {
+    // Cannot delete campaigns that are currently sending
+    if (campaign.status === 'SENDING') {
       return NextResponse.json(
-        { error: 'Seules les campagnes en brouillon peuvent etre supprimees' },
+        { error: 'Impossible de supprimer une campagne en cours d\'envoi. Annulez-la d\'abord.' },
         { status: 400 }
       );
+    }
+
+    // Clear any queue data if exists
+    try {
+      const { clearCampaignQueue } = await import('@/lib/email/queue');
+      await clearCampaignQueue(id);
+    } catch {
+      // Ignore if queue clearing fails
     }
 
     // Delete campaign (cascades to sends and events)

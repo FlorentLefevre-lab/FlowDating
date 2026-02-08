@@ -94,7 +94,7 @@ export async function POST(
       region: testUser?.region || 'France',
       isPremium: testUser?.isPremium || false,
       totalMatches: '5',
-      unsubscribeUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/admin/email-marketing/unsubscribe/test-token`,
+      unsubscribe_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/admin/email-marketing/unsubscribe/test-token`,
       preferencesUrl: `${process.env.NEXT_PUBLIC_APP_URL}/settings/notifications`,
     };
 
@@ -108,7 +108,7 @@ export async function POST(
     // Send test email
     const transporter = await getTransporter();
     await transporter.sendMail({
-      from: process.env.SMTP_FROM || 'noreply@flowdating.com',
+      from: process.env.SMTP_FROM || 'no-reply@flow.dating',
       to: email,
       subject: testSubject,
       html: renderedHtml,

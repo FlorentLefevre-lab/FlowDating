@@ -17,7 +17,9 @@ interface Condition {
   id: string;
   field: string;
   operator: string;
-  value: string | string[] | number | boolean;
+  value: string | string[] | number | number[] | boolean;
+  valueMin?: number;
+  valueMax?: number;
 }
 
 interface SegmentConditions {
@@ -29,35 +31,82 @@ interface SegmentConditions {
   }>;
 }
 
+// Traductions des valeurs ENUM en français
+const ENUM_LABELS: Record<string, Record<string, string>> = {
+  gender: {
+    MALE: 'Homme',
+    FEMALE: 'Femme',
+    NON_BINARY: 'Non-binaire',
+    OTHER: 'Autre',
+    PREFER_NOT_TO_SAY: 'Ne souhaite pas répondre',
+  },
+  accountStatus: {
+    ACTIVE: 'Actif',
+    INACTIVE: 'Inactif',
+    SUSPENDED: 'Suspendu',
+    BANNED: 'Banni',
+    DELETED: 'Supprimé',
+    PENDING_VERIFICATION: 'En attente de vérification',
+  },
+  lookingFor: {
+    SERIOUS_RELATIONSHIP: 'Relation sérieuse',
+    RELATIONSHIP: 'Relation',
+    CASUAL: 'Relation casual',
+    FRIENDSHIP: 'Amitié',
+    ADVENTURE: 'Aventure',
+    MARRIAGE: 'Mariage',
+    UNSURE: 'Ne sait pas encore',
+  },
+  maritalStatus: {
+    SINGLE: 'Célibataire',
+    DIVORCED: 'Divorcé(e)',
+    WIDOWED: 'Veuf/Veuve',
+    SEPARATED: 'Séparé(e)',
+    COMPLICATED: 'C\'est compliqué',
+  },
+};
+
+const getEnumLabel = (field: string, value: string): string => {
+  return ENUM_LABELS[field]?.[value] || value;
+};
+
 const AVAILABLE_FIELDS = [
-  { value: 'gender', label: 'Genre', type: 'select', options: ['MALE', 'FEMALE', 'OTHER'] },
-  { value: 'age', label: 'Age', type: 'number' },
-  { value: 'region', label: 'Region', type: 'text' },
-  { value: 'department', label: 'Departement', type: 'text' },
+  // Démographie
+  { value: 'gender', label: 'Genre', type: 'select', options: ['MALE', 'FEMALE', 'NON_BINARY', 'OTHER'] },
+  { value: 'age', label: 'Âge', type: 'number' },
+  { value: 'region', label: 'Région', type: 'text' },
+  { value: 'department', label: 'Département', type: 'text' },
+  // Compte
   { value: 'isPremium', label: 'Compte Premium', type: 'boolean' },
-  { value: 'emailVerified', label: 'Email verifie', type: 'boolean' },
-  { value: 'accountStatus', label: 'Statut du compte', type: 'select', options: ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'DELETED'] },
+  { value: 'hasDonated', label: 'Donateur', type: 'boolean' },
+  { value: 'accountStatus', label: 'Statut du compte', type: 'select', options: ['ACTIVE', 'SUSPENDED', 'BANNED', 'DELETED'] },
   { value: 'createdAt', label: 'Date inscription', type: 'date' },
-  { value: 'lastSeen', label: 'Derniere connexion', type: 'date' },
+  { value: 'lastSeen', label: 'Dernière connexion', type: 'date' },
+  { value: 'isOnline', label: 'En ligne', type: 'boolean' },
+  // Profil
+  { value: 'maritalStatus', label: 'Statut marital', type: 'select', options: ['SINGLE', 'DIVORCED', 'WIDOWED', 'SEPARATED', 'COMPLICATED'] },
+  // Statistiques
   { value: 'totalMatches', label: 'Nombre de matchs', type: 'number' },
-  { value: 'totalLikesReceived', label: 'Likes recus', type: 'number' },
-  { value: 'totalLikesSent', label: 'Likes envoyes', type: 'number' },
-  { value: 'lookingFor', label: 'Recherche', type: 'select', options: ['RELATIONSHIP', 'FRIENDSHIP', 'CASUAL', 'MARRIAGE'] },
-  { value: 'maritalStatus', label: 'Statut marital', type: 'select', options: ['SINGLE', 'DIVORCED', 'WIDOWED', 'SEPARATED'] },
+  { value: 'totalLikesReceived', label: 'Likes reçus', type: 'number' },
+  { value: 'totalLikesSent', label: 'Likes envoyés', type: 'number' },
+  { value: 'totalProfileViews', label: 'Vues du profil', type: 'number' },
+  { value: 'totalMessages', label: 'Messages envoyés', type: 'number' },
 ];
 
 const OPERATORS = {
   text: [
-    { value: 'equals', label: 'Est egal a' },
-    { value: 'notEquals', label: 'N\'est pas egal a' },
+    { value: 'equals', label: 'Est égal à' },
+    { value: 'notEquals', label: 'N\'est pas égal à' },
     { value: 'contains', label: 'Contient' },
     { value: 'startsWith', label: 'Commence par' },
   ],
   number: [
-    { value: 'equals', label: 'Est egal a' },
-    { value: 'notEquals', label: 'N\'est pas egal a' },
-    { value: 'greaterThan', label: 'Superieur a' },
-    { value: 'lessThan', label: 'Inferieur a' },
+    { value: 'equals', label: 'Est égal à' },
+    { value: 'notEquals', label: 'N\'est pas égal à' },
+    { value: 'greaterThan', label: 'Supérieur à' },
+    { value: 'lessThan', label: 'Inférieur à' },
+    { value: 'greaterThanOrEqual', label: 'Supérieur ou égal à' },
+    { value: 'lessThanOrEqual', label: 'Inférieur ou égal à' },
     { value: 'between', label: 'Entre' },
   ],
   select: [
@@ -70,11 +119,24 @@ const OPERATORS = {
   ],
   date: [
     { value: 'before', label: 'Avant le' },
-    { value: 'after', label: 'Apres le' },
+    { value: 'after', label: 'Après le' },
     { value: 'olderThan', label: 'Il y a plus de' },
     { value: 'newerThan', label: 'Il y a moins de' },
   ],
 };
+
+// Options pour les durées relatives (pour olderThan/newerThan)
+const DURATION_OPTIONS = [
+  { value: '1d', label: '1 jour' },
+  { value: '3d', label: '3 jours' },
+  { value: '7d', label: '1 semaine' },
+  { value: '14d', label: '2 semaines' },
+  { value: '30d', label: '1 mois' },
+  { value: '60d', label: '2 mois' },
+  { value: '90d', label: '3 mois' },
+  { value: '180d', label: '6 mois' },
+  { value: '365d', label: '1 an' },
+];
 
 export default function EditSegmentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -117,12 +179,25 @@ export default function EditSegmentPage({ params }: { params: Promise<{ id: stri
         // Convert conditions from JSON to state format
         if (segmentConditions?.conditions) {
           setConditions(
-            segmentConditions.conditions.map((c: any) => ({
-              id: crypto.randomUUID(),
-              field: c.field,
-              operator: c.operator,
-              value: c.value,
-            }))
+            segmentConditions.conditions.map((c: any) => {
+              // Gérer l'opérateur "between" qui utilise un tableau [min, max]
+              if (c.operator === 'between' && Array.isArray(c.value)) {
+                return {
+                  id: crypto.randomUUID(),
+                  field: c.field,
+                  operator: c.operator,
+                  value: '',
+                  valueMin: c.value[0],
+                  valueMax: c.value[1],
+                };
+              }
+              return {
+                id: crypto.randomUUID(),
+                field: c.field,
+                operator: c.operator,
+                value: c.value,
+              };
+            })
           );
         } else {
           setConditions([{ id: crypto.randomUUID(), field: '', operator: '', value: '' }]);
@@ -168,7 +243,14 @@ export default function EditSegmentPage({ params }: { params: Promise<{ id: stri
   };
 
   const buildConditionsJson = () => {
-    const validConditions = conditions.filter(c => c.field && c.operator && c.value !== '');
+    const validConditions = conditions.filter(c => {
+      if (!c.field || !c.operator) return false;
+      // Pour l'opérateur "between", vérifier que les deux valeurs sont définies
+      if (c.operator === 'between') {
+        return c.valueMin !== undefined && c.valueMax !== undefined;
+      }
+      return c.value !== '' && c.value !== undefined;
+    });
     if (validConditions.length === 0) return null;
 
     return {
@@ -176,7 +258,8 @@ export default function EditSegmentPage({ params }: { params: Promise<{ id: stri
       conditions: validConditions.map(c => ({
         field: c.field,
         operator: c.operator,
-        value: c.value,
+        // Pour "between", créer un tableau [min, max]
+        value: c.operator === 'between' ? [c.valueMin, c.valueMax] : c.value,
       })),
     };
   };
@@ -385,11 +468,16 @@ export default function EditSegmentPage({ params }: { params: Promise<{ id: stri
 
                     <Select
                       value={condition.operator}
-                      onValueChange={(value) => updateCondition(condition.id, { operator: value })}
+                      onValueChange={(value) => updateCondition(condition.id, {
+                        operator: value,
+                        value: '',
+                        valueMin: undefined,
+                        valueMax: undefined,
+                      })}
                       disabled={!condition.field}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Operateur" />
+                        <SelectValue placeholder="Opérateur" />
                       </SelectTrigger>
                       <SelectContent>
                         {operators.map((op) => (
@@ -426,17 +514,69 @@ export default function EditSegmentPage({ params }: { params: Promise<{ id: stri
                         <SelectContent>
                           {options.map((opt) => (
                             <SelectItem key={opt} value={opt}>
-                              {opt}
+                              {getEnumLabel(condition.field, opt)}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                    ) : fieldType === 'number' && condition.operator === 'between' ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          value={condition.valueMin !== undefined ? condition.valueMin : ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            updateCondition(condition.id, {
+                              valueMin: val === '' ? undefined : parseInt(val)
+                            });
+                          }}
+                          placeholder="Min"
+                          className="w-24"
+                        />
+                        <span className="text-muted-foreground text-sm">et</span>
+                        <Input
+                          type="number"
+                          value={condition.valueMax !== undefined ? condition.valueMax : ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            updateCondition(condition.id, {
+                              valueMax: val === '' ? undefined : parseInt(val)
+                            });
+                          }}
+                          placeholder="Max"
+                          className="w-24"
+                        />
+                      </div>
                     ) : fieldType === 'number' ? (
                       <Input
                         type="number"
                         value={String(condition.value)}
                         onChange={(e) => updateCondition(condition.id, { value: parseInt(e.target.value) || 0 })}
                         placeholder="Valeur"
+                        disabled={!condition.operator}
+                      />
+                    ) : fieldType === 'date' && (condition.operator === 'olderThan' || condition.operator === 'newerThan') ? (
+                      <Select
+                        value={String(condition.value)}
+                        onValueChange={(value) => updateCondition(condition.id, { value })}
+                        disabled={!condition.operator}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Durée" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DURATION_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : fieldType === 'date' ? (
+                      <Input
+                        type="date"
+                        value={String(condition.value)}
+                        onChange={(e) => updateCondition(condition.id, { value: e.target.value })}
                         disabled={!condition.operator}
                       />
                     ) : (

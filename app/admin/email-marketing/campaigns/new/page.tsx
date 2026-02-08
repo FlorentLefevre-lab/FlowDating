@@ -240,18 +240,21 @@ export default function NewCampaignPage() {
               <div className="space-y-2">
                 <Label>Selectionnez un template</Label>
                 <Select
-                  value={formData.templateId}
-                  onValueChange={handleTemplateChange}
+                  value={formData.templateId || '__none__'}
+                  onValueChange={(value) => handleTemplateChange(value === '__none__' ? '' : value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Choisir un template" />
                   </SelectTrigger>
                   <SelectContent>
-                    {templates.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="__none__">Choisir un template</SelectItem>
+                    {templates
+                      .filter((template) => template.id)
+                      .map((template) => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {template.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
                 {templates.length === 0 && (
@@ -302,19 +305,21 @@ export default function NewCampaignPage() {
             <div className="space-y-2">
               <Label>Segment cible</Label>
               <Select
-                value={formData.segmentId}
-                onValueChange={(value) => setFormData({ ...formData, segmentId: value })}
+                value={formData.segmentId || '__all__'}
+                onValueChange={(value) => setFormData({ ...formData, segmentId: value === '__all__' ? '' : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Tous les utilisateurs eligibles" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Tous les utilisateurs eligibles</SelectItem>
-                  {segments.map((segment) => (
-                    <SelectItem key={segment.id} value={segment.id}>
-                      {segment.name} ({segment.cachedCount.toLocaleString()} utilisateurs)
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="__all__">Tous les utilisateurs éligibles</SelectItem>
+                  {segments
+                    .filter((segment) => segment.id)
+                    .map((segment) => (
+                      <SelectItem key={segment.id} value={segment.id}>
+                        {segment.name} ({segment.cachedCount.toLocaleString()} utilisateurs)
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -322,16 +327,16 @@ export default function NewCampaignPage() {
             <div className="space-y-2">
               <Label>Exclure un segment (optionnel)</Label>
               <Select
-                value={formData.excludeSegmentId}
-                onValueChange={(value) => setFormData({ ...formData, excludeSegmentId: value })}
+                value={formData.excludeSegmentId || '__none__'}
+                onValueChange={(value) => setFormData({ ...formData, excludeSegmentId: value === '__none__' ? '' : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Aucune exclusion" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucune exclusion</SelectItem>
+                  <SelectItem value="__none__">Aucune exclusion</SelectItem>
                   {segments
-                    .filter(s => s.id !== formData.segmentId)
+                    .filter((s) => s.id && s.id !== formData.segmentId)
                     .map((segment) => (
                       <SelectItem key={segment.id} value={segment.id}>
                         {segment.name}

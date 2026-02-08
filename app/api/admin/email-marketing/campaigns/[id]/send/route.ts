@@ -114,35 +114,23 @@ export async function POST(
       },
     });
 
-    // Create EmailSend records and queue them
-    const emailSends = await prisma.$transaction(async (tx) => {
-      const sends = [];
+    // Create EmailSend records in batch (much faster than one by one)
+    await prisma.emailSend.createMany({
+      data: recipients.map(recipient => ({
+        campaignId: id,
+        userId: recipient.id,
+        email: recipient.email,
+        status: 'PENDING',
+      })),
+      skipDuplicates: true, // Handle idempotency - skip if already exists
+    });
 
-      for (const recipient of recipients) {
-        // Check if send already exists (idempotency)
-        const existingSend = await tx.emailSend.findUnique({
-          where: {
-            campaignId_userId: {
-              campaignId: id,
-              userId: recipient.id,
-            },
-          },
-        });
-
-        if (!existingSend) {
-          const send = await tx.emailSend.create({
-            data: {
-              campaignId: id,
-              userId: recipient.id,
-              email: recipient.email,
-              status: 'PENDING',
-            },
-          });
-          sends.push(send);
-        }
-      }
-
-      return sends;
+    // Fetch the created sends
+    const emailSends = await prisma.emailSend.findMany({
+      where: {
+        campaignId: id,
+        status: 'PENDING',
+      },
     });
 
     // Initialize progress tracking
@@ -160,6 +148,17 @@ export async function POST(
     }));
 
     await pushToQueue(id, queuedEmails);
+
+    // Trigger background processing (fire and forget)
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    fetch(`${baseUrl}/api/cron/process-emails`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.CRON_SECRET || ''}`,
+      },
+    }).catch((err) => {
+      console.log('[Send] Background processing trigger failed:', err.message);
+    });
 
     return NextResponse.json({
       success: true,

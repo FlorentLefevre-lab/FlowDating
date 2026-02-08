@@ -12,9 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import {
   ArrowLeft, Save, Send, Pause, Play, XCircle, Mail,
-  Users, Eye, MousePointer, AlertTriangle, Loader2, Trash2
+  Users, Eye, MousePointer, AlertTriangle, Loader2, Trash2, RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { CampaignProgress } from '../components/CampaignProgress';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -96,6 +97,26 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     fetchData();
   }, [id]);
 
+  // Auto-refresh campaign stats only when active (SENDING or PAUSED)
+  useEffect(() => {
+    if (!campaign || !['SENDING', 'PAUSED'].includes(campaign.status)) return;
+
+    const refreshCampaignOnly = async () => {
+      try {
+        const res = await fetch(`/api/admin/email-marketing/campaigns/${id}`);
+        const data = await res.json();
+        if (data.campaign) {
+          setCampaign(data.campaign);
+        }
+      } catch (error) {
+        console.error('Error refreshing campaign:', error);
+      }
+    };
+
+    const interval = setInterval(refreshCampaignOnly, 5000);
+    return () => clearInterval(interval);
+  }, [campaign?.status, id]);
+
   const fetchData = async () => {
     try {
       const [campaignRes, templatesRes, segmentsRes] = await Promise.all([
@@ -142,6 +163,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const canPause = campaign?.status === 'SENDING';
   const canResume = campaign?.status === 'PAUSED';
   const canCancel = campaign && ['SENDING', 'PAUSED', 'SCHEDULED'].includes(campaign.status);
+  const canRetry = campaign && ['FAILED', 'CANCELLED'].includes(campaign.status);
+  const canDelete = campaign && ['DRAFT', 'FAILED', 'CANCELLED'].includes(campaign.status);
 
   const handleSave = async () => {
     if (!canEdit) return;
@@ -171,6 +194,29 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       toast.error('Erreur lors de la sauvegarde');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRetry = async () => {
+    if (!confirm('Remettre la campagne en brouillon pour réessayer ? Les envois précédents seront supprimés.')) return;
+
+    setActionLoading('retry');
+    try {
+      const res = await fetch(`/api/admin/email-marketing/campaigns/${id}/retry`, {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Campagne remise en brouillon');
+        fetchData();
+      } else {
+        toast.error(data.error || 'Erreur');
+      }
+    } catch (error) {
+      toast.error('Erreur');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -232,7 +278,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   };
 
   const handleDelete = async () => {
-    if (!confirm('Supprimer cette campagne ?')) return;
+    if (!confirm('Supprimer cette campagne et tous ses envois ? Cette action est irréversible.')) return;
 
     setActionLoading('delete');
     try {
@@ -325,16 +371,35 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               Annuler
             </Button>
           )}
-          {campaign.status === 'DRAFT' && (
+          {canRetry && (
+            <Button onClick={handleRetry} disabled={!!actionLoading}>
+              {actionLoading === 'retry' ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+              Réessayer
+            </Button>
+          )}
+          {canDelete && (
             <Button variant="ghost" size="icon" onClick={handleDelete} disabled={!!actionLoading}>
-              <Trash2 className="h-4 w-4" />
+              {actionLoading === 'delete' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
             </Button>
           )}
         </div>
       </div>
 
+      {/* Real-time Progress for active campaigns */}
+      {['SENDING', 'PAUSED'].includes(campaign.status) && (
+        <CampaignProgress
+          campaignId={campaign.id}
+          isActive={campaign.status === 'SENDING'}
+          onStatusChange={(status) => {
+            if (status !== campaign.status) {
+              fetchData();
+            }
+          }}
+        />
+      )}
+
       {/* Stats */}
-      {campaign.status !== 'DRAFT' && (
+      {campaign.status !== 'DRAFT' && !['SENDING', 'PAUSED'].includes(campaign.status) && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <Card>
             <CardContent className="pt-4">
@@ -399,18 +464,6 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Delivres</span>
-              </div>
-              <p className="text-2xl font-bold mt-1">{campaign.deliveredCount.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">
-                {campaign.sentCount > 0 ? ((campaign.deliveredCount / campaign.sentCount) * 100).toFixed(1) : 0}%
-              </p>
-            </CardContent>
-          </Card>
         </div>
       )}
 
@@ -462,18 +515,20 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               <div className="space-y-2">
                 <Label>Template</Label>
                 <Select
-                  value={formData.templateId}
-                  onValueChange={(value) => setFormData({ ...formData, templateId: value })}
+                  value={formData.templateId || '__none__'}
+                  onValueChange={(value) => setFormData({ ...formData, templateId: value === '__none__' ? '' : value })}
                   disabled={!canEdit}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Aucun template" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Aucun template</SelectItem>
-                    {templates.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                    ))}
+                    <SelectItem value="__none__">Aucun template</SelectItem>
+                    {templates
+                      .filter((t) => t.id)
+                      .map((t) => (
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -502,20 +557,22 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               <div className="space-y-2">
                 <Label>Segment</Label>
                 <Select
-                  value={formData.segmentId}
-                  onValueChange={(value) => setFormData({ ...formData, segmentId: value })}
+                  value={formData.segmentId || '__all__'}
+                  onValueChange={(value) => setFormData({ ...formData, segmentId: value === '__all__' ? '' : value })}
                   disabled={!canEdit}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Tous les utilisateurs" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Tous les utilisateurs</SelectItem>
-                    {segments.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name} ({s.cachedCount.toLocaleString()})
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="__all__">Tous les utilisateurs</SelectItem>
+                    {segments
+                      .filter((s) => s.id)
+                      .map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name} ({s.cachedCount.toLocaleString()})
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -523,17 +580,17 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               <div className="space-y-2">
                 <Label>Exclure</Label>
                 <Select
-                  value={formData.excludeSegmentId}
-                  onValueChange={(value) => setFormData({ ...formData, excludeSegmentId: value })}
+                  value={formData.excludeSegmentId || '__none__'}
+                  onValueChange={(value) => setFormData({ ...formData, excludeSegmentId: value === '__none__' ? '' : value })}
                   disabled={!canEdit}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Aucune exclusion" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Aucune exclusion</SelectItem>
+                    <SelectItem value="__none__">Aucune exclusion</SelectItem>
                     {segments
-                      .filter(s => s.id !== formData.segmentId)
+                      .filter((s) => s.id && s.id !== formData.segmentId)
                       .map((s) => (
                         <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                       ))}

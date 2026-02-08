@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
             product_data: {
               name: 'Don Flow Dating',
               description: `Merci pour votre soutien de ${amount}€ !`,
-              images: ['https://flowdating.com/logo.png'], // Remplacer par le vrai logo
+              images: ['https://flow.dating/logo.svg'],
             },
             unit_amount: amountCents,
           },

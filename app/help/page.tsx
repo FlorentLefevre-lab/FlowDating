@@ -301,7 +301,7 @@ export default function HelpPage() {
                   <Button
                     variant="gradient"
                     size="sm"
-                    onClick={() => window.location.href = 'mailto:support@flowdating.com'}
+                    onClick={() => window.location.href = 'mailto:support@flow.dating'}
                   >
                     <EnvelopeIcon className="w-4 h-4 mr-2" />
                     Contacter le support

@@ -11,7 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { ArrowLeft, Save, Eye } from 'lucide-react';
+import { ArrowLeft, Save, Eye, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const CATEGORIES = [
   { value: 'marketing', label: 'Marketing' },
@@ -46,16 +47,16 @@ const DEFAULT_TEMPLATE = `<!DOCTYPE html>
       </p>
 
       <div style="text-align: center; margin: 30px 0;">
-        <a href="https://flowdating.com" style="display: inline-block; background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600;">
+        <a href="https://flow.dating" style="display: inline-block; background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600;">
           Découvrir
         </a>
       </div>
     </div>
 
-    <!-- Footer -->
+    <!-- Footer RGPD -->
     <div style="background: #f9fafb; padding: 25px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
       <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-        <a href="{{unsubscribeUrl}}" style="color: #7c3aed;">Se désabonner</a>
+        <a href="{{unsubscribe_url}}" style="color: #9ca3af; text-decoration: underline;">Se désabonner</a>
       </p>
     </div>
 
@@ -84,6 +85,15 @@ export default function NewTemplatePage() {
     if (!formData.name || !formData.subject || !formData.htmlContent) {
       toast.error('Veuillez remplir tous les champs obligatoires');
       return;
+    }
+
+    // Warn about missing unsubscribe URL (RGPD)
+    if (!formData.htmlContent.includes('{{unsubscribe_url}}')) {
+      const proceed = confirm(
+        'RGPD : Ce template ne contient pas de lien de désabonnement ({{unsubscribe_url}}).\n\n' +
+        'Continuer quand même ?'
+      );
+      if (!proceed) return;
     }
 
     setSaving(true);
@@ -192,12 +202,15 @@ export default function NewTemplatePage() {
             <div className="pt-4 border-t">
               <p className="text-sm font-medium mb-2">Variables disponibles</p>
               <div className="flex flex-wrap gap-1">
-                {['{{firstName}}', '{{email}}', '{{age}}', '{{region}}', '{{unsubscribeUrl}}'].map((v) => (
+                {['{{firstName}}', '{{name}}', '{{email}}', '{{unsubscribe_url}}'].map((v) => (
                   <code key={v} className="text-xs bg-muted px-1.5 py-0.5 rounded">
                     {v}
                   </code>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                <strong>RGPD :</strong> Incluez toujours <code className="bg-muted px-1 rounded">{'{{unsubscribe_url}}'}</code> dans le footer.
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -227,16 +240,24 @@ export default function NewTemplatePage() {
                 />
               </TabsContent>
               <TabsContent value="preview" className="mt-0">
+                {!formData.htmlContent.includes('{{unsubscribe_url}}') && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>RGPD :</strong> Ce template ne contient pas de lien de désabonnement.
+                      Ajoutez <code className="bg-red-100 px-1 rounded">{'{{unsubscribe_url}}'}</code> dans le footer.
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <div className="border rounded-lg overflow-hidden bg-gray-100 p-4">
                   <div
                     className="bg-white mx-auto max-w-[600px] shadow-lg"
                     dangerouslySetInnerHTML={{
                       __html: formData.htmlContent
                         .replace(/\{\{firstName\}\}/g, 'Marie')
+                        .replace(/\{\{name\}\}/g, 'Marie Dupont')
                         .replace(/\{\{email\}\}/g, 'marie@example.com')
-                        .replace(/\{\{age\}\}/g, '28')
-                        .replace(/\{\{region\}\}/g, 'Île-de-France')
-                        .replace(/\{\{unsubscribeUrl\}\}/g, '#'),
+                        .replace(/\{\{unsubscribe_url\}\}/g, '#'),
                     }}
                   />
                 </div>

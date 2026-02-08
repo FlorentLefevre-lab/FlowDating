@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Save, Eye, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Eye, Trash2, Loader2, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 
 interface EmailTemplate {
@@ -74,6 +75,16 @@ export default function EditTemplatePage({ params }: { params: Promise<{ id: str
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Warn about missing unsubscribe URL (RGPD)
+    if (!formData.htmlContent.includes('{{unsubscribe_url}}')) {
+      const proceed = confirm(
+        'RGPD : Ce template ne contient pas de lien de désabonnement ({{unsubscribe_url}}).\n\n' +
+        'Continuer quand même ?'
+      );
+      if (!proceed) return;
+    }
+
     setSaving(true);
 
     try {
@@ -247,7 +258,10 @@ export default function EditTemplatePage({ params }: { params: Promise<{ id: str
                 className="font-mono min-h-[300px]"
               />
               <p className="text-xs text-muted-foreground mt-2">
-                Variables disponibles: {'{{firstName}}'}, {'{{email}}'}, {'{{unsubscribeUrl}}'}, etc.
+                Variables disponibles: {'{{firstName}}'}, {'{{name}}'}, {'{{email}}'}, {'{{unsubscribe_url}}'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                <strong>RGPD :</strong> Incluez toujours <code className="bg-muted px-1 rounded">{'{{unsubscribe_url}}'}</code> dans le footer.
               </p>
             </CardContent>
           </Card>
@@ -288,6 +302,15 @@ export default function EditTemplatePage({ params }: { params: Promise<{ id: str
               <CardTitle>Apercu</CardTitle>
             </CardHeader>
             <CardContent>
+              {!formData.htmlContent.includes('{{unsubscribe_url}}') && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>RGPD :</strong> Ce template ne contient pas de lien de désabonnement.
+                    Ajoutez <code className="bg-red-100 px-1 rounded">{'{{unsubscribe_url}}'}</code> dans le footer.
+                  </AlertDescription>
+                </Alert>
+              )}
               <div className="border rounded-lg overflow-hidden">
                 <div className="bg-muted p-3 border-b">
                   <p className="font-medium text-sm">{formData.subject || 'Sujet de l\'email'}</p>

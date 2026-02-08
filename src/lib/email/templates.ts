@@ -13,7 +13,8 @@ export interface TemplateVariables {
   region?: string;
   isPremium?: boolean;
   totalMatches?: string;
-  unsubscribeUrl?: string;
+  unsubscribe_url?: string;
+  unsubscribeUrl?: string; // deprecated, use unsubscribe_url
   preferencesUrl?: string;
   trackingPixelUrl?: string;
   [key: string]: string | boolean | undefined;
@@ -318,7 +319,7 @@ export function buildUserVariables(
     region: user.region || '',
     isPremium: user.isPremium,
     totalMatches: user.totalMatches.toString(),
-    unsubscribeUrl: `${trackingConfig.baseUrl}/api/admin/email-marketing/unsubscribe/${trackingConfig.unsubscribeToken}`,
+    unsubscribe_url: `${trackingConfig.baseUrl}/api/admin/email-marketing/unsubscribe/${trackingConfig.unsubscribeToken}`,
     preferencesUrl: `${trackingConfig.baseUrl}/settings/notifications`,
   };
 }
@@ -385,7 +386,7 @@ export async function generateTemplatePreview(
     region: 'Ile-de-France',
     isPremium: false,
     totalMatches: '12',
-    unsubscribeUrl: '#unsubscribe-preview',
+    unsubscribe_url: '#unsubscribe-preview',
     preferencesUrl: '#preferences-preview',
     ...sampleVariables,
   };
@@ -408,7 +409,7 @@ export function generateContentPreview(
     region: 'Ile-de-France',
     isPremium: false,
     totalMatches: '12',
-    unsubscribeUrl: '#unsubscribe-preview',
+    unsubscribe_url: '#unsubscribe-preview',
     preferencesUrl: '#preferences-preview',
     ...sampleVariables,
   };
@@ -443,8 +444,8 @@ export function validateTemplateContent(htmlContent: string): {
   }
 
   // Check for unsubscribe variable
-  if (!htmlContent.includes('{{unsubscribeUrl}}') && !htmlContent.includes('unsubscribe')) {
-    warnings.push('Le template ne contient pas de lien de desabonnement ({{unsubscribeUrl}})');
+  if (!htmlContent.includes('{{unsubscribe_url}}') && !htmlContent.includes('{{unsubscribeUrl}}') && !htmlContent.includes('unsubscribe')) {
+    warnings.push('Le template ne contient pas de lien de desabonnement ({{unsubscribe_url}})');
   }
 
   // Check for personalization

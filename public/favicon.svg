@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ec4899"/>
+      <stop offset="100%" style="stop-color:#f43f5e"/>
+    </linearGradient>
+  </defs>
+  <!-- Heart shape -->
+  <path d="M16 28C16 28 3 19 3 10.5C3 6 6.5 2 11 2C13.5 2 15.5 3.5 16 5C16.5 3.5 18.5 2 21 2C25.5 2 29 6 29 10.5C29 19 16 28 16 28Z" fill="url(#grad)"/>
+  <!-- Flow wave -->
+  <path d="M8 13C10.5 10 13 16 16 13C19 10 21.5 16 24 13" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/>
+</svg>

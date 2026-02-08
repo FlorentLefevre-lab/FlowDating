@@ -15,7 +15,7 @@ export const TRACKING_PIXEL_GIF = Buffer.from(
 );
 
 // Base URL for tracking endpoints
-const getBaseUrl = () => process.env.NEXTAUTH_URL || 'https://flowdating.com';
+const getBaseUrl = () => process.env.NEXTAUTH_URL || 'https://flow.dating';
 
 // ==========================================
 // URL Generation
@@ -136,8 +136,9 @@ export function processEmailForTracking(
   trackingId: string,
   unsubscribeToken: string
 ): string {
-  // Replace placeholder variables for unsubscribe
+  // Replace placeholder variables for unsubscribe (support both formats for backward compatibility)
   let processed = html
+    .replace(/\{\{unsubscribe_url\}\}/gi, generateUnsubscribeUrl(unsubscribeToken))
     .replace(/\{\{unsubscribeUrl\}\}/g, generateUnsubscribeUrl(unsubscribeToken))
     .replace(/\{\{preferencesUrl\}\}/g, generatePreferencesUrl(unsubscribeToken));
 

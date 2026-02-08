@@ -54,7 +54,7 @@ const KEYS = {
 // Rate Limiting
 // ==========================================
 
-const GLOBAL_RATE_LIMIT = 500; // emails per minute
+const GLOBAL_RATE_LIMIT = 300; // emails per minute - Safe for Infomaniak
 const RATE_WINDOW_SECONDS = 60;
 
 /**

@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Send, FileText, Users, Mail, TrendingUp,
-  Eye, MousePointer, AlertCircle, Plus
+  Eye, MousePointer, Plus, RefreshCw
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -24,6 +24,10 @@ interface DashboardStats {
   segments: {
     total: number;
   };
+  rates: {
+    open: string | null;
+    click: string | null;
+  };
   recentCampaigns: Array<{
     id: string;
     name: string;
@@ -35,20 +39,38 @@ interface DashboardStats {
   }>;
 }
 
+// Traduction des statuts de campagne
+const STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Brouillon',
+  SCHEDULED: 'Planifiée',
+  SENDING: 'En cours',
+  PAUSED: 'En pause',
+  COMPLETED: 'Terminée',
+  CANCELLED: 'Annulée',
+  FAILED: 'Échouée',
+};
+
 export default function EmailMarketingDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Simulated stats for now - will be replaced with actual API call
-    setStats({
-      campaigns: { total: 0, draft: 0, sending: 0, completed: 0 },
-      templates: { total: 0, active: 0 },
-      segments: { total: 0 },
-      recentCampaigns: [],
-    });
-    setLoading(false);
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/email-marketing/stats');
+      const data = await res.json();
+      if (data.campaigns) {
+        setStats(data);
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   if (loading) {
     return (
@@ -60,6 +82,20 @@ export default function EmailMarketingDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold">Email Marketing</h2>
+          <p className="text-sm text-muted-foreground">
+            Vue d'ensemble de vos campagnes email
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => fetchStats()}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Actualiser
+        </Button>
+      </div>
+
       {/* Quick Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -112,14 +148,25 @@ export default function EmailMarketingDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Taux moyen</CardTitle>
+            <CardTitle className="text-sm font-medium">Taux moyens</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">--</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Ouverture / Clic
-            </p>
+            <div className="text-2xl font-bold">
+              {stats?.rates?.open ? `${stats.rates.open}%` : '--'}
+            </div>
+            <div className="flex gap-2 mt-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Eye className="h-3 w-3" />
+                Ouverture
+              </span>
+              {stats?.rates?.click && (
+                <span className="flex items-center gap-1">
+                  <MousePointer className="h-3 w-3" />
+                  {stats.rates.click}% clics
+                </span>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -228,7 +275,7 @@ export default function EmailMarketingDashboard() {
                     </div>
                   </div>
                   <Badge variant={campaign.status === 'COMPLETED' ? 'default' : 'secondary'}>
-                    {campaign.status}
+                    {STATUS_LABELS[campaign.status] || campaign.status}
                   </Badge>
                 </div>
               ))}

@@ -25,7 +25,9 @@ export type FieldOperator =
   | 'isNull'
   | 'isNotNull'
   | 'olderThan'
-  | 'newerThan';
+  | 'newerThan'
+  | 'before'
+  | 'after';
 
 export interface FieldCondition {
   field: string;
@@ -234,6 +236,16 @@ function buildFieldCondition(condition: FieldCondition): Prisma.UserWhereInput {
       const newerThanMs = parseDuration(value as string);
       const newerThanDate = new Date(Date.now() - newerThanMs);
       prismaCondition = { gt: newerThanDate };
+      break;
+
+    case 'before':
+      // For date fields: before a specific date
+      prismaCondition = { lt: new Date(value as string) };
+      break;
+
+    case 'after':
+      // For date fields: after a specific date
+      prismaCondition = { gt: new Date(value as string) };
       break;
 
     default:
@@ -690,7 +702,7 @@ export function getOperatorsForFieldType(type: string): FieldOperator[] {
     case 'boolean':
       return ['equals'];
     case 'date':
-      return [...baseOperators, 'greaterThan', 'lessThan', 'between', 'olderThan', 'newerThan'];
+      return [...baseOperators, 'before', 'after', 'between', 'olderThan', 'newerThan'];
     case 'enum':
       return ['equals', 'notEquals', 'in', 'notIn'];
     case 'array':
